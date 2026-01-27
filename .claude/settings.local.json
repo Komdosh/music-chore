@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cargo init)",
       "Bash(cargo init --bin .)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git commit -m \"Initial Cargo project\")"
     ]
   }
 }
