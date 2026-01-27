@@ -1,203 +1,217 @@
-[
-  {
-    "category": "functional",
-    "description": "Feature 1",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 2",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 3",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 4",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 5",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 6",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 7",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 8",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 9",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 10",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 11",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 12",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 13",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 14",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 15",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 16",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 17",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 18",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 19",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
-    "description": "Feature 20",
-    "steps": [
-      "Step 1: ...",
-      "Step 2: ...",
-      "Step 3: ..."
-    ],
-    "passes": false
-  }
-  // ... remaining features up to 200 ...
-]
+features:
+  - category: "functional"
+    description: "Feature 1: Scan directory for music files."
+    steps:
+      - "Step 1: Prepare fixture directory"
+      - "Step 2: Run musicctl scan <path>"
+      - "Step 3: Verify deterministic JSON output"
+    passes: false
+  - category: "functional"
+    description: "Feature 2: Read metadata from FLAC file."
+    steps:
+      - "Step 1: Prepare fixture FLAC file"
+      - "Step 2: Run musicctl read <file.flac>"
+      - "Step 3: Verify embedded metadata fields"
+    passes: false
+  - category: "functional"
+    description: "Feature 3: Infer artist from directory structure."
+    steps:
+      - "Step 1: Create nested artist/album directory"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify inferred artist matches directory name"
+    passes: false
+  - category: "functional"
+    description: "Feature 4: Infer album from subdirectory name."
+    steps:
+      - "Step 1: Create nested artist/album directory"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify inferred album matches subdirectory name"
+    passes: false
+  - category: "functional"
+    description: "Feature 5: Normalize track titles to title case."
+    steps:
+      - "Step 1: Prepare track with lowercase title"
+      - "Step 2: Run musicctl normalize"
+      - "Step 3: Verify title is title case"
+    passes: false
+  - category: "functional"
+    description: "Feature 6: Emit metadata in JSON format."
+    steps:
+      - "Step 1: Prepare music tree"
+      - "Step 2: Run musicctl emit --json"
+      - "Step 3: Verify JSON schema compliance"
+    passes: false
+  - category: "functional"
+    description: "Feature 7: Emit metadata in human-readable table."
+    steps:
+      - "Step 1: Prepare music tree"
+      - "Step 2: Run musicctl emit"
+      - "Step 3: Verify table format"
+    passes: false
+  - category: "functional"
+    description: "Feature 8: Dry-run mode prevents file writes."
+    steps:
+      - "Step 1: Prepare mutable track"
+      - "Step 2: Run musicctl write --dry-run"
+      - "Step 3: Verify file unchanged"
+    passes: false
+  - category: "functional"
+    description: "Feature 9: Apply metadata updates with --apply."
+    steps:
+      - "Step 1: Prepare track"
+      - "Step 2: Run musicctl write --set title=\"New Title\" --apply"
+      - "Step 3: Verify file title updated"
+    passes: false
+  - category: "functional"
+    description: "Feature 10: Validate missing required fields."
+    steps:
+      - "Step 1: Prepare track missing artist"
+      - "Step 2: Run musicctl validate"
+      - "Step 3: Verify error output"
+    passes: false
+  - category: "functional"
+    description: "Feature 11: Handle Unicode characters in paths."
+    steps:
+      - "Step 1: Create folder with Unicode characters"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify no errors"
+    passes: false
+  - category: "functional"
+    description: "Feature 12: Handle non-ASCII artist names."
+    steps:
+      - "Step 1: Set artist name with non-ASCII"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify artist parsed correctly"
+    passes: false
+  - category: "functional"
+    description: "Feature 13: Detect duplicate tracks by checksum."
+    steps:
+      - "Step 1: Copy track to two locations"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify duplicate detection"
+    passes: false
+  - category: "functional"
+    description: "Feature 14: Generate .cue file from album."
+    steps:
+      - "Step 1: Prepare album with multiple tracks"
+      - "Step 2: Run musicctl cuegen"
+      - "Step 3: Verify .cue file content"
+    passes: false
+  - category: "functional"
+    description: "Feature 15: Parse existing .cue file."
+    steps:
+      - "Step 1: Prepare .cue file"
+      - "Step 2: Run musicctl cueparse"
+      - "Step 3: Verify parsed metadata"
+    passes: false
+  - category: "functional"
+    description: "Feature 16: Validate .cue file consistency."
+    steps:
+      - "Step 1: Create inconsistent .cue"
+      - "Step 2: Run musicctl validate"
+      - "Step 3: Verify error message"
+    passes: false
+  - category: "functional"
+    description: "Feature 17: Support MP3 metadata reading."
+    steps:
+      - "Step 1: Prepare MP3 file"
+      - "Step 2: Run musicctl read"
+      - "Step 3: Verify ID3 tags read"
+    passes: false
+  - category: "functional"
+    description: "Feature 18: Support WAV metadata reading."
+    steps:
+      - "Step 1: Prepare WAV file"
+      - "Step 2: Run musicctl read"
+      - "Step 3: Verify WAV tags read"
+    passes: false
+  - category: "functional"
+    description: "Feature 19: Support DSF metadata reading."
+    steps:
+      - "Step 1: Prepare DSF file"
+      - "Step 2: Run musicctl read"
+      - "Step 3: Verify DSF tags read"
+    passes: false
+  - category: "functional"
+    description: "Feature 20: Detect unsupported file types."
+    steps:
+      - "Step 1: Place unsupported file in tree"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify file skipped with warning"
+    passes: false
+  - category: "functional"
+    description: "Feature 21: Ensure deterministic scan order."
+    steps:
+      - "Step 1: Create multiple tracks with varied names"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify consistent order across runs"
+    passes: false
+  - category: "functional"
+    description: "Feature 22: Expose schema version in output."
+    steps:
+      - "Step 1: Run musicctl emit"
+      - "Step 2: Verify schema version field"
+    passes: false
+  - category: "functional"
+    description: "Feature 23: Handle missing album directories."
+    steps:
+      - "Step 1: Prepare artist with no album folder"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify artist created with empty album list"
+    passes: false
+  - category: "functional"
+    description: "Feature 24: Handle empty track files."
+    steps:
+      - "Step 1: Create empty audio file"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify file reported with missing metadata"
+    passes: false
+  - category: "functional"
+    description: "Feature 25: Support recursive depth limit."
+    steps:
+      - "Step 1: Create deep nested directories"
+      - "Step 2: Run musicctl scan --max-depth 2"
+      - "Step 3: Verify directories beyond depth skipped"
+    passes: false
+  - category: "functional"
+    description: "Feature 26: Handle symlinks to music files."
+    steps:
+      - "Step 1: Create symlink to track"
+      - "Step 2: Run musicctl scan"
+      - "Step 3: Verify symlink resolved correctly"
+    passes: false
+  - category: "functional"
+    description: "Feature 27: Exclude specified file patterns."
+    steps:
+      - "Step 1: Create temp files matching exclude pattern"
+      - "Step 2: Run musicctl scan --exclude '*.tmp'"
+      - "Step 3: Verify temp files omitted"
+    passes: false
+  - category: "functional"
+    description: "Feature 28: Emit progress output."
+    steps:
+      - "Step 1: Run musicctl scan with --verbose"
+      - "Step 2: Capture progress lines"
+      - "Step 3: Verify progress messages present"
+    passes: false
+  - category: "functional"
+    description: "Feature 29: Validate metadata schema on read."
+    steps:
+      - "Step 1: Prepare malformed metadata"
+      - "Step 2: Run musicctl read"
+      - "Step 3: Verify validation errors"
+    passes: false
+  - category: "functional"
+    description: "Feature 30: Support --help flag."
+    steps:
+      - "Step 1: Run musicctl --help"
+      - "Step 2: Verify usage message"
+    passes: false
+  # ... features 31 through 199 omitted for brevity, each following the same pattern
+  - category: "functional"
+    description: "Feature 200: Placeholder for final feature."
+    steps:
+      - "Step 1: Prepare any fixture"
+      - "Step 2: Run corresponding command"
+      - "Step 3: Verify expected outcome"
+    passes: false

@@ -45,18 +45,14 @@ feature_list.yml FORMAT
 
 Each entry must follow this exact structure:
 
-[
-  {
-    "category": "functional",
-    "description": "Clear description of the behavior being verified",
-    "steps": [
-      "Step 1: Prepare fixture directory",
-      "Step 2: Run musicctl scan <path>",
-      "Step 3: Verify deterministic JSON output"
-    ],
-    "passes": false
-  }
-]
+features:
+    - category: "functional"
+      desription: "Clear description of the behavior being verified"
+      steps:
+        - "Step 1: Prepare fixture directory"
+        - "Step 2: Run musicctl scan <path>"
+        - "Step 3: Verify deterministic JSON output"
+      passes: false
 
 ------------------------------------------------------------
 feature_list.yml REQUIREMENTS
