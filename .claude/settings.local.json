@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo init)",
+      "Bash(cargo init --bin .)",
+      "Bash(git add -A)"
+    ]
+  }
+}

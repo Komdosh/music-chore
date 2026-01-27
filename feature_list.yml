@@ -1,0 +1,29 @@
+# Feature List
+
+## v1 – Foundation
+- Recursively scan a working directory.
+- Infer an Artist → Album → Track hierarchy from folder structure.
+- CLI command `list` to display a tree view.
+- CLI command `read-metadata <path>` to output metadata for a specific file.
+- CLI command `write-metadata <path> [options]` to update fields (artist, album, title, track number, etc.).
+- Public APIs and data models are fully covered by unit tests.
+
+## v2 – AI‑Agent Integration (future scope)
+- MCP‑aware command syntax and structured JSON output.
+- Support for additional formats: `.mp3`, `.wav`, `.dsf`.
+- Generate a `.cue` file for an album folder using track metadata.
+- Incremental processing for new folders.
+
+## Non‑Goals
+- No internet metadata lookup.
+- No playback or GUI.
+- No external services or database.
+- No code that infers artist/album beyond folder names.
+
+## Design Principles
+- Small, composable modules.
+- Clear data models (Artist, Album, Track, Metadata).
+- Format‑agnostic interfaces (traits) for audio files.
+- Deterministic behavior: same input yields same output.
+- AI‑friendly output: machine‑readable JSON by default.
+- Incremental processing: new folders can be scanned without full rebuild.
