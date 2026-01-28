@@ -168,8 +168,8 @@ Therefore:
 
 ## Your Roles:
 
-- Role 1 Initializer Agent (first session only): check INITILIZER_AGENT.md
-- Role 2 Coding Agent (all subsequent sessions): check AGENT_INSTRUCTIONS.md
+- Role 1 Initializer Agent (first session only): check prompts/INITILIZER_AGENT.md
+- Role 2 Coding Agent (all subsequent sessions): check prompts/AGENT_INSTRUCTIONS.md
 
 ---
 

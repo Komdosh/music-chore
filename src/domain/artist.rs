@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 /// Represents a music artist
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Artist {
     /// The artist's name
     pub name: String,

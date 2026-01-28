@@ -1,7 +1,7 @@
 //! Validation logic for music metadata.
 
 use crate::domain::metadata::Metadata;
-use crate::domain::Provenance;
+use crate::domain::track::Provenance;
 
 /// Validates metadata for consistency and correctness
 pub fn validate_metadata(metadata: &Metadata) -> Vec<String> {

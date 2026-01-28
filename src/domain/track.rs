@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 /// Represents a music track
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Track {
     /// The track's title
     pub title: String,
@@ -45,7 +45,7 @@ impl Track {
 }
 
 /// Provenance tracking for metadata fields
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Provenance {
     /// Metadata was embedded in the file
     Embedded,

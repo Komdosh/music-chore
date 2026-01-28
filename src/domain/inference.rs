@@ -1,7 +1,8 @@
 //! Inference logic for extracting metadata from file paths and directory structures.
 
 use std::path::Path;
-use crate::domain::{Artist, Album, Track, Provenance};
+use crate::domain::{Artist, Album, Track};
+use crate::domain::track::Provenance;
 use crate::domain::metadata::Metadata;
 
 /// Infers metadata from a file path and directory structure
