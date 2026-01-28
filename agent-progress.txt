@@ -1,0 +1,55 @@
+Music Library Organizer - Agent Progress Log
+=============================================
+
+Session Date: 2026-01-28
+Agent Role: Coding Agent
+
+## Work Completed This Session
+
+### Feature 1: Scan directory for music files ✅
+- **Implemented**: Deterministic filesystem scanner with sorted output
+- **Added**: Core domain models (Track, Library, Metadata with provenance)
+- **Built**: Scan CLI command with JSON output option
+- **Created**: Test fixtures for verification
+- **Verified**: End-to-end CLI functionality works correctly
+
+### Technical Details
+
+**Infrastructure Layer:**
+- `scan_dir()`: Recursively scans .flac files with BTreeMap for deterministic ordering
+- `scan_dir_paths()`: Simplified path-only scanning
+
+**Domain Layer:**
+- `TrackMetadata`: Complete metadata structure with provenance tracking
+- `MetadataValue<T>`: Wrapper with source (Embedded/Inferred/UserEdited) and confidence
+- `Library`: Container for artist/album/track hierarchy
+
+**CLI Layer:**
+- `musicctl scan <path> [--json]` working with both JSON and plain text output
+- Deterministic ordering confirmed via diff testing
+
+**Testing:**
+- Created fixtures in `tests/fixtures/flac/simple/` and `tests/fixtures/flac/nested/`
+- Unit tests pass: `test_scan_simple_directory`, `test_scan_nested_directory`, `test_scan_paths_only`
+
+## Current Status
+- **Features Passing**: 1/200 (Feature 1 complete)
+- **Code Quality**: All tests passing, deterministic behavior confirmed
+- **Architecture**: Following 4-layer design (CLI → App → Domain → Infra)
+
+## Next Session Priorities
+1. Feature 2: Read metadata from FLAC files (implement actual FLAC parsing)
+2. Feature 3: Infer artist from directory structure
+3. Feature 4: Infer album from subdirectory name
+
+## Known Issues/Limitations
+- FLAC metadata reading currently stubbed (Feature 2)
+- Warnings about unused imports/variables in main.rs (cosmetic)
+- No hierarchy inference yet (flat file listing only)
+
+## Commit Summary
+- Implemented deterministic filesystem scanner
+- Added comprehensive domain models with metadata provenance
+- Created test fixtures and unit tests
+- Verified CLI scan command functionality
+- Updated feature_list.yml: Feature 1 marked as passing

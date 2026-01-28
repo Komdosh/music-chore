@@ -5,7 +5,7 @@ features:
       - "Step 1: Prepare fixture directory"
       - "Step 2: Run musicctl scan <path>"
       - "Step 3: Verify deterministic JSON output"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 2: Read metadata from FLAC file."
     steps:
