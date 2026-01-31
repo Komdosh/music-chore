@@ -9,7 +9,7 @@ use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "music-chore")]
+#[command(name = "musicctl")]
 #[command(about = "Deterministic, AI‑friendly music metadata compiler.")]
 pub struct Cli {
     #[command(subcommand)]

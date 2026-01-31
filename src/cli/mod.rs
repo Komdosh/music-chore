@@ -1,4 +1,4 @@
-//! CLI module for music-chore commands.
+//! CLI module for musicctl commands.
 
 pub mod commands;
 
