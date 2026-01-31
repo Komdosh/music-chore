@@ -12,47 +12,42 @@ env:
 
 jobs:
   build:
-    name: Build for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          # - os: ubuntu-latest
-            # target: x86_64-unknown-linux-gnu
-          # - os: windows-latest
-            # target: x86_64-pc-windows-msvc
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
+    name: Build macOS universal binary
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v5
 
       - run: rustup toolchain install stable --profile minimal
+
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install target
-        run: rustup target add ${{ matrix.target }}
-      
+      - name: Add targets
+        run: |
+          rustup target add x86_64-apple-darwin
+          rustup target add aarch64-apple-darwin
+
       - name: Build
         run: cargo build
         
       - name: Run tests
         run: cargo test --verbose
-  
-      - name: Build Release
-        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build Intel binary
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Build ARM binary
+        run: cargo build --release --target aarch64-apple-darwin
         
-      - name: Package artifact
+      - name: Create universal binary
         run: |
-          mkdir dist
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp target/${{ matrix.target }}/release/musicctl.exe dist/
-          else
-            cp target/${{ matrix.target }}/release/musicctl dist/
-          fi
-          tar -czf musicctl-${{ matrix.target }}.tar.gz -C dist .
+          mkdir -p dist
+          lipo -create \
+            target/x86_64-apple-darwin/release/musicctl \
+            target/aarch64-apple-darwin/release/musicctl \
+            -output dist/musicctl
+          chmod +x dist/musicctl
+          tar -czf dist/musicctl-macos-universal.tar.gz -C dist musicctl
 
       - name: Generate install.sh
         run: |
@@ -63,36 +58,29 @@ jobs:
           REPO="${GITHUB_REPOSITORY}"
 
           OS="$(uname | tr '[:upper:]' '[:lower:]')"
-          ARCH="$(uname -m)"
-
-          if [ "$OS" == "darwin" ]; then
-              if [ "$ARCH" == "arm64" ]; then
-                  TARGET="aarch64-apple-darwin"
-              else
-                  TARGET="x86_64-apple-darwin"
-              fi
-          else
+          if [ "$OS" != "darwin" ]; then
               echo "Currently only macOS is supported"
               exit 1
           fi
 
-          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-$TARGET.tar.gz"
+          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-macos-universal.tar.gz"
           echo "Downloading $URL..."
           curl -LO "$URL"
-          tar -xzf "$TOOL_NAME-$TARGET.tar.gz"
+          tar -xzf "$TOOL_NAME-macos-universal.tar.gz"
           chmod +x "$TOOL_NAME"
           sudo mv "$TOOL_NAME" /usr/local/bin/
           xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
           echo "$TOOL_NAME installed successfully!"
           EOF
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: musicctl-${{ matrix.target }}
+          name: musicctl-macos
           path: |
-            dist/musicctl-${{ matrix.target }}.tar.gz
+            dist/musicctl-macos-universal.tar.gz
             dist/install.sh
+
   release:
       name: Create GitHub Release
       needs: build
