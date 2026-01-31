@@ -5,6 +5,7 @@ features:
       - "Step 1: Prepare fixture directory"
       - "Step 2: Run musicctl scan <path>"
       - "Step 3: Verify deterministic JSON output"
+      - "Step 4: Verify empty directory shows appropriate message"
     passes: true
   - category: "functional"
     description: "Feature 2: Read metadata from FLAC file."
@@ -206,12 +207,4 @@ features:
     steps:
       - "Step 1: Run musicctl --help"
       - "Step 2: Verify usage message"
-    passes: false
-  # ... features 31 through 199 omitted for brevity, each following the same pattern
-  - category: "functional"
-    description: "Feature 200: Placeholder for final feature."
-    steps:
-      - "Step 1: Prepare any fixture"
-      - "Step 2: Run corresponding command"
-      - "Step 3: Verify expected outcome"
     passes: false
