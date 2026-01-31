@@ -5,6 +5,7 @@ pub mod cli;
 pub mod domain;
 pub mod infrastructure;
 pub mod services;
+pub mod mcp_server;
 
 // Re-export commonly used types and functions for backwards compatibility
 pub use domain::{

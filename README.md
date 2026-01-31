@@ -288,7 +288,33 @@ impl AudioFile for Mp3Handler {
 
 ## 🤖 AI Agent Integration
 
-Designed from the ground up for **MCP (Model Context Protocol)** usage:
+### MCP Server
+
+music-chore includes a **Model Context Protocol (MCP) server** for seamless AI agent integration:
+
+```bash
+# Start MCP server
+musicctl-mcp --verbose
+
+# Configure in Claude Desktop
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "/path/to/musicctl-mcp",
+      "args": ["--verbose"]
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+- `scan_directory` - Scan directories for music files
+- `get_library_tree` - Get hierarchical library view  
+- `read_file_metadata` - Read metadata from individual files
+- `normalize_titles` - Normalize track titles
+- `emit_library_metadata` - Get complete structured library data
+
+### AI-Friendly Features
 
 - **Structured output**: Commands return parseable, machine-readable results
 - **Composable operations**: Each command does one thing perfectly
@@ -314,6 +340,10 @@ musicctl read ~/Music/Artist/Album/track.flac
 # Normalize new additions
 musicctl normalize ~/Music --dry-run
 ```
+
+📖 **Detailed MCP Documentation**: 
+- [MCP Server Guide](docs/MCP_SERVER.md) - Complete server setup and usage
+- [MCP Configuration Examples](docs/MCP_CONFIG_EXAMPLES.md) - Client integration examples
 
 ---
 

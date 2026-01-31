@@ -104,7 +104,7 @@ pub struct Library {
 }
 
 /// Result of a normalization operation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum OperationResult {
     Updated {
         track: Track,
