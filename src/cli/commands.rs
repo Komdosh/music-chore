@@ -2,7 +2,7 @@
 
 use crate::{
     build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir, Library,
-    MetadataSource, OperationResult, TrackNode,
+    OperationResult, TrackNode,
 };
 use clap::{Parser, Subcommand};
 use serde_json::to_string_pretty;
@@ -170,7 +170,7 @@ fn print_tree(library: &Library) {
 
             for (i, track) in album.tracks.iter().enumerate() {
                 let is_last = i == album.tracks.len() - 1;
-                let prefix = if is_last { "└──" } else { "├──" };
+                let prefix = if is_last { "└─── 🎵" } else { "├─── 🎵" };
 
                 let track_info = format_track_info(track);
                 println!(
