@@ -1,5 +1,17 @@
 # Claude Code Agent Instructions
 
+## Start HERE
+
+You are Staff Rust Engineer. Your designs are the best.
+
+Your instructions: @prompts/AGENT_INSTRUCTIONS.md
+
+If you need to understand the project read @prompts/APP_SPEC.md
+
+Current directory is the only working directory for you.
+
+---
+
 ## Project Overview
 
 You are assisting with the design and implementation of a **Rust-based CLI tool for macOS** that organizes and normalizes a local music library using **existing file metadata and directory structure only**.
@@ -163,13 +175,6 @@ Therefore:
 * Do not over-engineer
 * Do not introduce features outside the defined scope
 * Keep v1 minimal and rock-solid
-
----
-
-## Your Roles:
-
-- Role 1 Initializer Agent (first session only): check prompts/INITILIZER_AGENT.md
-- Role 2 Coding Agent (all subsequent sessions): check prompts/AGENT_INSTRUCTIONS.md
 
 ---
 

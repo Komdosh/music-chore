@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
-use music_chore::domain::Track;
 use music_chore::infra::audio::flac::read_flac_metadata;
 use music_chore::infra::scanner::scan_dir;
+use music_chore::{normalize_track_titles, OperationResult};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
@@ -42,8 +42,12 @@ enum Commands {
         #[arg(long)]
         apply: bool,
     },
-    /// Generate a .cue file for an album directory.
-    CueGenerate { dir: PathBuf },
+    /// Normalize track titles to title case.
+    Normalize {
+        path: PathBuf,
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 fn main() {
@@ -86,8 +90,46 @@ fn main() {
         Commands::Write { file, set, apply } => {
             eprintln!("Not implemented yet");
         }
-        Commands::CueGenerate { dir } => {
-            eprintln!("Not implemented yet");
-        }
+        Commands::Normalize { path, dry_run } => match normalize_track_titles(&path, dry_run) {
+            Ok(results) => {
+                for result in results {
+                    match result {
+                        OperationResult::Updated {
+                            track,
+                            old_title,
+                            new_title,
+                        } => {
+                            if dry_run {
+                                println!(
+                                    "DRY RUN: Would normalize '{}' -> '{}' in {}",
+                                    track.file_path.display(),
+                                    old_title,
+                                    new_title
+                                );
+                            } else {
+                                println!(
+                                    "NORMALIZED: '{}' -> '{}' in {}",
+                                    track.file_path.display(),
+                                    old_title,
+                                    new_title
+                                );
+                            }
+                        }
+                        OperationResult::NoChange { track } => {
+                            if !dry_run {
+                                println!(
+                                    "NO CHANGE: Title already title case in {}",
+                                    track.file_path.display()
+                                );
+                            }
+                        }
+                        OperationResult::Error { track, error } => {
+                            eprintln!("ERROR: {} in {}", error, track.file_path.display());
+                        }
+                    }
+                }
+            }
+            Err(e) => eprintln!("Error normalizing titles: {}", e),
+        },
     }
 }

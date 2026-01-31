@@ -12,21 +12,21 @@ features:
       - "Step 1: Prepare fixture FLAC file"
       - "Step 2: Run musicctl read <file.flac>"
       - "Step 3: Verify embedded metadata fields"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 3: Infer artist from directory structure."
     steps:
       - "Step 1: Create nested artist/album directory"
       - "Step 2: Run musicctl scan"
       - "Step 3: Verify inferred artist matches directory name"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 4: Infer album from subdirectory name."
     steps:
       - "Step 1: Create nested artist/album directory"
       - "Step 2: Run musicctl scan"
       - "Step 3: Verify inferred album matches subdirectory name"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 5: Normalize track titles to title case."
     steps:
