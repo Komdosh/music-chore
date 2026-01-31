@@ -79,6 +79,11 @@ pub fn handle_command(command: Commands) {
 /// Handle scan command
 fn handle_scan(path: PathBuf, json: bool) {
     let tracks = scan_dir(&path);
+    if tracks.is_empty() {
+        println!("No music files found in directory: {}", path.display());
+        return;
+    }
+
     if json {
         match to_string_pretty(&tracks) {
             Ok(s) => println!("{}", s),
