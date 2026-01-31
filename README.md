@@ -45,6 +45,14 @@ The product is provided as is, without warranties of any kind. Use at your own r
 
 ### Installation
 
+Simplest way:
+
+```bash
+curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install.sh | bash
+```
+
+From sources:
+
 ```bash
 # Build from source
 cargo install --path .
