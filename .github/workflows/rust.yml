@@ -36,7 +36,7 @@ jobs:
         run: rustup target add ${{ matrix.target }}
       
       - name: Build
-        run: cargo build --verbose
+        run: cargo build
         
       - name: Run tests
         run: cargo test --verbose
@@ -53,13 +53,46 @@ jobs:
             cp target/${{ matrix.target }}/release/musicctl dist/
           fi
           tar -czf musicctl-${{ matrix.target }}.tar.gz -C dist .
-          
+
+      - name: Generate install.sh
+        run: |
+          cat << 'EOF' > dist/install.sh
+          #!/usr/bin/env bash
+          set -e
+          TOOL_NAME="musicctl"
+          REPO="${GITHUB_REPOSITORY}"
+
+          OS="$(uname | tr '[:upper:]' '[:lower:]')"
+          ARCH="$(uname -m)"
+
+          if [ "$OS" == "darwin" ]; then
+              if [ "$ARCH" == "arm64" ]; then
+                  TARGET="aarch64-apple-darwin"
+              else
+                  TARGET="x86_64-apple-darwin"
+              fi
+          else
+              echo "Currently only macOS is supported"
+              exit 1
+          fi
+
+          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-$TARGET.tar.gz"
+          echo "Downloading $URL..."
+          curl -LO "$URL"
+          tar -xzf "$TOOL_NAME-$TARGET.tar.gz"
+          chmod +x "$TOOL_NAME"
+          sudo mv "$TOOL_NAME" /usr/local/bin/
+          xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
+          echo "$TOOL_NAME installed successfully!"
+          EOF
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: musicctl-${{ matrix.target }}
-          path: musicctl-${{ matrix.target }}.tar.gz
-
+          path: |
+            dist/musicctl-${{ matrix.target }}.tar.gz
+            dist/install.sh
   release:
       name: Create GitHub Release
       needs: build

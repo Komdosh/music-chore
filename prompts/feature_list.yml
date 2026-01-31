@@ -40,7 +40,7 @@ features:
       - "Step 1: Prepare music tree"
       - "Step 2: Run musicctl emit --json"
       - "Step 3: Verify JSON schema compliance"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 7: Emit metadata in human-readable table."
     steps:

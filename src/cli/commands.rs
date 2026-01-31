@@ -51,6 +51,12 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Emit library metadata in structured JSON format.
+    Emit {
+        path: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Handle the parsed CLI command
@@ -61,6 +67,7 @@ pub fn handle_command(command: Commands) {
         Commands::Read { file } => handle_read(file),
         Commands::Write { file, set, apply } => handle_write(file, set, apply),
         Commands::Normalize { path, dry_run } => handle_normalize(path, dry_run),
+        Commands::Emit { path, json } => handle_emit(path, json),
     }
 }
 
@@ -159,6 +166,69 @@ fn handle_normalize(path: PathBuf, dry_run: bool) {
     }
 }
 
+/// Handle emit command
+fn handle_emit(path: PathBuf, json: bool) {
+    let tracks = scan_dir(&path);
+    let library = build_library_hierarchy(tracks);
+
+    if json {
+        match to_string_pretty(&library) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Error serializing to JSON: {}", e),
+        }
+    } else {
+        // Default to structured text output for AI agents
+        emit_structured_output(&library);
+    }
+}
+
+/// Emit structured output optimized for AI agents
+fn emit_structured_output(library: &Library) {
+    println!("=== MUSIC LIBRARY METADATA ===");
+    println!("Total Artists: {}", library.total_artists);
+    println!("Total Albums: {}", library.total_albums);
+    println!("Total Tracks: {}", library.total_tracks);
+    println!();
+
+    for artist in &library.artists {
+        println!("ARTIST: {}", artist.name);
+
+        for album in &artist.albums {
+            let year_str = album.year.map(|y| format!(" ({})", y)).unwrap_or_default();
+            println!("  ALBUM: {}{}", album.title, year_str);
+
+            for track in &album.tracks {
+                let title = track
+                    .metadata
+                    .title
+                    .as_ref()
+                    .map(|t| t.value.as_str())
+                    .unwrap_or("[Unknown Title]");
+                let duration = track
+                    .metadata
+                    .duration
+                    .as_ref()
+                    .map(|d| {
+                        let total_seconds = d.value as u64;
+                        let minutes = total_seconds / 60;
+                        let seconds = total_seconds % 60;
+                        format!("{}:{:02}", minutes, seconds)
+                    })
+                    .unwrap_or_else(|| "0:00".to_string());
+                let file_path = track.file_path.to_string_lossy();
+
+                println!(
+                    "    TRACK: \"{}\" | Duration: {} | File: {}",
+                    title, duration, file_path
+                );
+            }
+        }
+        println!();
+    }
+
+    println!("=== END METADATA ===");
+}
+
 /// Print library tree in human-readable format
 fn print_tree(library: &Library) {
     for artist in &library.artists {
@@ -170,7 +240,11 @@ fn print_tree(library: &Library) {
 
             for (i, track) in album.tracks.iter().enumerate() {
                 let is_last = i == album.tracks.len() - 1;
-                let prefix = if is_last { "└─── 🎵" } else { "├─── 🎵" };
+                let prefix = if is_last {
+                    "└─── 🎵"
+                } else {
+                    "├─── 🎵"
+                };
 
                 let track_info = format_track_info(track);
                 println!(
