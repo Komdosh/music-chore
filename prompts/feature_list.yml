@@ -47,7 +47,7 @@ features:
       - "Step 1: Prepare music tree"
       - "Step 2: Run musicctl emit"
       - "Step 3: Verify table format"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 8: Dry-run mode prevents file writes."
     steps:

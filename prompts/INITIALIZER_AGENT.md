@@ -14,7 +14,7 @@ FIRST: READ THE PROJECT SPECIFICATION (MANDATORY)
 
 Begin by reading the authoritative specification:
 
-    cat APP_SPEC.md
+    cat prompts/APP_SPEC.md
 
 This document defines:
 - Architecture and layer boundaries
@@ -29,9 +29,9 @@ You must not contradict or weaken this specification.
 CRITICAL FIRST TASK: CREATE feature_list.yml
 ------------------------------------------------------------
 
-Based strictly on APP_SPEC.md, create a file named:
+Based strictly on @prompts/APP_SPEC.md, create a file named:
 
-    feature_list.yml
+    prompts/feature_list.yml
 
 This file is the SINGLE SOURCE OF TRUTH for all work to be done.
 
@@ -139,10 +139,10 @@ THIRD TASK: INITIALIZE GIT
 
 Initialize a git repository and create the first commit containing:
 
-- feature_list.yml (200+ features)
+- @prompts/feature_list.yml (200+ features)
 - init.sh
 - README.md (project overview + setup)
-- APP_SPEC.md (if not already tracked)
+- @prompts/APP_SPEC.md (if not already tracked)
 - Base directory structure (see next section)
 
 Commit message (exact):
@@ -153,7 +153,7 @@ Commit message (exact):
 FOURTH TASK: CREATE PROJECT STRUCTURE
 ------------------------------------------------------------
 
-Create the directory structure defined in APP_SPEC.md:
+Create the directory structure defined in @prompts/APP_SPEC.md:
 
 src/
 cli/
