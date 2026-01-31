@@ -5,7 +5,7 @@ You are continuing work on a long-running autonomous development task.
 This is a FRESH context window — assume no memory of previous sessions.
 
 Your job is to incrementally build musicctl exactly as specified in
-APP_SPEC.md, leaving the codebase clean, deterministic, and test-passing
+@prompts/APP_SPEC.md, leaving the codebase clean, deterministic, and test-passing
 at the end of each session.
 
 ------------------------------------------------------------
@@ -23,10 +23,10 @@ Run the following commands in order:
     ls -la
 
     # 3. Read the authoritative specification
-    cat APP_SPEC.md
+    cat prompts/APP_SPEC.md
 
     # 4. Review feature tracking (if present)
-    cat feature_list.yml | head -50
+    cat prompts/feature_list.yml | head -50
 
     # 5. Read progress notes from previous sessions
     cat agent-progress.txt || true
@@ -35,9 +35,9 @@ Run the following commands in order:
     git log --oneline -20
 
     # 7. Count remaining failing features
-    cat feature_list.yml | grep '"passes": false' | wc -l
+    cat prompts/feature_list.yml | grep '"passes": false' | wc -l
 
-Understanding APP_SPEC.md is critical.
+Understanding @prompts/APP_SPEC.md is critical.
 It defines architecture, invariants, and constraints.
 Do not contradict it.
 
@@ -109,7 +109,7 @@ Depth > breadth.
 STEP 5: IMPLEMENT THE FEATURE
 ------------------------------------------------------------
 
-Implement the feature according to APP_SPEC.md:
+Implement the feature according to @prompts/APP_SPEC.md:
 
 1. Add or modify code in the correct layer:
    - CLI: argument parsing, output formatting

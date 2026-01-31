@@ -4,7 +4,14 @@ use tempfile::TempDir;
 #[test]
 fn test_emit_command_basic() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "tests/fixtures/flac/simple"])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            "tests/fixtures/flac/simple",
+        ])
         .output()
         .expect("Failed to run emit command");
 
@@ -25,7 +32,15 @@ fn test_emit_command_basic() {
 #[test]
 fn test_emit_command_json() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "tests/fixtures/flac/simple", "--json"])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            "tests/fixtures/flac/simple",
+            "--json",
+        ])
         .output()
         .expect("Failed to run emit command with JSON");
 
@@ -52,7 +67,14 @@ fn test_emit_command_json() {
 #[test]
 fn test_emit_command_nested_structure() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "tests/fixtures/flac/nested"])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            "tests/fixtures/flac/nested",
+        ])
         .output()
         .expect("Failed to run emit command on nested structure");
 
@@ -73,7 +95,15 @@ fn test_emit_command_nested_structure() {
 #[test]
 fn test_emit_command_nested_json() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "tests/fixtures/flac/nested", "--json"])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            "tests/fixtures/flac/nested",
+            "--json",
+        ])
         .output()
         .expect("Failed to run emit command on nested structure with JSON");
 
@@ -103,7 +133,14 @@ fn test_emit_command_empty_directory() {
     let empty_path = temp_dir.path();
 
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", empty_path.to_str().unwrap()])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            empty_path.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to run emit command on empty directory");
 
@@ -120,7 +157,14 @@ fn test_emit_command_empty_directory() {
 #[test]
 fn test_emit_command_nonexistent_directory() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "/nonexistent/path"])
+        .args(&[
+            "run",
+            "--bin",
+            "musicctl",
+            "--",
+            "emit",
+            "/nonexistent/path",
+        ])
         .output()
         .expect("Failed to run emit command");
 
@@ -137,7 +181,7 @@ fn test_emit_command_nonexistent_directory() {
 #[test]
 fn test_emit_command_help() {
     let output = Command::new("cargo")
-        .args(&["run", "--", "emit", "--help"])
+        .args(&["run", "--bin", "musicctl", "--", "emit", "--help"])
         .output()
         .expect("Failed to run emit help command");
 
