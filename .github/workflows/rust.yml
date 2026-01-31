@@ -55,7 +55,7 @@ jobs:
           #!/usr/bin/env bash
           set -e
           TOOL_NAME="musicctl"
-          REPO="${GITHUB_REPOSITORY}"
+          REPO="Komdosh/music-chore"
 
           OS="$(uname | tr '[:upper:]' '[:lower:]')"
           if [ "$OS" != "darwin" ]; then
