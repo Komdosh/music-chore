@@ -11,9 +11,14 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "musicctl")]
 #[command(about = "Deterministic, AI‑friendly music metadata compiler.")]
+#[command(disable_version_flag = true)]
 pub struct Cli {
+    /// Show version information
+    #[arg(short = 'v', long = "version")]
+    pub version: bool,
+
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
