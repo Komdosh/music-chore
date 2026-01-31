@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Music Chore MCP Server Installation Script
+# This script sets up the MCP server for AI agent integration
+
+set -e
+
+echo "🎵 Installing Music Chore MCP Server..."
+
+# Check if Rust is installed
+if ! command -v cargo &> /dev/null; then
+    echo "❌ Rust is not installed. Please install Rust first:"
+    echo "   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    exit 1
+fi
+
+# Get the script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+echo "📁 Project directory: $PROJECT_ROOT"
+
+# Build the project
+echo "🔨 Building Music Chore..."
+cd "$PROJECT_ROOT"
+cargo build --release
+
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed"
+    exit 1
+fi
+
+# Get the binary path
+BINARY_PATH="$PROJECT_ROOT/target/release/musicctl-mcp"
+echo "📦 Binary built at: $BINARY_PATH"
+
+# Create symbolic link in user bin directory
+USER_BIN="$HOME/.local/bin"
+mkdir -p "$USER_BIN"
+ln -sf "$BINARY_PATH" "$USER_BIN/musicctl-mcp"
+
+# Add to PATH if not already there
+if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
+    echo "🔧 Adding $USER_BIN to PATH..."
+    echo 'export PATH="$PATH:$HOME/.local/bin"' >> "$HOME/.bashrc"
+    echo "export PATH=\"$PATH:\$HOME/.local/bin\"" >> "$HOME/.zshrc"
+    echo "⚠️  Please restart your shell or run: export PATH=\"\$PATH:\$HOME/.local/bin\""
+fi
+
+# Test the binary
+echo "🧪 Testing installation..."
+if [ -x "$BINARY_PATH" ]; then
+    echo "✅ Installation successful!"
+    echo ""
+    echo "🚀 Quick test:"
+    echo "   echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0.0\"}}}' | $USER_BIN/musicctl-mcp"
+    echo ""
+    echo "📖 For documentation visit: $PROJECT_ROOT/docs/MCP_SERVER.md"
+    echo "🔧 For configuration examples visit: $PROJECT_ROOT/docs/MCP_CONFIG_EXAMPLES.md"
+else
+    echo "❌ Binary not found at expected location"
+    exit 1
+fi

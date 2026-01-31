@@ -45,7 +45,14 @@ The product is provided as is, without warranties of any kind. Use at your own r
 
 ### Installation
 
-Simplest way:
+#### 🚀 Quick Install (MCP Server)
+
+```bash
+# Automated MCP server setup
+curl -fsSL https://raw.githubusercontent.com/Komdosh/music-chore/main/install_mcp.sh | bash
+```
+
+#### 📦 Traditional Install
 
 ```bash
 curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install.sh | bash
@@ -61,7 +68,31 @@ cargo install --path .
 cargo build --release
 ```
 
-### Basic Usage
+### 🤖 MCP Server Setup (Recommended for AI Users)
+
+**For Claude Desktop integration:**
+
+```bash
+# Build the MCP server
+cargo build --release
+
+# Add to Claude Desktop config
+cat > ~/Library/Application\ Support/Claude/claude_desktop_config.json << 'EOF'
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "/usr/local/bin/musicctl-mcp",
+      "args": ["--verbose"]
+    }
+  }
+}
+EOF
+
+# Restart Claude Desktop
+# Now you can use natural language commands!
+```
+
+### 🔧 Basic CLI Usage
 
 ```bash
 # Scan your music directory
@@ -288,31 +319,105 @@ impl AudioFile for Mp3Handler {
 
 ## 🤖 AI Agent Integration
 
-### MCP Server
+### MCP Server (✅ Complete)
 
-music-chore includes a **Model Context Protocol (MCP) server** for seamless AI agent integration:
+music-chore includes a **fully functional Model Context Protocol (MCP) server** for seamless AI agent integration:
 
 ```bash
-# Start MCP server
+# Build and start MCP server
+cargo install --path .
 musicctl-mcp --verbose
 
-# Configure in Claude Desktop
-{
-  "mcpServers": {
-    "music-chore": {
-      "command": "/path/to/musicctl-mcp",
-      "args": ["--verbose"]
-    }
-  }
-}
+# Test MCP server
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | musicctl-mcp
 ```
 
-**Available MCP Tools:**
-- `scan_directory` - Scan directories for music files
-- `get_library_tree` - Get hierarchical library view  
-- `read_file_metadata` - Read metadata from individual files
-- `normalize_titles` - Normalize track titles
-- `emit_library_metadata` - Get complete structured library data
+### 🚀 Quick Setup with Claude Desktop
+
+1. **Build from source:**
+   ```bash
+   git clone <repository-url>
+   cd music-chore
+   cargo build --release
+   ```
+
+2. **Add to Claude Desktop config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "music-chore": {
+         "command": "/usr/local/bin/musicctl-mcp",
+         "args": ["--verbose"],
+         "env": {
+           "RUST_LOG": "info"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Restart Claude Desktop** and start using natural language:
+   - "Scan my music library and tell me how many artists I have"
+   - "Show me the metadata for this specific FLAC file"  
+   - "Normalize all track titles in my rock collection"
+   - "Give me a hierarchical view of my jazz collection"
+
+### 🛠️ Available MCP Tools
+
+| Tool | Description | Parameters | Use Case |
+|-------|-------------|------------|----------|
+| `scan_directory` | Scan directories for music files | `path` (required), `json_output` (optional) | "Discover what music files I have" |
+| `get_library_tree` | Get hierarchical library view | `path` (required), `json_output` (optional) | "Show me my library structure" |
+| `read_file_metadata` | Read metadata from individual files | `file_path` (required) | "Extract full metadata from this track" |
+| `normalize_titles` | Normalize track titles to title case | `path` (required), `dry_run` (optional) | "Fix messy capitalization in my tracks" |
+| `emit_library_metadata` | Get complete structured library data | `path` (required), `format` (optional) | "Export my library for analysis" |
+
+### 🧪 Example AI Workflows
+
+**Library Analysis:**
+```
+User: "Analyze my music library and tell me about my collection"
+Claude: [Calls scan_directory → get_library_tree → emit_library_metadata]
+"I found 15 artists across 42 albums with 380 total tracks. 
+Your collection spans from 1968-2024 with genres including rock, jazz, and classical."
+```
+
+**Metadata Extraction:**
+```
+User: "What's the metadata for this Beatles track?"  
+Claude: [Calls read_file_metadata]
+"This FLAC file contains:
+- Title: 'Come Together' (embedded, 100% confidence)
+- Artist: 'The Beatles' (embedded, 100% confidence)  
+- Album: 'Abbey Road' (embedded, 100% confidence)
+- Duration: 4:19 (259 seconds)
+- Format: FLAC, 16-bit/44.1kHz"
+```
+
+**Batch Operations:**
+```
+User: "I just added 50 new tracks. Can you organize their titles?"
+Claude: [Calls normalize_titles with dry_run=true → normalize_titles with dry_run=false]
+"Preview: 12 tracks need title corrections. Apply changes? [Yes/No]"
+✅ "Normalized 12 track titles: 'yesterday' → 'Yesterday', 'come together' → 'Come Together', etc."
+```
+
+### ✅ Verify MCP Server Installation
+
+Test that your MCP server is working:
+
+```bash
+# Test basic initialization
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | ./target/release/musicctl-mcp
+
+# Expected response:
+# {"id":1,"result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"music-chore","version":"0.1.2"}},"jsonrpc":"2.0"}
+
+# Test tool availability  
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./target/release/musicctl-mcp
+
+# Should return list of 5 available tools
+```
 
 ### AI-Friendly Features
 
