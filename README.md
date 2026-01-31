@@ -65,6 +65,9 @@ musicctl tree /path/to/music
 # Read metadata from a specific file
 musicctl read /path/to/track.flac
 
+# Emit structured metadata (JSON or AI-friendly format)
+musicctl emit /path/to/music --json
+
 # Normalize track titles (dry run first)
 musicctl normalize /path/to/music --dry-run
 ```
@@ -181,6 +184,62 @@ Transforms messy titles into clean title case:
 - `"SOMETHING"` → `"Something"`
 - `"here comes the sun"` → `"Here Comes The Sun"`
 
+### 📤 `emit` - Export Structured Metadata
+
+```bash
+# AI-friendly structured text (default)
+musicctl emit /path/to/music
+
+# JSON format for programmatic use
+musicctl emit /path/to/music --json
+```
+
+**Structured Text Output** (AI-optimized):
+```
+=== MUSIC LIBRARY METADATA ===
+Total Artists: 1
+Total Albums: 1
+Total Tracks: 2
+
+ARTIST: The Beatles
+  ALBUM: Abbey Road (1969)
+    TRACK: "Come Together" | Duration: 4:19 | File: /music/The Beatles/Abbey Road/01 - Come Together.flac
+    TRACK: "Something" | Duration: 3:03 | File: /music/The Beatles/Abbey Road/02 - Something.flac
+
+=== END METADATA ===
+```
+
+**JSON Output** (programmatic):
+```json
+{
+  "artists": [
+    {
+      "name": "The Beatles",
+      "albums": [
+        {
+          "title": "Abbey Road",
+          "year": 1969,
+          "tracks": [
+            {
+              "file_path": "/music/The Beatles/Abbey Road/01 - Come Together.flac",
+              "metadata": {
+                "title": { "value": "Come Together", "source": "Embedded", "confidence": 1.0 },
+                "artist": { "value": "The Beatles", "source": "Embedded", "confidence": 1.0 },
+                "album": { "value": "Abbey Road", "source": "Embedded", "confidence": 1.0 },
+                "duration": { "value": 259.0, "source": "Embedded", "confidence": 1.0 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "total_tracks": 2,
+  "total_artists": 1,
+  "total_albums": 1
+}
+```
+
 ---
 
 ## 🏗️ Architecture
@@ -236,10 +295,13 @@ Designed from the ground up for **MCP (Model Context Protocol)** usage:
 musicctl scan ~/Music --since yesterday
 
 # Get library overview  
-musicctl tree ~/Music --format json
+musicctl tree ~/Music --json
+
+# Export metadata for AI processing
+musicctl emit ~/Music --json
 
 # Extract specific metadata
-musicctl read ~/Music/Artist/Album/track.flac --output json
+musicctl read ~/Music/Artist/Album/track.flac
 
 # Normalize new additions
 musicctl normalize ~/Music --dry-run
@@ -268,7 +330,7 @@ cargo test
 cargo test -- --nocapture
 
 # Run specific test
-cargo test test_normalize_track_titles
+cargo test test_emit_command
 ```
 
 ## 🤝 Contributing
