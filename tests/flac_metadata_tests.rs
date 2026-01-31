@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod flac_metadata_tests {
-    use music_chore::infra::audio::flac::read_flac_metadata;
+    use music_chore::read_metadata;
     use std::path::Path;
 
     #[test]
@@ -10,7 +10,7 @@ mod flac_metadata_tests {
             return; // Skip test if fixture doesn't exist
         }
 
-        match read_flac_metadata(fixture_path) {
+        match read_metadata(fixture_path) {
             Ok(track) => {
                 // Verify that track has metadata populated from our stub implementation
                 let metadata = &track.metadata;
@@ -70,10 +70,13 @@ mod flac_metadata_tests {
     fn test_read_flac_metadata_on_nonexistent_file() {
         let non_existent = Path::new("tests/fixtures/nonexistent.flac");
 
-        match read_flac_metadata(non_existent) {
+        match read_metadata(non_existent) {
             Ok(_) => panic!("Expected error for non-existent file"),
             Err(e) => {
-                assert!(e.to_string().contains("Not a FLAC file"));
+                assert!(
+                    e.to_string().contains("Unsupported file format")
+                        || e.to_string().contains("Failed to read")
+                );
             }
         }
     }
@@ -82,7 +85,7 @@ mod flac_metadata_tests {
     fn test_read_flac_metadata_on_valid_file() {
         let valid_file = Path::new("tests/fixtures/flac/simple/track1.flac");
 
-        match read_flac_metadata(valid_file) {
+        match read_metadata(valid_file) {
             Ok(track) => {
                 // This should succeed since it's a valid FLAC file
                 // Just verify we got some metadata back

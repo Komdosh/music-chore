@@ -1,6 +1,6 @@
 use music_chore::{
-    build_library_hierarchy, infra::scanner::scan_dir, AlbumNode, ArtistNode, Library,
-    MetadataSource, MetadataValue, TrackNode,
+    build_library_hierarchy, scan_dir, AlbumNode, ArtistNode, Library, MetadataSource,
+    MetadataValue, TrackNode,
 };
 use std::fs;
 use std::path::PathBuf;

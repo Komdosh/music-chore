@@ -71,7 +71,7 @@ Hard rules:
 * Domain logic is pure and fully testable
 * Format-specific code is isolated behind traits
 
-See `app_spec.txt` for the full specification.
+See `prompts/APP_SPECS.md` for the full specification.
 
 ---
 
@@ -196,8 +196,7 @@ This project is designed for autonomous agents.
 Key files:
 
 * `CLAUDE.md` — **agent operating rules** (authoritative)
-* `feature_list.json` — exhaustive end-to-end test plan
-* `claude-progress.txt` — continuity between sessions
+* `prompts/feature_list.yml` — exhaustive end-to-end test plan
 
 Agents may ONLY mark features as passing.
 They must never edit or remove features.
@@ -211,7 +210,7 @@ They must never edit or remove features.
 * v2+: Additional audio formats (MP3, WAV, DSF)
 * MCP-friendly output envelopes
 
-See `app_spec.txt` and `feature_list.json` for details.
+See `prompts/APP_SPECS.md` and `prompts/feature_list.yml` for details.
 
 ---
 

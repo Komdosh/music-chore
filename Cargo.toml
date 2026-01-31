@@ -3,6 +3,10 @@ name = "music-chore"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "musicctl"
+path = "src/main.rs"
+
 [dependencies]
 walkdir = "2"
 serde_json = "1"

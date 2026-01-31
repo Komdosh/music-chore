@@ -1,4 +1,4 @@
-use music_chore::infra::scanner::{scan_dir, scan_dir_paths};
+use music_chore::{scan_dir, scan_dir_paths};
 use std::path::Path;
 
 #[test]
@@ -60,6 +60,11 @@ fn test_scan_paths_only() {
 
     // Verify all are .flac files
     for path in &paths {
-        assert!(path.extension().unwrap().eq_ignore_ascii_case("flac"));
+        assert!(path
+            .extension()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .eq_ignore_ascii_case("flac"));
     }
 }

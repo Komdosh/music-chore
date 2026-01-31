@@ -1,21 +1,13 @@
-//! Domain layer - Pure business logic for music metadata handling.
-//!
-//! This layer contains format-agnostic logic for inference, normalization,
-//! and validation of music metadata.
+//! Domain models and traits for music library operations.
 
-pub mod artist;
-pub mod album;
-pub mod track;
-pub mod metadata;
-pub mod inference;
-pub mod normalization;
-pub mod validation;
+pub mod library;
+pub mod models;
+pub mod traits;
 
-// Re-export key types
-pub use artist::Artist;
-pub use album::Album;
-pub use track::Track;
-pub use metadata::Metadata;
-pub use inference::infer_metadata;
-pub use normalization::normalize_metadata;
-pub use validation::validate_metadata;
+// Re-export commonly used types
+pub use library::build_library_hierarchy;
+pub use models::{
+    AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, OperationResult, Track,
+    TrackMetadata, TrackNode,
+};
+pub use traits::{AudioFile, AudioFileError, AudioFileRegistry};
