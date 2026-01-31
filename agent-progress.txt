@@ -6,7 +6,16 @@ Agent Role: Coding Agent
 
 ## Work Completed This Session
 
-### Feature 1: Scan directory for music files ✅
+### Feature 5: Normalize track titles to title case ✅
+- **Implemented**: `to_title_case()` function with proper title case conversion
+- **Added**: `normalize_track_titles()` function with dry-run support
+- **Enhanced**: CLI with normalize command and --dry-run flag
+- **Added**: Comprehensive test suite for normalize functionality
+- **Verified**: All test cases pass including error handling and help
+
+### Previous Work Summary
+
+#### Feature 1: Scan directory for music files ✅
 - **Implemented**: Deterministic filesystem scanner with sorted output
 - **Added**: Core domain models (Track, Library, Metadata with provenance)
 - **Built**: Scan CLI command with JSON output option
@@ -33,7 +42,7 @@ Agent Role: Coding Agent
 - Unit tests pass: `test_scan_simple_directory`, `test_scan_nested_directory`, `test_scan_paths_only`
 
 ## Current Status
-- **Features Passing**: 1/200 (Feature 1 complete)
+- **Features Passing**: 5/200 (Features 1-5 complete)
 - **Code Quality**: All tests passing, deterministic behavior confirmed
 - **Architecture**: Following 4-layer design (CLI → App → Domain → Infra)
 

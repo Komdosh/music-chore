@@ -33,7 +33,7 @@ features:
       - "Step 1: Prepare track with lowercase title"
       - "Step 2: Run musicctl normalize"
       - "Step 3: Verify title is title case"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 6: Emit metadata in JSON format."
     steps:
