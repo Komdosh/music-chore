@@ -31,7 +31,7 @@ jobs:
         run: cargo build
         
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test
 
       - name: Build Intel binary
         run: cargo build --release --target x86_64-apple-darwin
