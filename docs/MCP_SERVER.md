@@ -335,13 +335,12 @@ Configure logging with the `RUST_LOG` environment variable:
 
 **Current v1 limitations:**
 - Supports only FLAC format
-- No write operations (metadata editing not yet implemented via MCP)
 - No internet-based metadata lookup
 - macOS only (matches CLI tool constraints)
 
 **Planned v2 enhancements:**
 - MP3, WAV, DSF format support
-- Metadata write capabilities
+- Metadata write capabilities via MCP
 - Cue sheet integration
 - Playlist management
 

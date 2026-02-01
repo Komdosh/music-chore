@@ -1,10 +1,11 @@
 //! FLAC format implementation of the AudioFile trait.
 
 use lofty::{
+    config::WriteOptions,
     file::{AudioFile as LoftyAudioFile, TaggedFile, TaggedFileExt},
     prelude::ItemKey,
     read_from_path,
-    tag::ItemValue,
+    tag::{ItemValue, TagItem},
 };
 
 use std::path::Path;
@@ -57,16 +58,65 @@ impl AudioFile for FlacHandler {
         })
     }
 
-    fn write_metadata(&self, path: &Path, _metadata: &TrackMetadata) -> Result<(), AudioFileError> {
+    fn write_metadata(&self, path: &Path, metadata: &TrackMetadata) -> Result<(), AudioFileError> {
         if !self.can_handle(path) {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        // TODO: Implement FLAC metadata writing
-        // For now, return an error to indicate it's not implemented
-        Err(AudioFileError::WriteError(
-            "FLAC metadata writing not yet implemented".to_string(),
-        ))
+        // Use lofty to write metadata to FLAC file
+        let mut tagged_file = lofty::read_from_path(path)
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read FLAC file: {}", e)))?;
+
+        // Get or create the primary tag (Vorbis Comments for FLAC)
+        let tag = tagged_file.primary_tag_mut().ok_or_else(|| {
+            AudioFileError::WriteError("FLAC file has no primary tag".to_string())
+        })?;
+
+        // Helper function to set a tag item
+        let mut set_tag = |key: ItemKey, value: &str| {
+            tag.insert(TagItem::new(key, ItemValue::Text(value.to_string())));
+        };
+
+        // Write metadata fields that have values
+        if let Some(ref title) = metadata.title {
+            set_tag(ItemKey::TrackTitle, &title.value);
+        }
+
+        if let Some(ref artist) = metadata.artist {
+            set_tag(ItemKey::TrackArtist, &artist.value);
+        }
+
+        if let Some(ref album) = metadata.album {
+            set_tag(ItemKey::AlbumTitle, &album.value);
+        }
+
+        if let Some(ref album_artist) = metadata.album_artist {
+            set_tag(ItemKey::AlbumArtist, &album_artist.value);
+        }
+
+        if let Some(ref track_number) = metadata.track_number {
+            set_tag(ItemKey::TrackNumber, &track_number.value.to_string());
+        }
+
+        if let Some(ref disc_number) = metadata.disc_number {
+            set_tag(ItemKey::DiscNumber, &disc_number.value.to_string());
+        }
+
+        if let Some(ref year) = metadata.year {
+            set_tag(ItemKey::Year, &year.value.to_string());
+        }
+
+        if let Some(ref genre) = metadata.genre {
+            set_tag(ItemKey::Genre, &genre.value);
+        }
+
+        // Save the changes to disk with default write options
+        let write_options = WriteOptions::default();
+        tagged_file
+            .save_to_path(path, write_options)
+            .map_err(|e| AudioFileError::WriteError(format!("Failed to save FLAC file: {}", e)))?;
+
+        Ok(())
     }
 
     fn read_basic_info(&self, path: &Path) -> Result<TrackMetadata, AudioFileError> {
