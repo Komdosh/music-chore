@@ -372,16 +372,10 @@ Claude: [Calls normalize_titles with dry_run=true → normalize_titles with dry_
 Test that your MCP server is working:
 
 ```bash
-# Test basic initialization
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | musicctl-mcp
-
-# Expected response:
-# {"id":1,"result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"music-chore","version":"0.1.2"}},"jsonrpc":"2.0"}
-
-# Test tool availability  
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | musicctl-mcp
-
-# Should return list of 5 available tools
+cat <<EOF | musicctl-mcp | jq
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"bash","version":"0.1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+EOF
 ```
 
 ### AI-Friendly Features
