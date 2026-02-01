@@ -38,40 +38,28 @@ jobs:
 
       - name: Build ARM binary
         run: cargo build --release --target aarch64-apple-darwin
-        
-      - name: Create universal binary
-        run: |
-          mkdir -p dist
-          lipo -create \
-            target/x86_64-apple-darwin/release/musicctl \
-            target/aarch64-apple-darwin/release/musicctl \
-            -output dist/musicctl
-          chmod +x dist/musicctl
-          tar -czf dist/musicctl-macos-universal.tar.gz -C dist musicctl
+
+      - name: Create universal binary for App
+        uses: ./.github/actions/universal-app
+        with:
+          tool: musicctl
 
       - name: Generate install.sh
-        run: |
-          cat << 'EOF' > dist/install.sh
-          #!/usr/bin/env bash
-          set -e
-          TOOL_NAME="musicctl"
-          REPO="Komdosh/music-chore"
+        uses: ./.github/actions/install-script
+        with:
+          tool: musicctl
+          script_name: install.sh
 
-          OS="$(uname | tr '[:upper:]' '[:lower:]')"
-          if [ "$OS" != "darwin" ]; then
-              echo "Currently only macOS is supported"
-              exit 1
-          fi
+      - name: Create universal binary for MCP
+        uses: ./.github/actions/universal-app
+        with:
+          tool: musicctl-mcp
 
-          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-macos-universal.tar.gz"
-          echo "Downloading $URL..."
-          curl -LO "$URL"
-          tar -xzf "$TOOL_NAME-macos-universal.tar.gz"
-          chmod +x "$TOOL_NAME"
-          sudo mv "$TOOL_NAME" /usr/local/bin/
-          xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
-          echo "$TOOL_NAME installed successfully!"
-          EOF
+      - name: Generate install-mcp.sh
+        uses: ./.github/actions/install-script
+        with:
+          tool: musicctl-mcp
+          script_name: install-mcp.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -80,6 +68,7 @@ jobs:
           path: |
             dist/musicctl-macos-universal.tar.gz
             dist/install.sh
+            dist/install-mcp.sh
 
   release:
       name: Create GitHub Release

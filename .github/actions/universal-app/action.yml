@@ -1,0 +1,17 @@
+inputs:
+  tool:
+    required: true
+    description: name of program
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        TOOL="${{ inputs.tool }}"
+        mkdir -p dist
+        lipo -create \
+          target/x86_64-apple-darwin/release/$TOOL \
+          target/aarch64-apple-darwin/release/$TOOL \
+          -output dist/$TOOL
+        chmod +x dist/$TOOL
+        tar -czf dist/$TOOL-macos-universal.tar.gz -C dist $TOOL
+      shell: bash
