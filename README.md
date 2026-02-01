@@ -61,19 +61,21 @@ cargo build --release
 
 ### 🤖 MCP Server Setup
 
-**CLI MCP:**
+**Install CLI MCP locally:**
 
 ```bash
 curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install_mcp.sh | bash
 ```
 
-**Claude:**
+**Then you can install it for agents:**
+
+- **Claude:**
 
 ```bash
 claude mcp add music-chore -- musicctl-mcp
 ```
 
-**Opencode:**
+- **Opencode:**
 
 ```json
 {
