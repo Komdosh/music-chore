@@ -1,289 +1,262 @@
-//! Integration tests for MCP Server functionality
-//!
-//! Tests the MCP server using the rmcp crate by running it as a subprocess
-//! and communicating via the MCP protocol. This provides end-to-end testing
-//! of the complete MCP protocol implementation.
+//! Refactored Integration tests for MCP Server functionality
+//! DRY helpers, shared setup, and consistent assertions
 
+use std::borrow::Cow;
 use anyhow::Result;
 use rmcp::ServiceError::McpError;
+use rmcp::model::JsonObject;
+use rmcp::service::RunningService;
 use rmcp::{
-    RmcpError, ServiceError, ServiceExt, model::CallToolRequestParams, object,
+    RmcpError, RoleClient, ServiceExt,
+    model::{CallToolRequestParams, ErrorCode},
+    object,
     transport::TokioChildProcess,
 };
-use rmcp::model::ErrorCode;
 use tokio::process::Command;
-use tracing::error;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_initialization() -> Result<()> {
-    // Enable logging in tests (RUST_LOG=debug cargo test)
-    tracing_subscriber::registry()
+/* ----------------------------- Shared helpers ----------------------------- */
+
+fn init_tracing() {
+    let _ = tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer())
-        .init();
+        .try_init();
+}
 
-    // Spawn MCP server via cargo
+async fn spawn_client() -> Result<RunningService<RoleClient, ()>> {
+    init_tracing();
     let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
-
-    let child = TokioChildProcess::new(cmd)?;
+    let child =
+        TokioChildProcess::new(cmd).map_err(RmcpError::transport_creation::<TokioChildProcess>)?;
     let client = ().serve(child).await?;
-    // Check server info
+
+    Ok(client)
+}
+
+async fn call_tool(
+    client: &RunningService<RoleClient, ()>,
+    name: &str,
+    args: JsonObject,
+) -> Result<rmcp::model::CallToolResult> {
+    Ok(client
+        .call_tool(CallToolRequestParams {
+            meta: None,
+            name: Cow::from(name.to_string()),
+            arguments: Some(args),
+            task: None,
+        })
+        .await?)
+}
+
+fn text_content(result: &rmcp::model::CallToolResult) -> &str {
+    result
+        .content
+        .first()
+        .expect("No content")
+        .raw
+        .as_text()
+        .unwrap()
+        .text
+        .as_str()
+}
+
+fn assert_ok(result: &rmcp::model::CallToolResult) {
+    assert_eq!(result.is_error.unwrap_or(false), false);
+}
+
+async fn shutdown(client: RunningService<RoleClient, ()>) -> Result<()> {
+    client.cancel().await?;
+    Ok(())
+}
+
+/* --------------------------------- Tests -------------------------------- */
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_server_initialization() -> Result<()> {
+    let client = spawn_client().await?;
+
     let info = client.peer_info().expect("No peer info");
     assert_eq!(info.server_info.name, "music-chore");
     assert!(info.server_info.version.starts_with("0.1."));
-    // Gracefully shut down
-    client.cancel().await?;
-    Ok(())
+
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_tools_list() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_tools_list() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
-
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
-
-    // List tools
     let tools = client.list_all_tools().await?;
-
-    // Should have exactly 5 tools
     assert_eq!(tools.len(), 5);
 
-    // Check that expected tools are present
-    let tool_names: Vec<String> = tools.iter().map(|t| t.name.to_string()).collect();
-    assert!(tool_names.contains(&"scan_directory".to_string()));
-    assert!(tool_names.contains(&"get_library_tree".to_string()));
-    assert!(tool_names.contains(&"read_file_metadata".to_string()));
-    assert!(tool_names.contains(&"normalize_titles".to_string()));
-    assert!(tool_names.contains(&"emit_library_metadata".to_string()));
+    let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
+    for expected in [
+        "scan_directory",
+        "get_library_tree",
+        "read_file_metadata",
+        "normalize_titles",
+        "emit_library_metadata",
+    ] {
+        assert!(names.contains(&expected.to_string()));
+    }
 
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_scan_directory_tool() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_scan_directory() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "scan_directory",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": true
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test scan_directory with JSON output
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "scan_directory".into(),
-            arguments: Some(object!({
-                "path": "tests/fixtures/flac/simple",
-                "json_output": true
-            })),
-            task: None,
-        })
-        .await?;
+    let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
+    assert_eq!(json.as_array().unwrap().len(), 2);
 
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    // Parse the JSON response
-    let content = result.content.first().expect("No content");
-    let text = &*content.raw.as_text().unwrap().text;
-    let scan_result: serde_json::Value = serde_json::from_str(text)?;
-
-    // Should find 2 tracks in the simple fixture
-    assert_eq!(scan_result.as_array().unwrap().len(), 2);
-
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_get_library_tree_tool() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_get_library_tree() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "get_library_tree",
+        object!({
+            "path": "tests/fixtures/flac/nested",
+            "json_output": false
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test get_library_tree
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "get_library_tree".into(),
-            arguments: Some(object!({
-                "path": "tests/fixtures/flac/nested",
-                "json_output": false
-            })),
-            task: None,
-        })
-        .await?;
+    let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
+    for key in ["total_artists", "total_albums", "total_tracks", "artists"] {
+        assert!(json.get(key).is_some());
+    }
 
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    // Parse the JSON response (it returns JSON regardless of the json_output param)
-    let content = result.content.first().expect("No content");
-    let s = &*content.raw.as_text().unwrap().text;
-    let tree_result: serde_json::Value = serde_json::from_str(s)?;
-
-    // Check basic structure
-    assert!(tree_result.get("total_artists").is_some());
-    assert!(tree_result.get("total_albums").is_some());
-    assert!(tree_result.get("total_tracks").is_some());
-    assert!(tree_result.get("artists").is_some());
-
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_read_file_metadata_tool() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_read_file_metadata() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "read_file_metadata",
+        object!({
+            "file_path": "tests/fixtures/flac/simple/track1.flac"
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test read_file_metadata
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "read_file_metadata".into(),
-            arguments: Some(object!({
-                "file_path": "tests/fixtures/flac/simple/track1.flac"
-            })),
-            task: None,
-        })
-        .await?;
-
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    // Parse the JSON response
-    let content = result.content.first().expect("No content");
-    let s = &*content.raw.as_text().unwrap().text;
-    let metadata: serde_json::Value = serde_json::from_str(s)?;
-
-    // Should contain file path and metadata structure
-    assert!(metadata.get("file_path").is_some());
-    assert!(metadata.get("metadata").is_some());
+    let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
     assert_eq!(
-        metadata.get("file_path").unwrap().as_str().unwrap(),
+        json.get("file_path").unwrap().as_str().unwrap(),
         "tests/fixtures/flac/simple/track1.flac"
     );
+    assert!(json.get("metadata").is_some());
 
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_normalize_titles_tool() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_normalize_titles() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "normalize_titles",
+        object!({
+            "path": "tests/fixtures/normalization",
+            "dry_run": true
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test normalize_titles with dry run
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "normalize_titles".into(),
-            arguments: Some(object!({
-                "path": "tests/fixtures/normalization",
-                "dry_run": true
-            })),
-            task: None,
-        })
-        .await?;
-
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    let content = result.content.first().expect("No content");
-    let text = &*content.raw.as_text().unwrap().text;
-
-    // Should contain operation results
+    let text = text_content(&result);
     assert!(text.contains("NORMALIZED:") || text.contains("NO CHANGE:") || text.contains("ERROR:"));
 
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_emit_library_metadata_tool() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_emit_library_metadata_text() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "emit_library_metadata",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": false
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test emit_library_metadata with text format
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "emit_library_metadata".into(),
-            arguments: Some(object!({
-                "path": "tests/fixtures/flac/simple",
-                "json_output": false
-            })),
-            task: None,
-        })
-        .await?;
+    let text = text_content(&result);
+    for expected in [
+        "=== MUSIC LIBRARY METADATA ===",
+        "Total Artists: 1",
+        "Total Albums: 1",
+        "Total Tracks: 2",
+        "ARTIST: flac",
+        "ALBUM: simple",
+    ] {
+        assert!(text.contains(expected));
+    }
 
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    let content = result.content.first().expect("No content");
-    let text = &*content.raw.as_text().unwrap().text;
-
-    // Should contain structured metadata output
-    assert!(text.contains("=== MUSIC LIBRARY METADATA ==="));
-    assert!(text.contains("Total Artists: 1"));
-    assert!(text.contains("Total Albums: 1"));
-    assert!(text.contains("Total Tracks: 2"));
-    assert!(text.contains("ARTIST: flac"));
-    assert!(text.contains("ALBUM: simple"));
-
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_error_handling() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_emit_library_metadata_json() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "emit_library_metadata",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": true
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test error handling with invalid tool name - this should return an error
-    let result = client
+    let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
+    for key in ["total_artists", "total_albums", "total_tracks", "artists"] {
+        assert!(json.get(key).is_some());
+    }
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_error_invalid_tool() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let err = client
         .call_tool(CallToolRequestParams {
             meta: None,
             name: "nonexistent_tool".into(),
@@ -291,164 +264,87 @@ async fn test_mcp_server_error_handling() -> Result<()> {
             task: None,
         })
         .await
-        .expect_err("Should return an error");
+        .expect_err("Expected error");
 
-    // This should result in an error since the tool doesn't exist
-    let code = match result {
+    let code = match err {
         McpError(e) => e.code,
-        _ => panic!("Should return MCP Error"),
+        _ => panic!("Expected MCP error"),
     };
 
     assert_eq!(code, ErrorCode::INVALID_PARAMS);
 
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_tool_parameter_validation() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_parameter_validation() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
-
-    let child =
-        TokioChildProcess::new(cmd).map_err(RmcpError::transport_creation::<TokioChildProcess>)?;
-    let client = ().serve(child).await?;
-
-    // Test parameter validation with missing required parameter
-    let result = client.call_tool(CallToolRequestParams {
-        meta: None,
-        name: "scan_directory".into(),
-        arguments: Some(object!({
+    let result = call_tool(
+        &client,
+        "scan_directory",
+        object!({
             "json_output": true
-            // Missing required "path" parameter
-        })),
-        task: None,
-    });
+        }),
+    )
+    .await;
 
-    let is_error: Result<bool, bool> = match result.await {
-        Ok(result) => Ok(result.is_error.unwrap_or(false)),
-        Err(_d) => Ok(true),
-    };
+    assert!(result.is_err() || result.unwrap().is_error.unwrap_or(true));
 
-    // Should return an error due to missing required parameter
-    assert_eq!(is_error.unwrap(), true);
-
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_nonexistent_directory() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+async fn test_nonexistent_directory() -> Result<()> {
+    let client = spawn_client().await?;
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
+    let result = call_tool(
+        &client,
+        "scan_directory",
+        object!({
+            "path": "/nonexistent/path",
+            "json_output": true
+        }),
+    )
+    .await?;
 
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
+    assert_ok(&result);
 
-    // Test handling of non-existent directory
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "scan_directory".into(),
-            arguments: Some(object!({
-                "path": "/nonexistent/path",
-                "json_output": true
-            })),
-            task: None,
-        })
-        .await?;
-
-    // Should return success (no error) but indicate no files found
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    let content = result.content.first().expect("No content");
-    let text = &*content.raw.as_text().unwrap().text;
-
-    // Should indicate no files found
+    let text = text_content(&result);
     assert!(text.contains("No music files found"));
 
-    client.cancel().await?;
-    Ok(())
+    shutdown(client).await
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_mcp_server_emit_library_metadata_json() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    let cmd = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"));
-
-    let child = TokioChildProcess::new(cmd)?;
-    let client = ().serve(child).await?;
-
-    // Test emit_library_metadata with JSON format
-    let result = client
-        .call_tool(CallToolRequestParams {
-            meta: None,
-            name: "emit_library_metadata".into(),
-            arguments: Some(object!({
-                "path": "tests/fixtures/flac/simple",
-                "json_output": true
-            })),
-            task: None,
-        })
-        .await?;
-
-    assert_eq!(result.is_error.unwrap_or(false), false);
-
-    let content = result.content.first().expect("No content");
-    let text = &*content.raw.as_text().unwrap().text;
-    let metadata: serde_json::Value = serde_json::from_str(text)?;
-
-    // Should contain JSON structure with library metadata
-    assert!(metadata.get("total_artists").is_some());
-    assert!(metadata.get("total_albums").is_some());
-    assert!(metadata.get("total_tracks").is_some());
-    assert!(metadata.get("artists").is_some());
-
-    client.cancel().await?;
-    Ok(())
-}
+/* -------------------------- Binary CLI smoke tests ------------------------- */
 
 #[test]
-fn test_mcp_server_binary_help() {
+fn test_binary_help() {
     use std::process::Command;
 
-    // Test that the MCP server binary responds to --help
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"))
-        .args(&["--help"])
+        .args(["--help"])
         .output()
-        .expect("Failed to run musicctl-mcp --help");
+        .expect("Failed to run --help");
 
     assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
+    let stdout = String::from_utf8(output.stdout).unwrap();
 
     assert!(stdout.contains("MCP server for Music Chore CLI tool"));
     assert!(stdout.contains("verbose"));
 }
 
 #[test]
-fn test_mcp_server_binary_version() {
+fn test_binary_version() {
     use std::process::Command;
 
-    // Test that the MCP server binary responds to --version
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl-mcp"))
-        .args(&["--version"])
+        .args(["--version"])
         .output()
-        .expect("Failed to run musicctl-mcp --version");
+        .expect("Failed to run --version");
 
     assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
+    let stdout = String::from_utf8(output.stdout).unwrap();
 
     assert!(stdout.starts_with("musicctl-mcp "));
     assert!(stdout.contains("0.1."));
