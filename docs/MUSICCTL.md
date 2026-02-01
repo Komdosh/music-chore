@@ -13,42 +13,6 @@
 
 ---
 
-## 🚀 Installation
-
-### From Binary (Recommended)
-
-```bash
-# Download and install the latest release
-curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install.sh | bash
-
-# Verify installation
-musicctl --version
-```
-
-### From Source
-
-```bash
-# Clone and build
-git clone https://github.com/Komdosh/music-chore.git
-cd music-chore
-cargo build --release
-
-# Install to system path
-sudo cp target/release/musicctl /usr/local/bin/
-
-# Or install via cargo
-cargo install --path .
-```
-
-### Verify Installation
-
-```bash
-musicctl --help
-musicctl --version
-```
-
----
-
 ## ⚡ Quick Start
 
 ### 1. Scan Your Music Library
