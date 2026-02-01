@@ -220,6 +220,40 @@ Transforms messy titles into clean title case:
 - `"SOMETHING"` → `"Something"`
 - `"here comes the sun"` → `"Here Comes The Sun"`
 
+### ✏️ `write` - Update Metadata
+
+```bash
+# Preview metadata changes
+musicctl write /path/to/track.flac --dry-run --set "title=New Title" --set "artist=New Artist"
+
+# Apply metadata changes
+musicctl write /path/to/track.flac --apply --set "title=New Title" --set "artist=New Artist"
+```
+
+Update embedded metadata in FLAC files:
+
+**Supported Metadata Fields:**
+- `title` - Track title
+- `artist` - Track artist
+- `album` - Album name
+- `albumartist` - Album artist
+- `tracknumber` - Track number (1-99)
+- `discnumber` - Disc number (1-99)
+- `year` - Release year (1000-9999)
+- `genre` - Genre name
+
+**Examples:**
+```bash
+# Single field update
+musicctl write track.flac --apply --set "title=Come Together"
+
+# Multiple field updates
+musicctl write track.flac --apply --set "title=Come Together" --set "artist=The Beatles" --set "tracknumber=1"
+
+# Dry run to preview changes
+musicctl write track.flac --dry-run --set "year=1969"
+```
+
 ### 📤 `emit` - Export Structured Metadata
 
 ```bash
@@ -405,6 +439,9 @@ musicctl read ~/Music/Artist/Album/track.flac
 
 # Normalize new additions
 musicctl normalize ~/Music --dry-run
+
+# Update track metadata
+musicctl write ~/Music/Artist/Album/track.flac --dry-run --set "title=New Title"
 ```
 
 📖 **Detailed MCP Documentation**: 

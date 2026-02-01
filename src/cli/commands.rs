@@ -54,6 +54,8 @@ pub enum Commands {
         set: Vec<String>,
         #[arg(long)]
         apply: bool,
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Normalize track titles to title case.
     Normalize {
@@ -70,14 +72,34 @@ pub enum Commands {
 }
 
 /// Handle the parsed CLI command
-pub fn handle_command(command: Commands) {
+pub fn handle_command(command: Commands) -> Result<(), i32> {
     match command {
-        Commands::Scan { path, json } => handle_scan(path, json),
-        Commands::Tree { path, json } => handle_tree(path, json),
-        Commands::Read { file } => handle_read(file),
-        Commands::Write { file, set, apply } => handle_write(file, set, apply),
-        Commands::Normalize { path, dry_run } => handle_normalize(path, dry_run),
-        Commands::Emit { path, json } => handle_emit(path, json),
+        Commands::Scan { path, json } => {
+            handle_scan(path, json);
+            Ok(())
+        }
+        Commands::Tree { path, json } => {
+            handle_tree(path, json);
+            Ok(())
+        }
+        Commands::Read { file } => {
+            handle_read(file);
+            Ok(())
+        }
+        Commands::Write {
+            file,
+            set,
+            apply,
+            dry_run,
+        } => handle_write(file, set, apply, dry_run),
+        Commands::Normalize { path, dry_run } => {
+            handle_normalize(path, dry_run);
+            Ok(())
+        }
+        Commands::Emit { path, json } => {
+            handle_emit(path, json);
+            Ok(())
+        }
     }
 }
 
@@ -128,12 +150,76 @@ fn handle_read(file: PathBuf) {
 }
 
 /// Handle write command
-fn handle_write(file: PathBuf, set: Vec<String>, apply: bool) {
-    // Write metadata to audio file
-    println!("Write command not yet implemented");
-    println!("File: {:?}", file);
-    println!("Set: {:?}", set);
-    println!("Apply: {}", apply);
+fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
+    if apply && dry_run {
+        eprintln!("Error: Cannot use both --apply and --dry-run flags simultaneously");
+        return Err(1);
+    }
+
+    if !apply && !dry_run {
+        eprintln!("Error: Must specify either --apply or --dry-run flag");
+        return Err(1);
+    }
+
+    // Check if file exists and is supported
+    if !file.exists() {
+        eprintln!("Error: File does not exist: {}", file.display());
+        return Err(1);
+    }
+
+    if !crate::infrastructure::is_format_supported(&file) {
+        eprintln!("Error: Unsupported file format: {}", file.display());
+        return Err(1);
+    }
+
+    // Read current metadata
+    let mut track = match crate::read_metadata(&file) {
+        Ok(track) => track,
+        Err(e) => {
+            eprintln!("Error reading metadata: {}", e);
+            return Err(1);
+        }
+    };
+
+    // Parse and apply metadata updates
+    for metadata_item in set {
+        if let Some((key, value)) = metadata_item.split_once('=') {
+            match apply_metadata_update(&mut track.metadata, key.trim(), value.trim()) {
+                Ok(()) => {
+                    if dry_run {
+                        println!("DRY RUN: Would set {} = {}", key.trim(), value.trim());
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error parsing metadata '{}': {}", metadata_item, e);
+                    return Err(1);
+                }
+            }
+        } else {
+            eprintln!(
+                "Error: Invalid metadata format '{}'. Expected 'key=value'",
+                metadata_item
+            );
+            return Err(1);
+        }
+    }
+
+    if dry_run {
+        println!("DRY RUN: No changes made to file: {}", file.display());
+        return Ok(());
+    }
+
+    // Apply changes to file
+    match crate::infrastructure::write_metadata(&file, &track.metadata) {
+        Ok(()) => {
+            println!("Successfully updated metadata in: {}", file.display());
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Error writing metadata: {}", e);
+            Err(1)
+        }
+    }
 }
 
 /// Handle normalize command
@@ -317,4 +403,54 @@ fn format_track_info(track: &TrackNode) -> String {
     };
 
     format!("[{}] {}", source, info.join(" | "))
+}
+
+/// Apply a metadata update to the track metadata
+fn apply_metadata_update(
+    metadata: &mut crate::TrackMetadata,
+    key: &str,
+    value: &str,
+) -> Result<(), String> {
+    use crate::domain::models::MetadataValue;
+
+    match key.to_lowercase().as_str() {
+        "title" => {
+            metadata.title = Some(MetadataValue::user_set(value.to_string()));
+        }
+        "artist" => {
+            metadata.artist = Some(MetadataValue::user_set(value.to_string()));
+        }
+        "album" => {
+            metadata.album = Some(MetadataValue::user_set(value.to_string()));
+        }
+        "albumartist" | "album_artist" => {
+            metadata.album_artist = Some(MetadataValue::user_set(value.to_string()));
+        }
+        "tracknumber" | "track_number" => {
+            let num = value
+                .parse::<u32>()
+                .map_err(|_| format!("Invalid track number: {}", value))?;
+            metadata.track_number = Some(MetadataValue::user_set(num));
+        }
+        "discnumber" | "disc_number" => {
+            let num = value
+                .parse::<u32>()
+                .map_err(|_| format!("Invalid disc number: {}", value))?;
+            metadata.disc_number = Some(MetadataValue::user_set(num));
+        }
+        "year" => {
+            let year = value
+                .parse::<u32>()
+                .map_err(|_| format!("Invalid year: {}", value))?;
+            metadata.year = Some(MetadataValue::user_set(year));
+        }
+        "genre" => {
+            metadata.genre = Some(MetadataValue::user_set(value.to_string()));
+        }
+        _ => {
+            return Err(format!("Unsupported metadata field: {}", key));
+        }
+    }
+
+    Ok(())
 }

@@ -14,7 +14,14 @@ fn main() {
 
     // Handle subcommand if provided
     if let Some(command) = cli.command {
-        handle_command(command);
+        match handle_command(command) {
+            Ok(()) => {
+                // Command succeeded
+            }
+            Err(code) => {
+                std::process::exit(code);
+            }
+        }
     } else {
         // Show help if no command provided
         println!("Deterministic, AI‑friendly music metadata compiler.");
