@@ -4,25 +4,11 @@ This document provides configuration examples for integrating the Music Chore MC
 
 ## Claude Desktop
 
-### Configuration File Location
+### 🚀 Automated Setup (Recommended)
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-### Basic Configuration
-
-```json
-{
-  "mcpServers": {
-    "music-chore": {
-      "command": "/usr/local/bin/musicctl-mcp",
-      "args": [],
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
+```bash
+# Use Claude CLI for automatic setup
+claude mcp add music-chore -- musicctl-mcp
 ```
 
 ### Advanced Configuration
@@ -373,8 +359,8 @@ else
     exit 1
 fi
 
-# Test tool availability
-echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | musicctl-mcp | jq -e '.result.tools[] | select(.name == "scan_directory")' > /dev/null
+# Test tool availability  
+echo '{"jsonrpc": "2.0", "method": "tools/list", "params": {}, "id": 2}' | musicctl-mcp | jq -e '.result.tools[] | select(.name == "scan_directory")' > /dev/null
 
 if [ $? -eq 0 ]; then
     echo "✅ Tools are available"

@@ -138,7 +138,7 @@ fn handle_write(file: PathBuf, set: Vec<String>, apply: bool) {
 
 /// Handle normalize command
 fn handle_normalize(path: PathBuf, dry_run: bool) {
-    match normalize_track_titles(&path, dry_run) {
+    match normalize_track_titles(&path) {
         Ok(results) => {
             for result in results {
                 match result {

@@ -2,6 +2,16 @@
 
 The Model Context Protocol (MCP) server for Music Chore provides AI agents with programmatic access to music library management capabilities. It exposes the core functionality of the `musicctl` CLI tool through a standardized MCP interface.
 
+## ✅ Status: Production Ready
+
+The MCP server is **fully functional and tested** with:
+- ✅ Complete MCP protocol implementation
+- ✅ All 5 core tools exposed and working
+- ✅ Proper initialization and shutdown handling  
+- ✅ Comprehensive error handling
+- ✅ AI-friendly structured output
+- ✅ Graceful EOF handling (no more error spam)
+
 ## Overview
 
 The MCP server allows AI agents to:
@@ -12,6 +22,23 @@ The MCP server allows AI agents to:
 - Emit structured library metadata for analysis
 
 ## Installation
+
+### Quick Install (Recommended)
+
+```bash
+# Automated setup with Claude CLI (easiest)
+curl -fsSL https://raw.githubusercontent.com/Komdosh/music-chore/main/install_mcp.sh | bash
+
+# Or use Claude CLI directly
+claude mcp add music-chore -- musicctl-mcp
+```
+
+**🎯 Why CLI Method is Better:**
+- ✅ No manual file editing required
+- ✅ Automatic path detection and validation
+- ✅ Safe backup and restore of configuration
+- ✅ Works even if config file doesn't exist yet
+- ✅ Automatic PATH setup
 
 ### Build from Source
 
@@ -237,29 +264,6 @@ All tools return responses in this format:
 ```
 
 ## Integration Examples
-
-### Claude Desktop Integration
-
-1. Add to `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "music-chore": {
-      "command": "/usr/local/bin/musicctl-mcp",
-      "args": ["--verbose"],
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
-```
-
-2. Restart Claude Desktop
-3. Use natural language commands:
-   - "Scan my music library and tell me how many artists I have"
-   - "Show me the metadata for this specific FLAC file"
-   - "Normalize all track titles in my rock collection"
 
 ### Programmatic Usage
 

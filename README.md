@@ -43,16 +43,7 @@ The product is provided as is, without warranties of any kind. Use at your own r
 
 ## 🚀 Quick Start
 
-### Installation
-
-#### 🚀 Quick Install (MCP Server)
-
-```bash
-# Automated MCP server setup
-curl -fsSL https://raw.githubusercontent.com/Komdosh/music-chore/main/install_mcp.sh | bash
-```
-
-#### 📦 Traditional Install
+### 📦Installation
 
 ```bash
 curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install.sh | bash
@@ -68,28 +59,32 @@ cargo install --path .
 cargo build --release
 ```
 
-### 🤖 MCP Server Setup (Recommended for AI Users)
+### 🤖 MCP Server Setup
 
-**For Claude Desktop integration:**
+**CLI MCP:**
 
 ```bash
-# Build the MCP server
-cargo build --release
+curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install_mcp.sh | bash
+```
 
-# Add to Claude Desktop config
-cat > ~/Library/Application\ Support/Claude/claude_desktop_config.json << 'EOF'
+**Claude:**
+
+```bash
+claude mcp add music-chore -- musicctl-mcp
+```
+
+**Opencode:**
+
+```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "music-chore": {
-      "command": "/usr/local/bin/musicctl-mcp",
-      "args": ["--verbose"]
+      "type": "local",
+      "command": ["musicctl-mcp"]
     }
   }
 }
-EOF
-
-# Restart Claude Desktop
-# Now you can use natural language commands!
 ```
 
 ### 🔧 Basic CLI Usage
@@ -332,36 +327,6 @@ musicctl-mcp --verbose
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | musicctl-mcp
 ```
 
-### 🚀 Quick Setup with Claude Desktop
-
-1. **Build from source:**
-   ```bash
-   git clone <repository-url>
-   cd music-chore
-   cargo build --release
-   ```
-
-2. **Add to Claude Desktop config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-   ```json
-   {
-     "mcpServers": {
-       "music-chore": {
-         "command": "/usr/local/bin/musicctl-mcp",
-         "args": ["--verbose"],
-         "env": {
-           "RUST_LOG": "info"
-         }
-       }
-     }
-   }
-   ```
-
-3. **Restart Claude Desktop** and start using natural language:
-   - "Scan my music library and tell me how many artists I have"
-   - "Show me the metadata for this specific FLAC file"  
-   - "Normalize all track titles in my rock collection"
-   - "Give me a hierarchical view of my jazz collection"
-
 ### 🛠️ Available MCP Tools
 
 | Tool | Description | Parameters | Use Case |
@@ -408,13 +373,13 @@ Test that your MCP server is working:
 
 ```bash
 # Test basic initialization
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | ./target/release/musicctl-mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}' | musicctl-mcp
 
 # Expected response:
 # {"id":1,"result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"music-chore","version":"0.1.2"}},"jsonrpc":"2.0"}
 
 # Test tool availability  
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./target/release/musicctl-mcp
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | musicctl-mcp
 
 # Should return list of 5 available tools
 ```

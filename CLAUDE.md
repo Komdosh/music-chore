@@ -106,9 +106,15 @@ You should plan and design for:
 
 ### v2 — AI Agent Integration
 
-Planned but **not implemented in v1**:
+**✅ COMPLETED in v1**:
 
-* MCP awareness (agent-friendly command structure and output)
+* ✅ MCP awareness (agent-friendly command structure and output)
+* ✅ Complete MCP server with all 5 core tools
+* ✅ Proper initialization and shutdown handling
+* ✅ Claude Desktop integration via CLI
+
+**Planned for future versions**:
+
 * Support additional file formats
 * Generate a `.cue` file for an album folder using track metadata
 

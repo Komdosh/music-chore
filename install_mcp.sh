@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Music Chore MCP Server Installation Script
-# This script sets up the MCP server for AI agent integration
+# This script installs the music-chore MCP server for Claude Desktop
 
 set -e
 
@@ -13,6 +13,62 @@ if ! command -v cargo &> /dev/null; then
     echo "   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
     exit 1
 fi
+
+# Check if we're in the right directory
+if [ ! -f "Cargo.toml" ]; then
+    echo "❌ Please run this script from the music-chore repository root"
+    exit 1
+fi
+
+# Build the project
+echo "🔨 Building music-chore..."
+cargo build --release
+
+# Check if build succeeded
+if [ ! -f "target/release/musicctl-mcp" ]; then
+    echo "❌ Build failed. Please check the error messages above."
+    exit 1
+fi
+
+# Install to system location
+echo "📦 Installing to /usr/local/bin..."
+sudo cp target/release/musicctl-mcp /usr/local/bin/
+sudo chmod +x /usr/local/bin/musicctl-mcp
+
+# Create Claude Desktop config directory
+echo "📁 Setting up Claude Desktop configuration..."
+CONFIG_DIR="$HOME/Library/Application Support/Claude"
+mkdir -p "$CONFIG_DIR"
+
+# Backup existing config if it exists
+CONFIG_FILE="$CONFIG_DIR/claude_desktop_config.json"
+if [ -f "$CONFIG_FILE" ]; then
+    cp "$CONFIG_FILE" "$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "💾 Backed up existing config to: $CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+
+# Create or update the config
+cat > "$CONFIG_FILE" << EOF
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "/usr/local/bin/musicctl-mcp",
+      "args": ["--verbose"],
+      "env": {
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}
+EOF
+
+echo "✅ Installation complete!"
+echo ""
+echo "🎯 Next steps:"
+echo "1. Restart Claude Desktop"
+echo "2. Test with: echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0.0\"}}}' | musicctl-mcp"
+echo ""
+echo "📖 For more information, see: https://github.com/Komdosh/music-chore/blob/main/docs/MCP_SERVER.md"
 
 # Get the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
