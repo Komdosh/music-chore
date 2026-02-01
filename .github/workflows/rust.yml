@@ -55,11 +55,11 @@ jobs:
         with:
           tool: musicctl-mcp
 
-      - name: Generate install-mcp.sh
+      - name: Generate install_mcp.sh
         uses: ./.github/actions/install-script
         with:
           tool: musicctl-mcp
-          script_name: install-mcp.sh
+          script_name: install_mcp.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -67,8 +67,9 @@ jobs:
           name: musicctl-macos
           path: |
             dist/musicctl-macos-universal.tar.gz
+            dist/musicctl-mcp-macos-universal.tar.gz
             dist/install.sh
-            dist/install-mcp.sh
+            dist/install_mcp.sh
 
   release:
       name: Create GitHub Release
