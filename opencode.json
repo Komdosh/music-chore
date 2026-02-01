@@ -19,5 +19,11 @@
         }
       }
     }
+  },
+  "mcp": {
+    "music-chore": {
+      "type": "local",
+      "command": ["musicctl-mcp"]
+    }
   }
 }

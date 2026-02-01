@@ -4,25 +4,10 @@ This document provides configuration examples for integrating the Music Chore MC
 
 ## Claude Desktop
 
-### Configuration File Location
+### 🚀 Automated Setup (Recommended)
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-### Basic Configuration
-
-```json
-{
-  "mcpServers": {
-    "music-chore": {
-      "command": "/usr/local/bin/musicctl-mcp",
-      "args": [],
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
+```bash
+claude mcp add music-chore -- musicctl-mcp
 ```
 
 ### Advanced Configuration
@@ -31,7 +16,7 @@ This document provides configuration examples for integrating the Music Chore MC
 {
   "mcpServers": {
     "music-chore": {
-      "command": "/path/to/musicctl-mcp",
+      "command": "musicctl-mcp",
       "args": ["--verbose"],
       "env": {
         "RUST_LOG": "debug",
@@ -48,7 +33,7 @@ This document provides configuration examples for integrating the Music Chore MC
 {
   "mcpServers": {
     "music-chore-flac": {
-      "command": "/usr/local/bin/musicctl-mcp",
+      "command": "musicctl-mcp",
       "args": ["--verbose"],
       "env": {
         "RUST_LOG": "info",
@@ -56,7 +41,7 @@ This document provides configuration examples for integrating the Music Chore MC
       }
     },
     "music-chore-mp3": {
-      "command": "/usr/local/bin/musicctl-mcp", 
+      "command": "musicctl-mcp", 
       "args": ["--verbose"],
       "env": {
         "RUST_LOG": "info",
@@ -64,6 +49,22 @@ This document provides configuration examples for integrating the Music Chore MC
       }
     }
   }
+}
+```
+
+## OpenCode
+
+### 🚀 Config file
+
+```json
+{
+   "$schema": "https://opencode.ai/config.json",
+   "mcp": {
+      "music-chore": {
+         "type": "local",
+         "command": ["musicctl-mcp"]
+      }
+   }
 }
 ```
 
@@ -76,7 +77,7 @@ import { MCPClient } from "@continue/dev/mcp";
 
 const musicChoreClient = new MCPClient({
   name: "music-chore",
-  command: "/usr/local/bin/musicctl-mcp",
+  command: "musicctl-mcp",
   args: ["--verbose"],
   env: {
     RUST_LOG: "info"
@@ -102,7 +103,7 @@ import { createMcpClient } from 'mcp-client';
 
 const client = await createMcpClient({
   name: 'music-chore',
-  command: '/usr/local/bin/musicctl-mcp',
+  command: 'musicctl-mcp',
   args: ['--verbose']
 });
 
@@ -135,7 +136,7 @@ const MusicLibraryViewer = ({ libraryPath }) => {
   const [loading, setLoading] = useState(true);
   
   const musicClient = new MCPClient({
-    command: '/usr/local/bin/musicctl-mcp',
+    command: 'musicctl-mcp',
     args: []
   });
 
@@ -198,7 +199,7 @@ import json
 from mcp_client import AsyncMCPClient
 
 class MusicChoreClient:
-    def __init__(self, command="/usr/local/bin/musicctl-mcp"):
+    def __init__(self, command="musicctl-mcp"):
         self.client = AsyncMCPClient(command)
     
     async def scan_directory(self, path, json_output=True):
@@ -327,85 +328,24 @@ EOF
 
 # Load environment
 source .env
-
-# Start MCP server
-musicctl-mcp --verbose
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission Denied**
-   ```bash
-   chmod +x /path/to/musicctl-mcp
-   ```
-
-2. **Library Not Found**
-   ```bash
-   export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
-   ```
-
-3. **Logging Issues**
-   ```bash
-   # Enable debug logging
-   RUST_LOG=debug musicctl-mcp --verbose
-   
-   # Check server status
-   echo '{"name":"scan_directory","arguments":{"path":"/test"}}' | musicctl-mcp
-   ```
 
 ### Health Check Script
 
 ```bash
-#!/bin/bash
-# health-check.sh
-
-echo "Testing MCP server health..."
-
-# Test basic connectivity
-echo '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0.0"}}, "id": 1}' | musicctl-mcp | jq -e '.result' > /dev/null
-
-if [ $? -eq 0 ]; then
-    echo "✅ MCP server is responding"
-else
-    echo "❌ MCP server failed to respond"
-    exit 1
-fi
-
-# Test tool availability
-echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | musicctl-mcp | jq -e '.result.tools[] | select(.name == "scan_directory")' > /dev/null
-
-if [ $? -eq 0 ]; then
-    echo "✅ Tools are available"
-else
-    echo "❌ Tools not found"
-    exit 1
-fi
-
-echo "✅ All health checks passed"
+cat <<EOF | musicctl-mcp | jq
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"bash","version":"0.1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+EOF
 ```
 
 ### Testing MCP Connection
 
 ```bash
-# Simple test script
-#!/bin/bash
-echo "Testing scan_directory tool..."
-
-cat << EOF | musicctl-mcp
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "scan_directory",
-    "arguments": {
-      "path": "/tmp",
-      "json_output": false
-    }
-  },
-  "id": 3
-}
+cat <<EOF | musicctl-mcp | jq
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"bash","version":"0.1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
 EOF
 ```
 

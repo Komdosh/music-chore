@@ -29,7 +29,15 @@ pub fn to_title_case(input: &str) -> String {
 }
 
 /// Normalize track titles to title case
-pub fn normalize_track_titles(path: &Path, dry_run: bool) -> Result<Vec<OperationResult>, String> {
+pub fn normalize_track_titles(path: &Path) -> Result<Vec<OperationResult>, String> {
+    normalize_track_titles_with_options(path, false)
+}
+
+/// Normalize track titles to title case with options
+pub fn normalize_track_titles_with_options(
+    path: &Path,
+    dry_run: bool,
+) -> Result<Vec<OperationResult>, String> {
     let mut results = Vec::new();
 
     // Check if path is a file or directory

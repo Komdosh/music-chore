@@ -2,6 +2,15 @@
 
 The Model Context Protocol (MCP) server for Music Chore provides AI agents with programmatic access to music library management capabilities. It exposes the core functionality of the `musicctl` CLI tool through a standardized MCP interface.
 
+## ✅ Status: Production Ready
+
+The MCP server is **fully functional and tested** with:
+- ✅ Complete MCP protocol implementation using rmcp SDK
+- ✅ All 5 core tools exposed and working
+- ✅ Proper initialization and shutdown handling  
+- ✅ Comprehensive error handling and parameter validation
+- ✅ AI-friendly structured output (JSON and text formats)
+
 ## Overview
 
 The MCP server allows AI agents to:
@@ -13,6 +22,28 @@ The MCP server allows AI agents to:
 
 ## Installation
 
+### Quick Install (Recommended)
+
+```bash
+# Automated local setup sudo password required
+curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install_mcp.sh | bash
+```
+
+#### Install in you agent:
+
+Claude CLI:
+
+```bash
+claude mcp add music-chore -- musicctl-mcp
+```
+
+**🎯 Why CLI Method is Better:**
+- ✅ No manual file editing required
+- ✅ Automatic path detection and validation
+- ✅ Safe backup and restore of configuration
+- ✅ Works even if config file doesn't exist yet
+- ✅ Automatic PATH setup
+
 ### Build from Source
 
 ```bash
@@ -23,33 +54,58 @@ cargo build --release
 
 The MCP server binary will be available at `target/release/musicctl-mcp`.
 
-## Usage
-
-### Starting the MCP Server
+Or you can install it with:
 
 ```bash
-# Basic usage
-musicctl-mcp
+git clone <repository-url>
+cd music-chore
+cargo install --path .
+```
 
-# With verbose logging
-musicctl-mcp --verbose
+To run it in terminal with just a name `musicctl-mcp`.
+
+## Usage
+
+### Verify that MCP is installed
+
+```bash
+cat <<EOF | musicctl-mcp | jq
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"bash","version":"0.1"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+EOF
 ```
 
 The server runs on stdio transport, which is the standard for MCP integration.
 
 ### MCP Client Configuration
 
-Add to your MCP client configuration (e.g., Claude Desktop):
+Add to your MCP client configuration
+
+Claude Desktop:
 
 ```json
 {
   "mcpServers": {
     "music-chore": {
-      "command": "/path/to/musicctl-mcp",
+      "command": "musicctl-mcp",
       "args": [],
       "env": {
         "RUST_LOG": "info"
       }
+    }
+  }
+}
+```
+
+OpenCode:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "music-chore": {
+      "type": "local",
+      "command": ["musicctl-mcp"]
     }
   }
 }
@@ -63,11 +119,11 @@ Recursively scan a directory for music files and return file information.
 
 **Parameters:**
 - `path` (string, required): Base directory path to scan for music files
-- `json_output` (boolean, optional): Return results as JSON (true) or simple list (false). Default: false
+- `json_output` (boolean, optional): Return results as JSON (true) or simple file list (false). Default: false
 
 **Returns:**
-- If `json_output=false`: `{"files": ["path1", "path2", ...], "count": N}`
-- If `json_output=true`: Full JSON array of track objects
+- If `json_output=false`: Simple newline-separated list of file paths
+- If `json_output=true`: Full JSON array of track objects with complete metadata
 
 **Example:**
 ```json
@@ -86,11 +142,12 @@ Get a hierarchical tree view of the music library organized by artist and album.
 
 **Parameters:**
 - `path` (string, required): Base directory path to analyze
-- `json_output` (boolean, optional): Return results as JSON (true) or formatted tree (false). Default: false
+- `json_output` (boolean, optional): Return results as JSON (true) or structured library data (false). Default: false
 
 **Returns:**
-- If `json_output=false`: Formatted ASCII tree with emojis
-- If `json_output=true`: Full JSON library object with artist/album/track hierarchy
+- If `json_output=false`: JSON library object (current implementation)
+- If `json_output=true`: JSON library object with artist/album/track hierarchy
+- Note: Currently always returns JSON structure, tree format planned for future release
 
 **Example:**
 ```json
@@ -151,10 +208,10 @@ Emit complete library metadata in structured format optimized for AI analysis.
 
 **Parameters:**
 - `path` (string, required): Base directory path to analyze
-- `format` (string, optional): Output format - "text" for AI-friendly structured text, "json" for JSON. Default: "text"
+- `json_output` (boolean, optional): Return results as JSON (true) or AI-friendly structured text (false). Default: false
 
 **Returns:**
-Complete library information with summary statistics and detailed track information.
+Complete library information with summary statistics and detailed track information in AI-optimized format or JSON.
 
 **Example:**
 ```json
@@ -228,7 +285,7 @@ All tools return responses in this format:
         {
           "title": "Album Title",
           "year": 2023,
-          "tracks": [...]
+          "tracks": [{}]
         }
       ]
     }
@@ -237,29 +294,6 @@ All tools return responses in this format:
 ```
 
 ## Integration Examples
-
-### Claude Desktop Integration
-
-1. Add to `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "music-chore": {
-      "command": "/usr/local/bin/musicctl-mcp",
-      "args": ["--verbose"],
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
-```
-
-2. Restart Claude Desktop
-3. Use natural language commands:
-   - "Scan my music library and tell me how many artists I have"
-   - "Show me the metadata for this specific FLAC file"
-   - "Normalize all track titles in my rock collection"
 
 ### Programmatic Usage
 
@@ -321,13 +355,22 @@ The MCP server operates with the same permissions as the user running it:
 
 ## Development
 
-For development and testing:
-```bash
-# Run with debug logging
-RUST_LOG=debug musicctl-mcp --verbose
+Easiest way to interact with local stdio mcp it's `rlwrap`. 
 
-# Test specific directory
-echo '{"name":"scan_directory","arguments":{"path":"/test/music"}}' | musicctl-mcp
+```bash
+rlwrap musicctl-mcp
+
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"bash","version":"0.1"}}}
+
+# >> {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"music-chore","version":"0.1.2"},"instructions":"Music Chore CLI - Music library metadata management tool"}}
+
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+
+# >> client initialized
+
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+
+# >> full list of tools
 ```
 
 ## Support

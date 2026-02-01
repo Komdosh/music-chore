@@ -1,0 +1,33 @@
+inputs:
+  tool:
+    required: true
+    description: name of program
+  script_name:
+    required: true
+    description: name of script
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        cat << 'EOF' > dist/${{ inputs.script_name }}
+          #!/usr/bin/env bash
+          set -e
+          TOOL_NAME="${{ inputs.tool }}"
+          REPO="Komdosh/music-chore"
+
+          OS="$(uname | tr '[:upper:]' '[:lower:]')"
+          if [ "$OS" != "darwin" ]; then
+              echo "Currently only macOS is supported"
+              exit 1
+          fi
+
+          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-macos-universal.tar.gz"
+          echo "Downloading $URL..."
+          curl -LO "$URL"
+          tar -xzf "$TOOL_NAME-macos-universal.tar.gz"
+          chmod +x "$TOOL_NAME"
+          sudo mv "$TOOL_NAME" /usr/local/bin/
+          xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
+          echo "$TOOL_NAME installed successfully!"
+          EOF
+      shell: bash

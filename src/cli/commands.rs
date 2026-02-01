@@ -11,6 +11,9 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "musicctl")]
 #[command(about = "Deterministic, AI‑friendly music metadata compiler.")]
+#[command(
+    long_about = "A CLI tool for organizing and normalizing local music libraries using existing file metadata and directory structure only.\n\nSupported audio formats: .flac"
+)]
 #[command(disable_version_flag = true)]
 pub struct Cli {
     /// Show version information
@@ -24,6 +27,8 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Recursively scan a directory for music files.
+    ///
+    /// Currently supports: .flac files
     Scan {
         /// Base directory to scan.
         path: PathBuf,
@@ -133,7 +138,7 @@ fn handle_write(file: PathBuf, set: Vec<String>, apply: bool) {
 
 /// Handle normalize command
 fn handle_normalize(path: PathBuf, dry_run: bool) {
-    match normalize_track_titles(&path, dry_run) {
+    match normalize_track_titles(&path) {
         Ok(results) => {
             for result in results {
                 match result {
