@@ -2,8 +2,8 @@ use std::process::Command;
 
 #[test]
 fn test_version_flag_short() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--", "-v"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
+        .args(&["-v"])
         .output()
         .expect("Failed to run musicctl -v");
 
@@ -15,8 +15,8 @@ fn test_version_flag_short() {
 
 #[test]
 fn test_version_flag_long() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--", "--version"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
+        .args(&["--version"])
         .output()
         .expect("Failed to run musicctl --version");
 
@@ -28,8 +28,8 @@ fn test_version_flag_long() {
 
 #[test]
 fn test_version_flag_format() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--", "-v"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
+        .args(&["-v"])
         .output()
         .expect("Failed to run musicctl -v");
 
@@ -61,8 +61,8 @@ fn test_version_flag_format() {
 
 #[test]
 fn test_version_flag_takes_precedence() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--", "-v", "scan", "/fake/path"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
+        .args(&["-v", "scan", "/fake/path"])
         .output()
         .expect("Failed to run musicctl -v scan");
 
@@ -75,8 +75,8 @@ fn test_version_flag_takes_precedence() {
 
 #[test]
 fn test_help_shows_version_option() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--", "--help"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
+        .args(&["--help"])
         .output()
         .expect("Failed to run musicctl --help");
 
@@ -88,8 +88,7 @@ fn test_help_shows_version_option() {
 
 #[test]
 fn test_no_command_shows_help() {
-    let output = Command::new("cargo")
-        .args(&["run", "--bin", "musicctl", "--"])
+    let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
         .output()
         .expect("Failed to run musicctl without command");
 

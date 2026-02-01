@@ -32,7 +32,7 @@ mod tests {
 
         if Path::new(test_file).exists() {
             // Test dry-run mode
-            let output = Command::new("./target/debug/musicctl")
+            let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
                 .arg("normalize")
                 .arg(test_file)
                 .arg("--dry-run")
@@ -55,7 +55,7 @@ mod tests {
 
         if Path::new(test_dir).exists() {
             // Test dry-run mode on directory
-            let output = Command::new("./target/debug/musicctl")
+            let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
                 .arg("normalize")
                 .arg(test_dir)
                 .arg("--dry-run")
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn test_normalize_command_error_handling() {
         // Test error handling for non-existent paths
-        let output = Command::new("./target/debug/musicctl")
+        let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("normalize")
             .arg("tests/fixtures/nonexistent/file.flac")
             .arg("--dry-run")
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_normalize_command_help() {
         // Test that normalize command shows help when needed
-        let output = Command::new("./target/debug/musicctl")
+        let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("normalize")
             .arg("--help")
             .output()
