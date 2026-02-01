@@ -55,21 +55,21 @@ features:
       - "Step 1: Prepare mutable track"
       - "Step 2: Run musicctl write --dry-run"
       - "Step 3: Verify file unchanged"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 9: Apply metadata updates with --apply."
     steps:
       - "Step 1: Prepare track"
       - "Step 2: Run musicctl write --set title=\"New Title\" --apply"
       - "Step 3: Verify file title updated"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 10: Validate missing required fields."
     steps:
       - "Step 1: Prepare track missing artist"
       - "Step 2: Run musicctl validate"
       - "Step 3: Verify error output"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 11: Handle Unicode characters in paths."
     steps:

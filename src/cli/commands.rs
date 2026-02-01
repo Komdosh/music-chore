@@ -8,6 +8,36 @@ use clap::{Parser, Subcommand};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
+#[derive(Debug, serde::Serialize)]
+pub struct ValidationResult {
+    pub valid: bool,
+    pub errors: Vec<ValidationError>,
+    pub warnings: Vec<ValidationWarning>,
+    pub summary: ValidationSummary,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ValidationError {
+    pub file_path: String,
+    pub field: String,
+    pub message: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ValidationWarning {
+    pub file_path: String,
+    pub field: String,
+    pub message: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ValidationSummary {
+    pub total_files: usize,
+    pub valid_files: usize,
+    pub files_with_errors: usize,
+    pub files_with_warnings: usize,
+}
+
 #[derive(Parser)]
 #[command(name = "musicctl")]
 #[command(about = "Deterministic, AI‑friendly music metadata compiler.")]
@@ -69,6 +99,14 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Validate metadata completeness and consistency.
+    Validate {
+        /// Base directory to validate.
+        path: PathBuf,
+        /// Output JSON instead of human-readable format.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Handle the parsed CLI command
@@ -98,6 +136,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         }
         Commands::Emit { path, json } => {
             handle_emit(path, json);
+            Ok(())
+        }
+        Commands::Validate { path, json } => {
+            handle_validate(path, json);
             Ok(())
         }
     }
@@ -453,4 +495,253 @@ fn apply_metadata_update(
     }
 
     Ok(())
+}
+
+/// Print validation results in human-readable format
+fn print_validation_results(results: &ValidationResult) {
+    println!("=== METADATA VALIDATION RESULTS ===");
+    println!();
+
+    println!("📊 Summary:");
+    println!("  Total files: {}", results.summary.total_files);
+    println!("  Valid files: {}", results.summary.valid_files);
+    println!("  Files with errors: {}", results.summary.files_with_errors);
+    println!(
+        "  Files with warnings: {}",
+        results.summary.files_with_warnings
+    );
+    println!();
+
+    if results.valid {
+        println!("✅ All files passed validation!");
+    } else {
+        println!("❌ Validation failed with {} errors", results.errors.len());
+    }
+
+    if !results.errors.is_empty() {
+        println!();
+        println!("🔴 ERRORS:");
+        for error in &results.errors {
+            println!("  File: {}", error.file_path);
+            println!("  Field: {}", error.field);
+            println!("  Issue: {}", error.message);
+            println!();
+        }
+    }
+
+    if !results.warnings.is_empty() {
+        println!("🟡 WARNINGS:");
+        for warning in &results.warnings {
+            println!("  File: {}", warning.file_path);
+            println!("  Field: {}", warning.field);
+            println!("  Issue: {}", warning.message);
+            println!();
+        }
+    }
+
+    println!("=== END VALIDATION ===");
+}
+
+/// Validate tracks for missing required fields and consistency issues
+pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    let mut files_with_errors = std::collections::HashSet::new();
+    let mut files_with_warnings = std::collections::HashSet::new();
+
+    for track in &tracks {
+        let file_path = track.file_path.to_string_lossy().to_string();
+        let mut has_error = false;
+        let mut has_warning = false;
+
+        // Required fields: title, artist, album
+        if track.metadata.title.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "title".to_string(),
+                message: "Missing required field: title".to_string(),
+            });
+            has_error = true;
+        }
+
+        if track.metadata.artist.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "artist".to_string(),
+                message: "Missing required field: artist".to_string(),
+            });
+            has_error = true;
+        }
+
+        if track.metadata.album.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "album".to_string(),
+                message: "Missing required field: album".to_string(),
+            });
+            has_error = true;
+        }
+
+        // Check for empty or whitespace-only fields
+        if let Some(ref title) = track.metadata.title {
+            if title.value.trim().is_empty() {
+                errors.push(ValidationError {
+                    file_path: file_path.clone(),
+                    field: "title".to_string(),
+                    message: "Title field is empty".to_string(),
+                });
+                has_error = true;
+            }
+        }
+
+        if let Some(ref artist) = track.metadata.artist {
+            if artist.value.trim().is_empty() {
+                errors.push(ValidationError {
+                    file_path: file_path.clone(),
+                    field: "artist".to_string(),
+                    message: "Artist field is empty".to_string(),
+                });
+                has_error = true;
+            }
+        }
+
+        if let Some(ref album) = track.metadata.album {
+            if album.value.trim().is_empty() {
+                errors.push(ValidationError {
+                    file_path: file_path.clone(),
+                    field: "album".to_string(),
+                    message: "Album field is empty".to_string(),
+                });
+                has_error = true;
+            }
+        }
+
+        // Warnings for recommended fields
+        if track.metadata.track_number.is_none() {
+            warnings.push(ValidationWarning {
+                file_path: file_path.clone(),
+                field: "track_number".to_string(),
+                message: "Missing recommended field: track_number".to_string(),
+            });
+            has_warning = true;
+        }
+
+        if track.metadata.year.is_none() {
+            warnings.push(ValidationWarning {
+                file_path: file_path.clone(),
+                field: "year".to_string(),
+                message: "Missing recommended field: year".to_string(),
+            });
+            has_warning = true;
+        }
+
+        // Check for reasonable year ranges
+        if let Some(ref year) = track.metadata.year {
+            if year.value < 1900 || year.value > 2100 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "year".to_string(),
+                    message: format!("Year {} seems unusual (expected 1900-2100)", year.value),
+                });
+                has_warning = true;
+            }
+        }
+
+        // Check for reasonable track numbers
+        if let Some(ref track_number) = track.metadata.track_number {
+            if track_number.value == 0 || track_number.value > 99 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "track_number".to_string(),
+                    message: format!(
+                        "Track number {} seems unusual (expected 1-99)",
+                        track_number.value
+                    ),
+                });
+                has_warning = true;
+            }
+        }
+
+        // Check for very long titles
+        if let Some(ref title) = track.metadata.title {
+            if title.value.len() > 200 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "title".to_string(),
+                    message: format!("Title is very long ({} characters)", title.value.len()),
+                });
+                has_warning = true;
+            }
+        }
+
+        if has_error {
+            files_with_errors.insert(file_path.clone());
+        }
+        if has_warning {
+            files_with_warnings.insert(file_path);
+        }
+    }
+
+    let total_files = tracks.len();
+    let valid_files = total_files - files_with_errors.len();
+    let summary = ValidationSummary {
+        total_files,
+        valid_files,
+        files_with_errors: files_with_errors.len(),
+        files_with_warnings: files_with_warnings.len(),
+    };
+
+    ValidationResult {
+        valid: errors.is_empty(),
+        errors,
+        warnings,
+        summary,
+    }
+}
+
+/// Handle validate command
+fn handle_validate(path: PathBuf, json: bool) {
+    let tracks = scan_dir(&path);
+    let total_scanned = tracks.len();
+
+    if tracks.is_empty() {
+        if json {
+            println!("{{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}}}");
+        } else {
+            println!("No music files found to validate.");
+        }
+        return;
+    }
+
+    // For validation, we need to read actual metadata from each file
+    let tracks_with_metadata: Vec<crate::Track> = tracks
+        .into_iter()
+        .filter_map(|track| {
+            match read_metadata(&track.file_path) {
+                Ok(track_with_metadata) => Some(track_with_metadata),
+                Err(_) => None, // Skip files that can't be read
+            }
+        })
+        .collect();
+
+    if tracks_with_metadata.is_empty() {
+        if json {
+            println!("{{\"valid\": false, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": {}, \"valid_files\": 0, \"files_with_errors\": {}, \"files_with_warnings\": 0}}}}", 
+                total_scanned, total_scanned);
+        } else {
+            println!("Unable to read metadata from any files for validation.");
+        }
+        return;
+    }
+
+    let validation_results = validate_tracks(tracks_with_metadata);
+
+    if json {
+        match serde_json::to_string_pretty(&validation_results) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Error serializing validation results: {}", e),
+        }
+    } else {
+        print_validation_results(&validation_results);
+    }
 }
