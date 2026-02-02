@@ -139,14 +139,14 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             Ok(())
         }
         Commands::Validate { path, json } => {
-            handle_validate(path, json);
+            println!("{}", handle_validate(path, json));
             Ok(())
         }
     }
 }
 
 /// Handle scan command
-fn handle_scan(path: PathBuf, json: bool) {
+pub fn handle_scan(path: PathBuf, json: bool) {
     let tracks = scan_dir(&path);
     if tracks.is_empty() {
         println!("No music files found in directory: {}", path.display());
@@ -166,7 +166,7 @@ fn handle_scan(path: PathBuf, json: bool) {
 }
 
 /// Handle tree command
-fn handle_tree(path: PathBuf, json: bool) {
+pub fn handle_tree(path: PathBuf, json: bool) {
     let tracks = scan_dir(&path);
     let library = build_library_hierarchy(tracks);
 
@@ -181,7 +181,7 @@ fn handle_tree(path: PathBuf, json: bool) {
 }
 
 /// Handle read command
-fn handle_read(file: PathBuf) {
+pub fn handle_read(file: PathBuf) {
     match read_metadata(&file) {
         Ok(track) => match to_string_pretty(&track) {
             Ok(s) => println!("{}", s),
@@ -192,7 +192,12 @@ fn handle_read(file: PathBuf) {
 }
 
 /// Handle write command
-fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
+pub fn handle_write(
+    file: PathBuf,
+    set: Vec<String>,
+    apply: bool,
+    dry_run: bool,
+) -> Result<(), i32> {
     if apply && dry_run {
         eprintln!("Error: Cannot use both --apply and --dry-run flags simultaneously");
         return Err(1);
@@ -265,7 +270,7 @@ fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> 
 }
 
 /// Handle normalize command
-fn handle_normalize(path: PathBuf, dry_run: bool) {
+pub fn handle_normalize(path: PathBuf, dry_run: bool) {
     match normalize_track_titles(&path) {
         Ok(results) => {
             for result in results {
@@ -310,7 +315,7 @@ fn handle_normalize(path: PathBuf, dry_run: bool) {
 }
 
 /// Handle emit command
-fn handle_emit(path: PathBuf, json: bool) {
+pub fn handle_emit(path: PathBuf, json: bool) {
     let tracks = scan_dir(&path);
     let library = build_library_hierarchy(tracks);
 
@@ -326,7 +331,7 @@ fn handle_emit(path: PathBuf, json: bool) {
 }
 
 /// Emit structured output optimized for AI agents
-fn emit_structured_output(library: &Library) {
+pub fn emit_structured_output(library: &Library) {
     println!("=== MUSIC LIBRARY METADATA ===");
     println!("Total Artists: {}", library.total_artists);
     println!("Total Albums: {}", library.total_albums);
@@ -498,49 +503,49 @@ fn apply_metadata_update(
 }
 
 /// Print validation results in human-readable format
-fn print_validation_results(results: &ValidationResult) {
-    println!("=== METADATA VALIDATION RESULTS ===");
-    println!();
+fn build_validation_results(results: &ValidationResult) -> String {
+    let mut output = String::new();
 
-    println!("📊 Summary:");
-    println!("  Total files: {}", results.summary.total_files);
-    println!("  Valid files: {}", results.summary.valid_files);
-    println!("  Files with errors: {}", results.summary.files_with_errors);
-    println!(
-        "  Files with warnings: {}",
+    output.push_str("=== METADATA VALIDATION RESULTS ===\n\n");
+
+    output.push_str("📊 Summary:\n");
+    output.push_str(&format!("  Total files: {}\n", results.summary.total_files));
+    output.push_str(&format!("  Valid files: {}\n", results.summary.valid_files));
+    output.push_str(&format!("  Files with errors: {}\n", results.summary.files_with_errors));
+    output.push_str(&format!(
+        "  Files with warnings: {}\n\n",
         results.summary.files_with_warnings
-    );
-    println!();
+    ));
 
     if results.valid {
-        println!("✅ All files passed validation!");
+        output.push_str("✅ All files passed validation!\n");
     } else {
-        println!("❌ Validation failed with {} errors", results.errors.len());
+        output.push_str(&format!("❌ Validation failed with {} errors\n", results.errors.len()));
     }
 
     if !results.errors.is_empty() {
-        println!();
-        println!("🔴 ERRORS:");
+        output.push_str("\n🔴 ERRORS:\n");
         for error in &results.errors {
-            println!("  File: {}", error.file_path);
-            println!("  Field: {}", error.field);
-            println!("  Issue: {}", error.message);
-            println!();
+            output.push_str(&format!("  File: {}\n", error.file_path));
+            output.push_str(&format!("  Field: {}\n", error.field));
+            output.push_str(&format!("  Issue: {}\n\n", error.message));
         }
     }
 
     if !results.warnings.is_empty() {
-        println!("🟡 WARNINGS:");
+        output.push_str("🟡 WARNINGS:\n");
         for warning in &results.warnings {
-            println!("  File: {}", warning.file_path);
-            println!("  Field: {}", warning.field);
-            println!("  Issue: {}", warning.message);
-            println!();
+            output.push_str(&format!("  File: {}\n", warning.file_path));
+            output.push_str(&format!("  Field: {}\n", warning.field));
+            output.push_str(&format!("  Issue: {}\n", warning.message));
         }
     }
 
-    println!("=== END VALIDATION ===");
+    output.push_str("=== END VALIDATION ===\n");
+
+    output
 }
+
 
 /// Validate tracks for missing required fields and consistency issues
 pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
@@ -700,48 +705,42 @@ pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
 }
 
 /// Handle validate command
-fn handle_validate(path: PathBuf, json: bool) {
+pub fn handle_validate(path: PathBuf, json: bool) -> String {
     let tracks = scan_dir(&path);
     let total_scanned = tracks.len();
 
     if tracks.is_empty() {
-        if json {
-            println!("{{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}}}");
+        return if json {
+            format!(
+                "{{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}}}"
+            )
         } else {
-            println!("No music files found to validate.");
+            "No music files found to validate.".to_string()
         }
-        return;
     }
 
-    // For validation, we need to read actual metadata from each file
+    // Read metadata for validation
     let tracks_with_metadata: Vec<crate::Track> = tracks
         .into_iter()
-        .filter_map(|track| {
-            match read_metadata(&track.file_path) {
-                Ok(track_with_metadata) => Some(track_with_metadata),
-                Err(_) => None, // Skip files that can't be read
-            }
-        })
+        .filter_map(|track| read_metadata(&track.file_path).ok())
         .collect();
 
     if tracks_with_metadata.is_empty() {
-        if json {
-            println!("{{\"valid\": false, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": {}, \"valid_files\": 0, \"files_with_errors\": {}, \"files_with_warnings\": 0}}}}", 
-                total_scanned, total_scanned);
+        return if json {
+            format!(
+                "{{\"valid\": false, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": {}, \"valid_files\": 0, \"files_with_errors\": {}, \"files_with_warnings\": 0}}}}",
+                total_scanned, total_scanned
+            )
         } else {
-            println!("Unable to read metadata from any files for validation.");
+            "Unable to read metadata from any files for validation.".to_string()
         }
-        return;
     }
 
     let validation_results = validate_tracks(tracks_with_metadata);
 
     if json {
-        match serde_json::to_string_pretty(&validation_results) {
-            Ok(s) => println!("{}", s),
-            Err(e) => eprintln!("Error serializing validation results: {}", e),
-        }
+        to_string_pretty(&validation_results).unwrap_or_else(|e| format!("Error serializing validation results: {}", e))
     } else {
-        print_validation_results(&validation_results);
+        build_validation_results(&validation_results)
     }
 }

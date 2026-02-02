@@ -1,52 +1,19 @@
-//! MCP Server for Music Chore CLI Tool
-//! 
-//! Provides Model Context Protocol interface for AI agents to interact
-//! with the music library management functionality.
-
 use rmcp::{
-    ServiceExt,
     handler::server::{tool::ToolRouter, ServerHandler, wrapper::Parameters},
     model::{ServerInfo, ServerCapabilities, Implementation, ProtocolVersion, CallToolResult, Content},
     tool, tool_handler, tool_router,
-    transport::stdio,
     ErrorData as McpError,
 };
 use log;
 use std::path::PathBuf;
 
 use crate::{
-    build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir, Library,
+    build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir,
     OperationResult,
+    mcp::formatting::format_tree_output,
 };
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ScanDirectoryParams {
-    path: String,
-    json_output: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct GetLibraryTreeParams {
-    path: String,
-    json_output: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ReadFileMetadataParams {
-    file_path: String,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct NormalizeTitlesParams {
-    path: String,
-    dry_run: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct EmitLibraryMetadataParams {
-    path: String,
-    json_output: Option<bool>,
-}
+use crate::cli::commands::handle_validate;
+use crate::mcp::params::{EmitLibraryMetadataParams, GetLibraryTreeParams, NormalizeTitlesParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams};
 
 #[derive(Clone)]
 pub struct MusicChoreServer {
@@ -55,7 +22,7 @@ pub struct MusicChoreServer {
 
 #[tool_router]
 impl MusicChoreServer {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
         }
@@ -92,7 +59,7 @@ impl MusicChoreServer {
         let _json_output = params.0.json_output.unwrap_or(false);
         let tracks = scan_dir(&path);
         let library = build_library_hierarchy(tracks);
-        
+
         log::info!("get_library_tree called with path: {}", path.display());
 
         let result = serde_json::to_string_pretty(&library)
@@ -104,7 +71,7 @@ impl MusicChoreServer {
     #[tool(description = "Read metadata from a single music file")]
     async fn read_file_metadata(&self, params: Parameters<ReadFileMetadataParams>) -> Result<CallToolResult, McpError> {
         let file = PathBuf::from(params.0.file_path);
-        
+
         log::info!("read_file_metadata called with file_path: {}", file.display());
 
         match read_metadata(&file) {
@@ -123,7 +90,7 @@ impl MusicChoreServer {
     async fn normalize_titles(&self, params: Parameters<NormalizeTitlesParams>) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let _dry_run = params.0.dry_run.unwrap_or(false);
-        
+
         log::info!("normalize_titles called with path: {}, dry_run: {}", path.display(), _dry_run);
 
         match normalize_track_titles(&path) {
@@ -169,7 +136,7 @@ impl MusicChoreServer {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
         let tracks = scan_dir(&path);
-        
+
         log::info!("emit_library_metadata called with path: {}", path.display());
         let library = build_library_hierarchy(tracks);
 
@@ -177,60 +144,24 @@ impl MusicChoreServer {
             serde_json::to_string_pretty(&library)
                 .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?
         } else {
-            format_structured_metadata(&library)
+            // Use MCP tree formatting logic
+            format_tree_output(&library)
         };
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
-}
 
-/// Format structured metadata for AI agents
-fn format_structured_metadata(library: &Library) -> String {
-    let mut output = String::new();
+    #[tool(description = "Validate music library for common issues and inconsistencies")]
+    async fn validate_library(&self, params: Parameters<ValidateLibraryParams>) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let json_output = params.0.json_output.unwrap_or(false);
 
-    output.push_str("=== MUSIC LIBRARY METADATA ===\n");
-    output.push_str(&format!("Total Artists: {}\n", library.total_artists));
-    output.push_str(&format!("Total Albums: {}\n", library.total_albums));
-    output.push_str(&format!("Total Tracks: {}\n\n", library.total_tracks));
+        log::info!("validate_library called with path: {}", path.display());
 
-    for artist in &library.artists {
-        output.push_str(&format!("ARTIST: {}\n", artist.name));
+        let result = handle_validate(path, json_output);
 
-        for album in &artist.albums {
-            let year_str = album.year.map(|y| format!(" ({})", y)).unwrap_or_default();
-            output.push_str(&format!("  ALBUM: {}{}\n", album.title, year_str));
-
-            for track in &album.tracks {
-                let title = track
-                    .metadata
-                    .title
-                    .as_ref()
-                    .map(|t| t.value.as_str())
-                    .unwrap_or("[Unknown Title]");
-                let duration = track
-                    .metadata
-                    .duration
-                    .as_ref()
-                    .map(|d| {
-                        let total_seconds = d.value as u64;
-                        let minutes = total_seconds / 60;
-                        let seconds = total_seconds % 60;
-                        format!("{}:{:02}", minutes, seconds)
-                    })
-                    .unwrap_or_else(|| "0:00".to_string());
-                let file_path = track.file_path.to_string_lossy();
-
-                output.push_str(&format!(
-                    "    TRACK: \"{}\" | Duration: {} | File: {}\n",
-                    title, duration, file_path
-                ));
-            }
-        }
-        output.push('\n');
+        Ok(CallToolResult::success(vec![Content::text(result)]))
     }
-
-    output.push_str("=== END METADATA ===\n");
-    output
 }
 
 #[tool_handler]
@@ -250,17 +181,4 @@ impl ServerHandler for MusicChoreServer {
             ..Default::default()
         }
     }
-}
-
-/// Start MCP server with stdio transport
-pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
-    let server = MusicChoreServer::new();
-    
-    // Run the server with stdio transport
-    let service = server.serve(stdio()).await.inspect_err(|e| {
-        println!("Error starting server: {}", e);
-    })?;
-    service.waiting().await?;
-    
-    Ok(())
 }
