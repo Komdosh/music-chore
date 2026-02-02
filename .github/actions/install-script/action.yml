@@ -10,24 +10,46 @@ runs:
   steps:
     - run: |
         cat << 'EOF' > dist/${{ inputs.script_name }}
-          #!/usr/bin/env bash
-          set -e
-          TOOL_NAME="${{ inputs.tool }}"
-          REPO="Komdosh/music-chore"
+        #!/usr/bin/env bash
+        set -e
 
-          OS="$(uname | tr '[:upper:]' '[:lower:]')"
-          if [ "$OS" != "darwin" ]; then
-              echo "Currently only macOS is supported"
+        TOOL_NAME="${{ inputs.tool }}"
+        REPO="Komdosh/music-chore"
+
+        OS="$(uname | tr '[:upper:]' '[:lower:]')"
+        ARCH="$(uname -m)"
+
+        case "$OS" in
+          darwin)
+            FILE="$TOOL_NAME-macos-universal.tar.gz"
+            ;;
+          linux)
+            if [ "$ARCH" = "x86_64" ]; then
+              FILE="$TOOL_NAME-linux-x86_64.tar.gz"
+            elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+              FILE="$TOOL_NAME-linux-arm64.tar.gz"
+            else
+              echo "Unsupported Linux arch: $ARCH"
               exit 1
-          fi
+            fi
+            ;;
+          *)
+            echo "Unsupported OS: $OS"
+            exit 1
+            ;;
+        esac
 
-          URL="https://github.com/$REPO/releases/latest/download/$TOOL_NAME-macos-universal.tar.gz"
-          echo "Downloading $URL..."
-          curl -LO "$URL"
-          tar -xzf "$TOOL_NAME-macos-universal.tar.gz"
-          chmod +x "$TOOL_NAME"
-          sudo mv "$TOOL_NAME" /usr/local/bin/
-          xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
-          echo "$TOOL_NAME installed successfully!"
-          EOF
+        URL="https://github.com/$REPO/releases/latest/download/$FILE"
+        echo "Downloading $URL..."
+        curl -LO "$URL"
+        tar -xzf "$FILE"
+        chmod +x "$TOOL_NAME"
+        sudo mv "$TOOL_NAME" /usr/local/bin/
+          
+        if [ "$OS" = "darwin" ]; then
+            xattr -dr com.apple.quarantine /usr/local/bin/$TOOL_NAME || true
+        fi
+        
+        echo "$TOOL_NAME installed successfully!"
+        EOF
       shell: bash

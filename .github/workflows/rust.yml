@@ -10,8 +10,11 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_NET_GIT_FETCH_WITH_CLI: true
 
+# ===========================
+# macOS UNIVERSAL BUILD
+# ===========================
 jobs:
-  build:
+  build-macos:
     name: Build macOS universal binary
     runs-on: macos-latest
 
@@ -27,9 +30,6 @@ jobs:
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin
 
-      - name: Build
-        run: cargo build
-        
       - name: Run tests
         run: cargo test
 
@@ -44,16 +44,16 @@ jobs:
         with:
           tool: musicctl
 
+      - name: Create universal binary for MCP
+        uses: ./.github/actions/universal-app
+        with:
+          tool: musicctl-mcp
+
       - name: Generate install.sh
         uses: ./.github/actions/install-script
         with:
           tool: musicctl
           script_name: install.sh
-
-      - name: Create universal binary for MCP
-        uses: ./.github/actions/universal-app
-        with:
-          tool: musicctl-mcp
 
       - name: Generate install_mcp.sh
         uses: ./.github/actions/install-script
@@ -64,27 +64,86 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: musicctl-macos
+          name: macos
           path: |
-            dist/musicctl-macos-universal.tar.gz
-            dist/musicctl-mcp-macos-universal.tar.gz
-            dist/install.sh
-            dist/install_mcp.sh
+            dist/*.tar.gz
+            dist/*.sh
+  
 
+  # ===========================
+  # LINUX BUILD (x86_64 + ARM)
+  # ===========================
+  build-linux:
+    name: Build Linux (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Add musl target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package Linux binary
+        run: |
+          TOOL=musicctl
+          TOOLMCP=musicctl-mcp
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/$TOOL dist/$TOOL
+          cp target/${{ matrix.target }}/release/$TOOLMCP dist/$TOOLMCP
+          chmod +x dist/$TOOL
+          chmod +x dist/$TOOLMCP
+          tar -czf dist/$TOOL-linux-${{ matrix.arch }}.tar.gz -C dist $TOOL
+          tar -czf dist/$TOOLMCP-linux-${{ matrix.arch }}.tar.gz -C dist $TOOLMCP
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/*.tar.gz
+
+  # ===========================
+  # RELEASE JOB
+  # ===========================
   release:
-      name: Create GitHub Release
-      needs: build
-      runs-on: ubuntu-latest
-  
-      steps:
-        - name: Download all artifacts
-          uses: actions/download-artifact@v4
-          with:
-            path: artifacts
-  
-        - name: Create Release
-          uses: softprops/action-gh-release@v2
-          with:
-            files: artifacts/**/*
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    name: Create GitHub Release
+    needs: [build-macos, build-linux]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
