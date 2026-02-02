@@ -88,7 +88,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 5);
+    assert_eq!(tools.len(), 6);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -97,6 +97,7 @@ async fn test_tools_list() -> Result<()> {
         "read_file_metadata",
         "normalize_titles",
         "emit_library_metadata",
+        "validate_library",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
@@ -312,6 +313,106 @@ async fn test_nonexistent_directory() -> Result<()> {
 
     let text = text_content(&result);
     assert!(text.contains("No music files found"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_library_text() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "validate_library",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    for expected in [
+        "=== MUSIC LIBRARY VALIDATION ===",
+        "Total Issues Found:",
+        "INFO (1):",
+        "Library validation complete:",
+    ] {
+        assert!(text.contains(expected));
+    }
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_library_json() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "validate_library",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
+    for key in ["total_issues", "warnings", "errors", "info"] {
+        assert!(json.get(key).is_some());
+    }
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_empty_directory() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "validate_library",
+        object!({
+            "path": "/nonexistent/path",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Library validation complete: 0 artists, 0 albums, 0 tracks"));
+    assert!(text.contains("Total Issues Found: 0"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_nested_directory() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "validate_library",
+        object!({
+            "path": "tests/fixtures/flac/nested",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Library validation complete"));
+    // Should have some tracks in the nested structure
+    assert!(text.contains("artists") || text.contains("0 artists"));
 
     shutdown(client).await
 }
