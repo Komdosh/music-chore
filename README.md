@@ -254,6 +254,82 @@ musicctl write track.flac --apply --set "title=Come Together" --set "artist=The 
 musicctl write track.flac --dry-run --set "year=1969"
 ```
 
+### ✅ `validate` - Check Metadata Completeness
+
+```bash
+# Validate directory for missing required fields and inconsistencies
+musicctl validate /path/to/music
+
+# Validate with JSON output for automation
+musicctl validate /path/to/music --json
+```
+
+**Validation Features:**
+- **Required Fields**: Checks for title, artist, album
+- **Recommended Fields**: Warns about missing track_number, year
+- **Data Quality**: Flags unusual years, track numbers, very long titles
+- **Multiple Formats**: Human-readable or structured JSON output
+
+**Examples:**
+```bash
+# Check for missing metadata
+musicctl validate ~/Music/
+
+# JSON output for automation
+musicctl validate ~/Music/ --json
+```
+
+**Output Examples:**
+
+*Human-readable:*
+```
+=== METADATA VALIDATION RESULTS ===
+📊 Summary:
+  Total files: 5
+  Valid files: 3
+  Files with errors: 2
+  Files with warnings: 1
+
+❌ Validation failed with 2 errors
+
+🔴 ERRORS:
+  File: /music/track1.flac
+  Field: artist
+  Issue: Missing required field: artist
+
+🟡 WARNINGS:
+  File: /music/track2.flac
+  Field: year
+  Issue: Year 1800 seems unusual (expected 1900-2100)
+```
+
+*JSON:*
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "file_path": "/music/track1.flac",
+      "field": "artist",
+      "message": "Missing required field: artist"
+    }
+  ],
+  "warnings": [
+    {
+      "file_path": "/music/track2.flac",
+      "field": "year", 
+      "message": "Year 1800 seems unusual (expected 1900-2100)"
+    }
+  ],
+  "summary": {
+    "total_files": 5,
+    "valid_files": 3,
+    "files_with_errors": 2,
+    "files_with_warnings": 1
+  }
+}
+```
+
 ### 📤 `emit` - Export Structured Metadata
 
 ```bash
@@ -442,6 +518,9 @@ musicctl normalize ~/Music --dry-run
 
 # Update track metadata
 musicctl write ~/Music/Artist/Album/track.flac --dry-run --set "title=New Title"
+
+# Validate metadata completeness
+musicctl validate ~/Music/
 ```
 
 📖 **Detailed MCP Documentation**: 
