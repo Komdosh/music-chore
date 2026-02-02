@@ -16,25 +16,8 @@ use std::path::PathBuf;
 
 use crate::{
     build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir, Library,
-    OperationResult,
+    OperationResult, cli::commands::validate_tracks,
 };
-
-#[derive(Debug, serde::Serialize)]
-pub struct ValidationResult {
-    pub total_issues: usize,
-    pub warnings: Vec<ValidationIssue>,
-    pub errors: Vec<ValidationIssue>,
-    pub info: Vec<ValidationIssue>,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct ValidationIssue {
-    pub severity: String,
-    pub category: String,
-    pub message: String,
-    pub details: Option<String>,
-    pub file_path: Option<String>,
-}
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ScanDirectoryParams {
@@ -214,14 +197,45 @@ impl MusicChoreServer {
         log::info!("validate_library called with path: {}", path.display());
         
         let tracks = scan_dir(&path);
-        let library = build_library_hierarchy(tracks);
-        let validation_results = validate_library_structure(&library);
+        let total_scanned = tracks.len();
+
+        if tracks.is_empty() {
+            let result = if json_output {
+                "{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}"
+            } else {
+                "No music files found to validate."
+            };
+            return Ok(CallToolResult::success(vec![Content::text(result.to_string())]));
+        }
+
+        // For validation, we need to read actual metadata from each file
+        let tracks_with_metadata: Vec<crate::Track> = tracks
+            .into_iter()
+            .filter_map(|track| {
+                match read_metadata(&track.file_path) {
+                    Ok(track_with_metadata) => Some(track_with_metadata),
+                    Err(_) => None, // Skip files that can't be read
+                }
+            })
+            .collect();
+
+        if tracks_with_metadata.is_empty() {
+            let result = if json_output {
+                format!("{{\"valid\": false, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": {}, \"valid_files\": 0, \"files_with_errors\": {}, \"files_with_warnings\": 0}}}}", 
+                    total_scanned, total_scanned)
+            } else {
+                "Unable to read metadata from any files for validation.".to_string()
+            };
+            return Ok(CallToolResult::success(vec![Content::text(result)]));
+        }
+
+        let validation_results = validate_tracks(tracks_with_metadata);
 
         let result = if json_output {
             serde_json::to_string_pretty(&validation_results)
                 .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?
         } else {
-            format_validation_results(&validation_results)
+            format_cli_validation_results(&validation_results)
         };
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
@@ -277,227 +291,38 @@ fn format_structured_metadata(library: &Library) -> String {
     output
 }
 
-/// Validate library structure and metadata consistency
-pub fn validate_library_structure(library: &Library) -> ValidationResult {
-    let mut warnings = Vec::new();
-    let mut errors = Vec::new();
-    let mut info = Vec::new();
-
-    for artist in &library.artists {
-        // Check for empty artist name
-        if artist.name.trim().is_empty() {
-            errors.push(ValidationIssue {
-                severity: "error".to_string(),
-                category: "artist".to_string(),
-                message: "Artist name is empty".to_string(),
-                details: None,
-                file_path: None,
-            });
-        }
-
-        // Check for duplicate albums within artist
-        let mut album_titles = std::collections::HashSet::new();
-        for album in &artist.albums {
-            if album.title.trim().is_empty() {
-                errors.push(ValidationIssue {
-                    severity: "error".to_string(),
-                    category: "album".to_string(),
-                    message: "Album title is empty".to_string(),
-                    details: Some(format!("Artist: {}", artist.name)),
-                    file_path: None,
-                });
-                continue;
-            }
-
-            if album_titles.contains(&album.title.to_lowercase()) {
-                warnings.push(ValidationIssue {
-                    severity: "warning".to_string(),
-                    category: "album".to_string(),
-                    message: "Duplicate album title found".to_string(),
-                    details: Some(format!("Artist: {}, Album: {}", artist.name, album.title)),
-                    file_path: None,
-                });
-            } else {
-                album_titles.insert(album.title.to_lowercase());
-            }
-
-            // Check for missing year
-            if album.year.is_none() {
-                warnings.push(ValidationIssue {
-                    severity: "warning".to_string(),
-                    category: "album".to_string(),
-                    message: "Album missing year".to_string(),
-                    details: Some(format!("Artist: {}, Album: {}", artist.name, album.title)),
-                    file_path: None,
-                });
-            }
-
-            // Validate tracks
-            let mut track_numbers = std::collections::HashSet::new();
-            for track in &album.tracks {
-                // Check for missing metadata
-                if track.metadata.title.is_none() {
-                    errors.push(ValidationIssue {
-                        severity: "error".to_string(),
-                        category: "track".to_string(),
-                        message: "Track missing title".to_string(),
-                        details: Some(format!("Artist: {}, Album: {}", artist.name, album.title)),
-                        file_path: Some(track.file_path.to_string_lossy().to_string()),
-                    });
-                }
-
-                if track.metadata.track_number.is_none() {
-                    warnings.push(ValidationIssue {
-                        severity: "warning".to_string(),
-                        category: "track".to_string(),
-                        message: "Track missing track number".to_string(),
-                        details: Some(format!("Artist: {}, Album: {}, File: {}", 
-                            artist.name, album.title, track.file_path.display())),
-                        file_path: Some(track.file_path.to_string_lossy().to_string()),
-                    });
-                } else if let Some(track_num) = &track.metadata.track_number {
-                    // Check for duplicate track numbers
-                    if track_numbers.contains(&track_num.value) {
-                        warnings.push(ValidationIssue {
-                            severity: "warning".to_string(),
-                            category: "track".to_string(),
-                            message: "Duplicate track number".to_string(),
-                            details: Some(format!("Artist: {}, Album: {}, Track: {}", 
-                                artist.name, album.title, track_num.value)),
-                            file_path: Some(track.file_path.to_string_lossy().to_string()),
-                        });
-                    } else {
-                        track_numbers.insert(track_num.value);
-                    }
-                }
-
-                if track.metadata.artist.is_none() {
-                    warnings.push(ValidationIssue {
-                        severity: "warning".to_string(),
-                        category: "track".to_string(),
-                        message: "Track missing artist metadata".to_string(),
-                        details: Some(format!("Artist: {}, Album: {}, File: {}", 
-                            artist.name, album.title, track.file_path.display())),
-                        file_path: Some(track.file_path.to_string_lossy().to_string()),
-                    });
-                }
-
-                if track.metadata.album.is_none() {
-                    warnings.push(ValidationIssue {
-                        severity: "warning".to_string(),
-                        category: "track".to_string(),
-                        message: "Track missing album metadata".to_string(),
-                        details: Some(format!("Artist: {}, Album: {}, File: {}", 
-                            artist.name, album.title, track.file_path.display())),
-                        file_path: Some(track.file_path.to_string_lossy().to_string()),
-                    });
-                }
-
-                // Check for unusually short or long tracks
-                if let Some(duration) = &track.metadata.duration {
-                    if duration.value < 10.0 {
-                        warnings.push(ValidationIssue {
-                            severity: "warning".to_string(),
-                            category: "track".to_string(),
-                            message: "Very short track (less than 10 seconds)".to_string(),
-                            details: Some(format!("Duration: {}s, File: {}", 
-                                duration.value, track.file_path.display())),
-                            file_path: Some(track.file_path.to_string_lossy().to_string()),
-                        });
-                    } else if duration.value > 3600.0 {
-                        warnings.push(ValidationIssue {
-                            severity: "warning".to_string(),
-                            category: "track".to_string(),
-                            message: "Very long track (more than 1 hour)".to_string(),
-                            details: Some(format!("Duration: {}s, File: {}", 
-                                duration.value, track.file_path.display())),
-                            file_path: Some(track.file_path.to_string_lossy().to_string()),
-                        });
-                    }
-                }
-            }
-
-            // Check for empty albums
-            if album.tracks.is_empty() {
-                errors.push(ValidationIssue {
-                    severity: "error".to_string(),
-                    category: "album".to_string(),
-                    message: "Album contains no tracks".to_string(),
-                    details: Some(format!("Artist: {}, Album: {}", artist.name, album.title)),
-                    file_path: None,
-                });
-            }
-        }
-
-        // Check for artists with no albums
-        if artist.albums.is_empty() {
-            warnings.push(ValidationIssue {
-                severity: "warning".to_string(),
-                category: "artist".to_string(),
-                message: "Artist has no albums".to_string(),
-                details: Some(format!("Artist: {}", artist.name)),
-                file_path: None,
-            });
-        }
-    }
-
-    // Add summary info
-    info.push(ValidationIssue {
-        severity: "info".to_string(),
-        category: "summary".to_string(),
-        message: format!("Library validation complete: {} artists, {} albums, {} tracks", 
-            library.total_artists, library.total_albums, library.total_tracks),
-        details: None,
-        file_path: None,
-    });
-
-    let total_issues = warnings.len() + errors.len();
-
-    ValidationResult {
-        total_issues,
-        warnings,
-        errors,
-        info,
-    }
-}
-
-/// Format validation results for display
-pub fn format_validation_results(results: &ValidationResult) -> String {
+/// Format CLI validation results for MCP output (compatible with existing CLI format)
+fn format_cli_validation_results(results: &crate::cli::commands::ValidationResult) -> String {
     let mut output = String::new();
 
     output.push_str("=== MUSIC LIBRARY VALIDATION ===\n");
-    output.push_str(&format!("Total Issues Found: {}\n\n", results.total_issues));
+    output.push_str(&format!("📊 Summary:\n"));
+    output.push_str(&format!("  Total files: {}\n", results.summary.total_files));
+    output.push_str(&format!("  Valid files: {}\n", results.summary.valid_files));
+    output.push_str(&format!("  Files with errors: {}\n", results.summary.files_with_errors));
+    output.push_str(&format!("  Files with warnings: {}\n\n", results.summary.files_with_warnings));
+
+    if results.valid {
+        output.push_str("✅ All files passed validation!\n");
+    } else {
+        output.push_str(&format!("❌ Validation failed with {} errors\n\n", results.errors.len()));
+    }
 
     if !results.errors.is_empty() {
-        output.push_str(&format!("🔴 ERRORS ({}):\n", results.errors.len()));
+        output.push_str("🔴 ERRORS:\n");
         for error in &results.errors {
-            output.push_str(&format!("  [{}] {}: {}\n", 
-                error.category.to_uppercase(), error.message, 
-                error.details.as_ref().unwrap_or(&String::new())));
-            if let Some(file) = &error.file_path {
-                output.push_str(&format!("    File: {}\n", file));
-            }
+            output.push_str(&format!("  File: {}\n", error.file_path));
+            output.push_str(&format!("  Field: {}\n", error.field));
+            output.push_str(&format!("  Issue: {}\n\n", error.message));
         }
-        output.push('\n');
     }
 
     if !results.warnings.is_empty() {
-        output.push_str(&format!("🟡 WARNINGS ({}):\n", results.warnings.len()));
+        output.push_str("🟡 WARNINGS:\n");
         for warning in &results.warnings {
-            output.push_str(&format!("  [{}] {}: {}\n", 
-                warning.category.to_uppercase(), warning.message,
-                warning.details.as_ref().unwrap_or(&String::new())));
-            if let Some(file) = &warning.file_path {
-                output.push_str(&format!("    File: {}\n", file));
-            }
-        }
-        output.push('\n');
-    }
-
-    if !results.info.is_empty() {
-        output.push_str(&format!("ℹ️  INFO ({}):\n", results.info.len()));
-        for info in &results.info {
-            output.push_str(&format!("  {}\n", info.message));
+            output.push_str(&format!("  File: {}\n", warning.file_path));
+            output.push_str(&format!("  Field: {}\n", warning.field));
+            output.push_str(&format!("  Issue: {}\n\n", warning.message));
         }
     }
 
