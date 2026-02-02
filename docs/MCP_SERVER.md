@@ -204,6 +204,92 @@ Object with processing statistics and detailed results for each track.
 
 ### 5. `emit_library_metadata`
 
+### 6. `validate_library`
+Validate music library for common issues and inconsistencies.
+
+**Parameters:**
+- `path` (string, required): Base directory path to analyze
+- `json_output` (boolean, optional): Return results as JSON (true) or AI-friendly structured text (false). Default: false
+
+**Returns:**
+- If `json_output=true`: JSON validation object with errors, warnings, and summary statistics
+- If `json_output=false`: Human-readable validation report with emoji indicators and detailed issue descriptions
+
+**Features:**
+- Validates required metadata fields (title, artist, album)
+- Checks for recommended metadata (year, track number, genre)
+- Detects duplicate track numbers within albums
+- Identifies unusually short/long tracks
+- Reports empty albums, artists, or missing metadata
+- Provides summary statistics and detailed error/warning reports
+
+**Example:**
+```json
+{
+  "name": "validate_library",
+  "arguments": {
+    "path": "/Users/music",
+    "json_output": false
+  }
+}
+```
+
+**Response Format:**
+If `json_output=false`:
+```
+=== MUSIC LIBRARY VALIDATION ===
+📊 Summary:
+  Total files: 145
+  Valid files: 143
+  Files with errors: 2
+  Files with warnings: 8
+
+🔴 ERRORS:
+  File: /Users/music/Artist/Album/missing-title.flac
+  Field: title
+  Issue: Missing required field: title
+
+  File: /Users/music/Artist/Album/corrupted-metadata.flac
+  Field: title
+  Issue: Title field is empty
+
+🟡 WARNINGS:
+  File: /Users/music/Artist/Album/missing-year.flac
+  Field: year
+  Issue: Missing recommended field: year
+
+  File: /Users/music/Artist/Album/track-number-missing.flac
+  Field: track_number
+  Issue: Missing recommended field: track_number
+```
+
+If `json_output=true`:
+```json
+{
+  "valid": false,
+  "errors": [
+    {
+      "file_path": "/Users/music/Artist/Album/missing-title.flac",
+      "field": "title",
+      "message": "Missing required field: title"
+    }
+  ],
+  "warnings": [
+    {
+      "file_path": "/Users/music/Artist/Album/missing-year.flac",
+      "field": "year", 
+      "message": "Missing recommended field: year"
+    }
+  ],
+  "summary": {
+    "total_files": 145,
+    "valid_files": 143,
+    "files_with_errors": 2,
+    "files_with_warnings": 8
+  }
+}
+```
+
 Emit complete library metadata in structured format optimized for AI analysis.
 
 **Parameters:**
