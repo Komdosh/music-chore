@@ -1,8 +1,9 @@
 //! MCP Server binary entry point for Music Chore
 
 use clap::Parser;
+use music_chore::mcp::music_chore_server::MusicChoreServer;
 
-
+use rmcp::{ServiceExt, transport::stdio};
 
 #[derive(Parser)]
 #[command(name = "musicctl-mcp")]
@@ -27,5 +28,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // log::info!("Starting Music Chore MCP server v{}", env!("CARGO_PKG_VERSION"));
 
     // Start the MCP server
-    music_chore::mcp_server::start().await
+    start().await
+}
+
+/// Start MCP server with stdio transport
+pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
+    let server = MusicChoreServer::new();
+
+    // Run the server with stdio transport
+    let service = server.serve(stdio()).await.inspect_err(|e| {
+        println!("Error starting server: {}", e);
+    })?;
+    service.waiting().await?;
+
+    Ok(())
 }

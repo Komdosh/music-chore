@@ -215,13 +215,16 @@ async fn test_emit_library_metadata_text() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
+    println!("{}", text);
     for expected in [
-        "=== MUSIC LIBRARY METADATA ===",
-        "Total Artists: 1",
-        "Total Albums: 1",
-        "Total Tracks: 2",
-        "ARTIST: flac",
-        "ALBUM: simple",
+        "📁 flac",
+        "├── 📂 simple",
+        "├─── 🎵   track1.flac [🤖] FLAC",
+        "└─── 🎵   track2.flac [🤖] FLAC",
+        "📊 Library Summary:",
+        "   Artists: 1",
+        "   Albums: 1",
+        "   Tracks: 2",
     ] {
         assert!(text.contains(expected));
     }
@@ -334,13 +337,14 @@ async fn test_validate_library_text() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
+    println!("{}", text);
     for expected in [
-        "=== MUSIC LIBRARY VALIDATION ===",
+        "=== METADATA VALIDATION RESULTS ===",
         "📊 Summary:",
-        "Total files:",
-        "Valid files:",
-        "Files with errors:",
-        "Files with warnings:",
+        "  Total files: 1",
+        "  Valid files: 1",
+        "  Files with errors: 0",
+        "  Files with warnings: 0",
     ] {
         assert!(text.contains(expected));
     }

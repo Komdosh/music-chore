@@ -5,7 +5,7 @@ edition = "2024"
 
 [[bin]]
 name = "musicctl"
-path = "src/main.rs"
+path = "src/bin/musicctl.rs"
 
 [[bin]]
 name = "musicctl-mcp"
