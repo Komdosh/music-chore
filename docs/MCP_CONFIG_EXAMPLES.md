@@ -2,6 +2,12 @@
 
 This document provides configuration examples for integrating the Music Chore MCP server with various AI clients and platforms.
 
+## 📅 Last Updated
+
+- **Date**: February 2, 2026
+- **Version**: v0.1.7
+- **Features**: 6 MCP tools (scan_directory, get_library_tree, read_file_metadata, normalize_titles, emit_library_metadata, validate_library)
+
 ## Claude Desktop
 
 ### 🚀 Automated Setup (Recommended)

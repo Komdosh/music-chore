@@ -2,6 +2,12 @@
 
 `musicctl` is the command-line interface for the music-chore library management system. This comprehensive guide covers all commands, options, and usage patterns.
 
+## 📅 Last Updated
+
+- **Date**: February 2, 2026
+- **Version**: v0.1.7
+- **Features**: CLI with 6 commands + MCP server with 6 tools
+
 ## 📋 Table of Contents
 
 - [Installation](#installation)
