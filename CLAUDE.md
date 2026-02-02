@@ -14,7 +14,7 @@ For every feature create a new branch. When it's done create a pull request.
 
 ## Project Overview
 
-You are assisting with the design and implementation of a **Rust-based CLI tool for macOS** that organizes and normalizes a local music library using **existing file metadata and directory structure only**.
+You are assisting with the design and implementation of a **Rust-based CLI tool for macOS and linux** that organizes and normalizes a local music library using **existing file metadata and directory structure only**.
 
 This project is intentionally narrow in scope and optimized for **AI-agent usage** via MCP. The tool should do a small number of things extremely well.
 
@@ -41,7 +41,7 @@ The goal is to **read, normalize, display, and edit metadata locally** — witho
 
 ## Core Goal
 
-Design a **CLI-only Rust program (macOS only)** that:
+Design a **CLI-only Rust program (macOS and linux)** that:
 
 * Recursively scans a working directory
 * Discovers music files and albums
@@ -59,7 +59,7 @@ This tool will later be used by a local AI agent through MCP.
 You must respect the following constraints at all times:
 
 * CLI only (no GUI)
-* macOS only
+* macOS and linux
 * Rust language
 * No internet access or external metadata lookup
 * No playback functionality

@@ -1,7 +1,7 @@
 # Music Library Organizer - App Specification
 
 ## Project Overview
-A Rust-based CLI tool for macOS that organizes and normalizes local music libraries using existing file metadata and directory structure only.
+A Rust-based CLI tool that organizes and normalizes local music libraries using existing file metadata and directory structure only.
 
 ## Core Goal
 Design a CLI-only Rust program that:
@@ -14,7 +14,6 @@ Design a CLI-only Rust program that:
 
 ## Hard Constraints
 - CLI only (no GUI)
-- macOS only
 - Rust language
 - No internet access or external metadata lookup
 - No playback functionality
