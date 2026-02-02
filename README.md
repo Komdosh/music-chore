@@ -12,7 +12,8 @@ The product is provided as is, without warranties of any kind. Use at your own r
 **A precision CLI tool for organizing and normalizing local music libraries**
 
 [![Rust](https://img.shields.io/badge/rust-2024-blue.svg)](https://www.rust-lang.org)
-[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
+[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos)
+[![linux](https://img.shields.io/badge/platform-linux-lightgrey.svg)](https://www.linux.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 *Built for AI agents, perfect for humans*
