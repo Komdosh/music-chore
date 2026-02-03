@@ -44,7 +44,7 @@ mod tests {
 
             // Output should be empty for files with proper title case
             let stdout = String::from_utf8_lossy(&output.stdout);
-            assert!(stdout.is_empty() || stdout.contains("NO CHANGE"));
+            assert!(stdout.trim().is_empty() || stdout.contains("NO CHANGE"));
         }
     }
 

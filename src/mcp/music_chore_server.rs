@@ -1,21 +1,23 @@
 use log;
 use rmcp::{
-    ErrorData as McpError,
-    handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
+    handler::server::{tool::ToolRouter, wrapper::Parameters, ServerHandler},
     model::{
         CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
     },
-    tool, tool_handler, tool_router,
+    tool,
+    tool_handler, tool_router, ErrorData as McpError,
 };
 use std::path::PathBuf;
-
-use crate::cli::commands::{format_tree_output, handle_validate};
+use crate::cli::commands::validate_path;
 use crate::mcp::params::{
-    EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeTitlesParams, ReadFileMetadataParams,
-    ScanDirectoryParams, ValidateLibraryParams,
+    EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeTitlesParams,
+    ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::{formats::read_metadata, scanner::{scan_dir, scan_with_duplicates}};
-use crate::{OperationResult, build_library_hierarchy, normalize_track_titles};
+use crate::services::duplicates::find_duplicates;
+use crate::services::format_tree::emit_by_path;
+use crate::services::library::build_library_hierarchy;
+use crate::services::{formats::read_metadata, normalization::normalize, scanner::scan_dir};
+use crate::services::scanner::scan_tracks;
 
 #[derive(Clone)]
 pub struct MusicChoreServer {
@@ -37,28 +39,107 @@ impl MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
-        let tracks = scan_dir(&path);
 
-        if tracks.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No music files found in directory: {}",
-                path.display()
-            ))]));
+        match scan_tracks(path, json_output){
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(error) => Ok(CallToolResult::error(vec![Content::text(error)]))
         }
+    }
+    #[tool(description = "Get hierarchical library tree view")]
+    async fn get_library_tree(
+        &self,
+        params: Parameters<GetLibraryTreeParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let _json_output = params.0.json_output.unwrap_or(false);
+        let tracks = scan_dir(&path);
+        let library = build_library_hierarchy(tracks);
 
-        let result = if json_output {
-            serde_json::to_string_pretty(&tracks).map_err(|e| {
-                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
-            })?
-        } else {
-            tracks
-                .iter()
-                .map(|track| track.file_path.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
+        log::info!("get_library_tree called with path: {}", path.display());
+
+        let result = serde_json::to_string_pretty(&library).map_err(|e| {
+            McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+        })?;
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
+    }
+
+    #[tool(description = "Read metadata from a single music file")]
+    async fn read_file_metadata(
+        &self,
+        params: Parameters<ReadFileMetadataParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let file = PathBuf::from(params.0.file_path);
+
+        log::info!(
+            "read_file_metadata called with file_path: {}",
+            file.display()
+        );
+
+        match read_metadata(&file) {
+            Ok(track) => {
+                let result = serde_json::to_string_pretty(&track).map_err(|e| {
+                    McpError::internal_error(format!("JSON serialization error: {}", e), None)
+                })?;
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Error reading metadata: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Normalize track titles to title case")]
+    async fn normalize_titles(
+        &self,
+        params: Parameters<NormalizeTitlesParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let dry_run = params.0.dry_run.unwrap_or(false);
+
+        log::info!(
+            "normalize_titles called with path: {}, dry_run: {}",
+            path.display(),
+            dry_run
+        );
+
+        match normalize(path, dry_run) {
+            Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Emit library metadata in structured format")]
+    async fn emit_library_metadata(
+        &self,
+        params: Parameters<EmitLibraryMetadataParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let json_output = params.0.json_output.unwrap_or(false);
+
+        log::info!("emit_library_metadata called with path: {}", path.display());
+
+        match emit_by_path(&path, json_output) {
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Validate music library for common issues and inconsistencies")]
+    async fn validate_library(
+        &self,
+        params: Parameters<ValidateLibraryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let json_output = params.0.json_output.unwrap_or(false);
+
+        log::info!("validate_library called with path: {}", path.display());
+
+        return match validate_path(&path, json_output) {
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(result) => Ok(CallToolResult::error(vec![Content::text(result)])),
+        };
     }
 
     #[tool(description = "Find duplicate tracks by checksum")]
@@ -71,36 +152,10 @@ impl MusicChoreServer {
 
         log::info!("find_duplicates called with path: {}", path.display());
 
-        let (tracks, duplicates) = scan_with_duplicates(&path);
-
-        if tracks.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No music files found in directory: {}",
-                path.display()
-            ))]));
-        }
-
-        let result = if duplicates.is_empty() {
-            "No duplicate tracks found.".to_string()
-        } else if json_output {
-            serde_json::to_string_pretty(&duplicates).map_err(|e| {
-                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
-            })?
-        } else {
-            let mut output = format!("Found {} duplicate groups:\n\n", duplicates.len());
-            
-            for (i, duplicate_group) in duplicates.iter().enumerate() {
-                output.push_str(&format!("Duplicate Group {} ({} files):\n", i + 1, duplicate_group.len()));
-                for track in duplicate_group {
-                    output.push_str(&format!("  {}\n", track.file_path.display()));
-                }
-                output.push('\n');
-            }
-            
-            output
+        return match find_duplicates(&path, json_output) {
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(result) => Ok(CallToolResult::error(vec![Content::text(result)])),
         };
-
-        Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 }
 

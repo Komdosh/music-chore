@@ -1,17 +1,17 @@
 //! Refactored Integration tests for MCP Server functionality
 //! DRY helpers, shared setup, and consistent assertions
 
-use std::borrow::Cow;
 use anyhow::Result;
-use rmcp::ServiceError::McpError;
 use rmcp::model::JsonObject;
 use rmcp::service::RunningService;
+use rmcp::ServiceError::McpError;
 use rmcp::{
-    RmcpError, RoleClient, ServiceExt,
-    model::{CallToolRequestParams, ErrorCode},
-    object,
-    transport::TokioChildProcess,
+    model::{CallToolRequestParams, ErrorCode}, object, transport::TokioChildProcess,
+    RmcpError,
+    RoleClient,
+    ServiceExt,
 };
+use std::borrow::Cow;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -65,6 +65,10 @@ fn assert_ok(result: &rmcp::model::CallToolResult) {
     assert_eq!(result.is_error.unwrap_or(false), false);
 }
 
+fn assert_err(result: &rmcp::model::CallToolResult) {
+    assert_eq!(result.is_error.unwrap_or(false), true);
+}
+
 async fn shutdown(client: RunningService<RoleClient, ()>) -> Result<()> {
     client.cancel().await?;
     Ok(())
@@ -88,7 +92,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 6);
+    assert_eq!(tools.len(), 7);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -98,6 +102,7 @@ async fn test_tools_list() -> Result<()> {
         "normalize_titles",
         "emit_library_metadata",
         "validate_library",
+        "find_duplicates",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
@@ -217,14 +222,14 @@ async fn test_emit_library_metadata_text() -> Result<()> {
     let text = text_content(&result);
     println!("{}", text);
     for expected in [
-        "📁 flac",
-        "├── 📂 simple",
-        "├─── 🎵   track1.flac [🤖] FLAC",
-        "└─── 🎵   track2.flac [🤖] FLAC",
-        "📊 Library Summary:",
-        "   Artists: 1",
-        "   Albums: 1",
-        "   Tracks: 2",
+        "=== MUSIC LIBRARY METADATA ===",
+        "Total Artists: 1",
+        "Total Albums: 1",
+        "Total Tracks: 2",
+        "ARTIST: flac",
+        "ALBUM: simple",
+        "TRACK: \"[Unknown Title]\" | Duration: 0:00 | File: tests/fixtures/flac/simple/track1.flac",
+        "TRACK: \"[Unknown Title]\" | Duration: 0:00 | File: tests/fixtures/flac/simple/track2.flac"
     ] {
         assert!(text.contains(expected));
     }
@@ -312,7 +317,7 @@ async fn test_nonexistent_directory() -> Result<()> {
     )
     .await?;
 
-    assert_ok(&result);
+    assert_err(&result);
 
     let text = text_content(&result);
     assert!(text.contains("No music files found"));
@@ -390,7 +395,7 @@ async fn test_validate_empty_directory() -> Result<()> {
     )
     .await?;
 
-    assert_ok(&result);
+    assert_err(&result);
 
     let text = text_content(&result);
     assert!(text.contains("No music files found to validate."));
@@ -402,24 +407,22 @@ async fn test_validate_empty_directory() -> Result<()> {
 async fn test_validate_nested_directory() -> Result<()> {
     let client = spawn_client().await?;
 
-    let result = call_tool(
-        &client,
-        "validate_library",
-        object!({
-            "path": "tests/fixtures/flac/nested",
-            "json_output": false
-        }),
-    )
-    .await?;
+    let result = client
+        .call_tool(CallToolRequestParams {
+            meta: None,
+            name: "validate_library".into(),
+            arguments: Some(object!({
+                "path": "tests/fixtures/flac/nested",
+                "json_output": false
+            })),
+            task: None,
+        })
+        .await?;
 
-    assert_ok(&result);
+    assert_err(&result);
 
     let text = text_content(&result);
-    // The nested directory test might fail due to filename spaces, accept this as valid behavior
-    assert!(text.contains("📊 Summary:") || 
-           text.contains("No music files found") || 
-           text.contains("Unable to read metadata") ||
-           text.contains("All files passed validation!"));
+    assert!(text.contains("Unable to read metadata from any files for validation"));
 
     shutdown(client).await
 }
@@ -428,7 +431,7 @@ async fn test_validate_nested_directory() -> Result<()> {
 async fn test_find_duplicates() -> Result<()> {
     let client = spawn_client().await?;
 
-    // Test with duplicates
+    // // Test with duplicates
     let result = call_tool(
         &client,
         "find_duplicates",
@@ -474,7 +477,7 @@ async fn test_find_duplicates() -> Result<()> {
     )
     .await?;
 
-    assert_ok(&result);
+    assert_err(&result);
     let text = text_content(&result);
     assert!(text.contains("No duplicate tracks found"));
 

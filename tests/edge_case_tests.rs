@@ -99,7 +99,7 @@ mod tests {
         assert!(album.title.contains("Disc1") || album.title == "Unknown Album");
     }
 
-    /*
+
     #[test]
     fn test_tracks_with_partial_metadata() {
         let mut tracks = Vec::new();
@@ -125,7 +125,7 @@ mod tests {
                 format: "flac".to_string(),
                 path: PathBuf::from("partial1.flac"),
             },
-        };
+        });
 
         // Track with only artist
         tracks.push(Track {
@@ -148,7 +148,7 @@ mod tests {
                 format: "flac".to_string(),
                 path: PathBuf::from("partial2.flac"),
             },
-        };
+        });
 
         let library = build_library_hierarchy(tracks);
         assert_eq!(library.total_tracks, 2);
@@ -236,7 +236,7 @@ mod tests {
         assert!(album.title.contains("Album_Vol") || album.title == "Unknown Album");
     }
 
-    */
+
     #[test]
     fn test_tracks_with_varied_metadata_sources() {
         let mut tracks = Vec::new();
@@ -270,7 +270,7 @@ mod tests {
                 format: "flac".to_string(),
                 path: PathBuf::from("embedded.flac"),
             },
-        };
+        });
 
         // Track with folder-inferred metadata
         tracks.push(Track {
@@ -297,7 +297,7 @@ mod tests {
                 format: "flac".to_string(),
                 path: PathBuf::from("FolderArtist/FolderAlbum/track.flac"),
             },
-        };
+        });
 
         let library = build_library_hierarchy(tracks);
         assert_eq!(library.total_tracks, 2);

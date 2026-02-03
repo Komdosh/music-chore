@@ -3,6 +3,7 @@
 use crate::domain::models::{MetadataValue, Track, TrackMetadata};
 use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -144,6 +145,32 @@ pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
         .collect();
 
     (tracks_with_checksums, duplicates)
+}
+
+pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
+    let tracks = scan_dir(&path);
+
+    if tracks.is_empty() {
+        return Err(format!(
+            "No music files found in directory: {}",
+            path.display()
+        ));
+    }
+
+    if json {
+        match to_string_pretty(&tracks) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(format!("Error serializing to JSON: {}", e)),
+        }
+    } else {
+        let mut out = String::new();
+
+        for track in tracks {
+            out.push_str(&format!("{}\n", track.file_path.display()));
+        }
+
+        Ok(out)
+    }
 }
 
 /// Check if a file is a supported audio file
