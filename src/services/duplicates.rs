@@ -1,10 +1,10 @@
 use crate::services::scanner::scan_with_duplicates;
 use serde_json::to_string_pretty;
 use std::fmt::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
-pub fn find_duplicates(path: &PathBuf, json: bool) -> Result<String, String> {
-    let (tracks, duplicates) = scan_with_duplicates(&path);
+pub fn find_duplicates(path: &Path, json: bool) -> Result<String, String> {
+    let (tracks, duplicates) = scan_with_duplicates(path);
 
     if tracks.is_empty() {
         return Err(format!(

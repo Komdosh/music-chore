@@ -5,6 +5,7 @@ use tempfile::tempdir;
 
 #[cfg(test)]
 mod tests {
+    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
     use super::*;
     use music_chore::services::scanner::scan_dir;
 
@@ -285,12 +286,12 @@ mod tests {
                 artist: Some(MetadataValue {
                     value: "FolderArtist".to_string(),
                     source: MetadataSource::FolderInferred,
-                    confidence: 0.8,
+                    confidence: FOLDER_INFERRED_CONFIDENCE,
                 }),
                 album: Some(MetadataValue {
                     value: "FolderAlbum".to_string(),
                     source: MetadataSource::FolderInferred,
-                    confidence: 0.8,
+                    confidence: FOLDER_INFERRED_CONFIDENCE,
                 }),
                 album_artist: None,
                 track_number: None,

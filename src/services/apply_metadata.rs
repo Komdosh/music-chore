@@ -1,9 +1,9 @@
 use crate::services::formats::{read_metadata, write_metadata};
 use std::fmt::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub fn write_metadata_by_path(
-    file: &PathBuf,
+    file: &Path,
     set: Vec<String>,
     apply: bool,
     dry_run: bool,
@@ -21,7 +21,7 @@ pub fn write_metadata_by_path(
         return Err(format!("Error: File does not exist: {}", file.display()));
     }
 
-    if !crate::services::formats::is_format_supported(&file) {
+    if !crate::services::formats::is_format_supported(file) {
         return Err(format!(
             "Error: Unsupported file format: {}",
             file.display()
@@ -29,7 +29,7 @@ pub fn write_metadata_by_path(
     }
 
     // Read current metadata
-    let mut track = match read_metadata(&file) {
+    let mut track = match read_metadata(file) {
         Ok(track) => track,
         Err(e) => {
             return Err(format!(
@@ -69,7 +69,7 @@ pub fn write_metadata_by_path(
         return Ok(out);
     }
 
-    match write_metadata(&file, &track.metadata) {
+    match write_metadata(file, &track.metadata) {
         Ok(()) => {
             writeln!(out, "Successfully updated metadata: {}", file.display()).unwrap();
             Ok(out)

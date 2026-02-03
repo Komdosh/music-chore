@@ -33,7 +33,7 @@ impl Default for WavHandler {
 impl AudioFile for WavHandler {
     fn can_handle(&self, path: &Path) -> bool {
         path.extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("wav"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("wav"))
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
@@ -147,7 +147,7 @@ impl WavHandler {
                 let item_value_str = match tag_item.value() {
                     ItemValue::Text(s) => s.to_string(),
                     ItemValue::Locator(s) => s.to_string(),
-                    ItemValue::Binary(_) => format!("<binary data>"),
+                    ItemValue::Binary(_) => "<binary data>".to_string(),
                 };
 
                 match tag_item.key() {
@@ -187,25 +187,23 @@ impl WavHandler {
         }
 
         // Fallback inference for missing metadata
-        if artist.is_none() {
-            if let Some(inferred_artist) = infer_artist_from_path(path) {
+        if artist.is_none()
+            && let Some(inferred_artist) = infer_artist_from_path(path) {
                 artist = Some(MetadataValue {
                     value: inferred_artist,
                     source: crate::domain::models::MetadataSource::FolderInferred,
                     confidence: 0.5,
                 });
             }
-        }
 
-        if album.is_none() {
-            if let Some(inferred_album) = infer_album_from_path(path) {
+        if album.is_none()
+            && let Some(inferred_album) = infer_album_from_path(path) {
                 album = Some(MetadataValue {
                     value: inferred_album,
                     source: crate::domain::models::MetadataSource::FolderInferred,
                     confidence: 0.5,
                 });
             }
-        }
 
         // Extract duration from file properties
         let duration = tagged_file.properties().duration().as_secs_f64();

@@ -10,7 +10,7 @@ use lofty::{
 
 use std::path::Path;
 
-use crate::domain::models::{MetadataValue, Track, TrackMetadata};
+use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
 use crate::domain::traits::{AudioFile, AudioFileError};
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
 
@@ -33,7 +33,7 @@ impl Default for FlacHandler {
 impl AudioFile for FlacHandler {
     fn can_handle(&self, path: &Path) -> bool {
         path.extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("flac"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("flac"))
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
@@ -147,7 +147,7 @@ impl FlacHandler {
                 let item_value_str = match tag_item.value() {
                     ItemValue::Text(s) => s.to_string(),
                     ItemValue::Locator(s) => s.to_string(),
-                    ItemValue::Binary(_) => format!("<binary data>"),
+                    ItemValue::Binary(_) => "<binary data>".to_string(),
                 };
 
                 match tag_item.key() {
@@ -198,13 +198,13 @@ impl FlacHandler {
 
         // Apply folder inference as fallback when embedded metadata is missing
         let inferred_artist = if artist.is_none() {
-            infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, 0.8))
+            infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE))
         } else {
             artist
         };
 
         let inferred_album = if album.is_none() {
-            infer_album_from_path(path).map(|album| MetadataValue::inferred(album, 0.8))
+            infer_album_from_path(path).map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
         } else {
             album
         };
@@ -231,9 +231,9 @@ impl FlacHandler {
         let duration = Some(MetadataValue::embedded(properties.duration().as_secs_f64()));
 
         let inferred_artist =
-            infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, 0.8));
+            infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
         let inferred_album =
-            infer_album_from_path(path).map(|album| MetadataValue::inferred(album, 0.8));
+            infer_album_from_path(path).map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
         TrackMetadata {
             title: None,

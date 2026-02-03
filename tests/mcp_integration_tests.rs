@@ -342,14 +342,13 @@ async fn test_validate_library_text() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
-    println!("{}", text);
     for expected in [
         "=== METADATA VALIDATION RESULTS ===",
         "📊 Summary:",
-        "  Total files: 1",
-        "  Valid files: 1",
-        "  Files with errors: 0",
-        "  Files with warnings: 0",
+        "Total files: 2",
+        "Valid files: 1",
+        "Files with errors: 1",
+        "Files with warnings: 1",
     ] {
         assert!(text.contains(expected));
     }

@@ -2,7 +2,7 @@ use crate::services::scanner::scan_dir;
 use crate::{Track, TrackNode};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Directory tree node
 #[derive(Debug)]
@@ -90,7 +90,7 @@ fn format_dir_tree(node: &DirNode, indent: &str, is_last: bool) -> String {
     let subdir_count = node.subdirs.len();
     let mut index = 0;
 
-    for (_name, subdir) in &node.subdirs {
+    for subdir in node.subdirs.values() {
         index += 1;
         let sub_indent = if indent.is_empty() {
             if index == subdir_count {
@@ -301,7 +301,7 @@ pub fn emit_structured_output(library: &crate::Library) -> String {
             }
         }
 
-        out.push_str("\n");
+        out.push('\n');
     }
 
     out.push_str("=== END METADATA ===\n");
@@ -309,8 +309,8 @@ pub fn emit_structured_output(library: &crate::Library) -> String {
     out
 }
 
-pub fn emit_by_path(path: &PathBuf, json: bool) -> Result<String, String> {
-    let tracks = scan_dir(&path);
+pub fn emit_by_path(path: &Path, json: bool) -> Result<String, String> {
+    let tracks = scan_dir(path);
     let library = crate::build_library_hierarchy(tracks);
 
     if json {

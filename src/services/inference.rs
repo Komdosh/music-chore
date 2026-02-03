@@ -35,7 +35,7 @@ fn is_valid_artist_name(name: &str) -> bool {
     }
 
     // Check if it starts with a digit (like "01. Track" or "06. Artist")
-    if name.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+    if name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         return false;
     }
 
@@ -460,13 +460,13 @@ mod tests {
 
         // Example 2: Folder "Year - Album", filename has "Artist - Album"
         let path = PathBuf::from("/music/2008 - Darkest (2008, Someone, CD 617_08)/Alan - Aw.flac");
-        assert_eq!(
-            infer_album_from_path(&path),
-            Some("Darkest".to_string())
-        );
+        assert_eq!(infer_album_from_path(&path), Some("Darkest".to_string()));
 
         let path = PathBuf::from("/music/Some guy - Second Take (2009) - FLAC/13 - Alan.flac");
-        assert_eq!(infer_album_from_path(&path), Some("Second Take".to_string()));
+        assert_eq!(
+            infer_album_from_path(&path),
+            Some("Second Take".to_string())
+        );
 
         let path = PathBuf::from("/music/Some guy [FLAC]/track.flac");
         assert_eq!(infer_album_from_path(&path), Some("Some guy".to_string()));

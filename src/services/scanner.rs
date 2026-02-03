@@ -1,17 +1,18 @@
 //! Format-agnostic directory scanner for music files.
 
-use crate::domain::models::{MetadataValue, Track, TrackMetadata};
+use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
 use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use log::debug;
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 /// Recursively scan `base` for supported music files and return a vector of Track.
-/// Uses deterministic ordering: sorted paths for consistent output.
+/// Uses deterministic ordering: sorted by filename for consistent output.
 pub fn scan_dir(base: &Path) -> Vec<Track> {
-    let mut tracks_map = BTreeMap::new();
+    let mut tracks = Vec::new();
     let supported_extensions = formats::get_supported_extensions();
 
     for entry in WalkDir::new(base)
@@ -24,10 +25,10 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
         if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
             // Infer basic info from directory structure first (faster than full metadata read)
             let inferred_artist =
-                infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, 0.8));
+                infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
 
             let inferred_album =
-                infer_album_from_path(path).map(|album| MetadataValue::inferred(album, 0.8));
+                infer_album_from_path(path).map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
             // Get file extension for format identification
             let format = path
@@ -51,13 +52,19 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
             };
 
             let track = Track::new(path.to_path_buf(), metadata);
-
-            tracks_map.insert(path.to_path_buf(), track);
+            tracks.push(track);
         }
     }
 
-    // Convert to sorted vector
-    tracks_map.into_values().collect()
+    // Sort by filename for deterministic ordering
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        debug!("Comparing files: {:?} vs {:?}", file_a, file_b);
+        file_a.cmp(&file_b)
+    });
+
+    tracks
 }
 
 /// Scan and return basic file paths only (for simple operations)

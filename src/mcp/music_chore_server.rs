@@ -24,12 +24,18 @@ pub struct MusicChoreServer {
     tool_router: ToolRouter<Self>,
 }
 
-#[tool_router]
-impl MusicChoreServer {
-    pub fn new() -> Self {
+ impl Default for MusicChoreServer {
+    fn default() -> Self {
         Self {
             tool_router: Self::tool_router(),
         }
+    }
+}
+
+#[tool_router]
+ impl MusicChoreServer {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[tool(description = "Recursively scan a directory for music files")]
@@ -171,7 +177,6 @@ impl ServerHandler for MusicChoreServer {
                 ..Default::default()
             },
             instructions: Some("Music Chore CLI - Music library metadata management tool".into()),
-            ..Default::default()
         }
     }
 }

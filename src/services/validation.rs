@@ -3,7 +3,6 @@ use crate::services::scanner::scan_dir;
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
-
 #[derive(Debug, serde::Serialize)]
 pub struct ValidationResult {
     pub valid: bool,
@@ -34,14 +33,12 @@ pub struct ValidationSummary {
     pub files_with_warnings: usize,
 }
 pub fn validate_path(path: &PathBuf, json: bool) -> Result<String, String> {
-    let tracks = scan_dir(&path);
+    let tracks = scan_dir(path);
     let total_scanned = tracks.len();
 
     if tracks.is_empty() {
         return Err(if json {
-            format!(
-                "{{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {{\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}}}"
-            )
+            "{\"valid\": true, \"errors\": [], \"warnings\": [], \"summary\": {\"total_files\": 0, \"valid_files\": 0, \"files_with_errors\": 0, \"files_with_warnings\": 0}}".to_string()
         } else {
             "No music files found to validate.".to_string()
         });

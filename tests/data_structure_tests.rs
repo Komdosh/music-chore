@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 #[cfg(test)]
 mod tests {
+    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
     use super::*;
 
     fn create_test_metadata_value<T: Clone>(
@@ -41,7 +42,7 @@ mod tests {
             artist: Some(create_test_metadata_value(
                 "Test Artist".to_string(),
                 MetadataSource::FolderInferred,
-                0.8,
+                FOLDER_INFERRED_CONFIDENCE,
             )),
             album: Some(create_test_metadata_value(
                 "Test Album".to_string(),
@@ -306,7 +307,7 @@ mod tests {
             artist: Some(create_test_metadata_value(
                 "Serial Artist".to_string(),
                 MetadataSource::FolderInferred,
-                0.8,
+                FOLDER_INFERRED_CONFIDENCE,
             )),
             album: Some(create_test_metadata_value(
                 "Serial Album".to_string(),

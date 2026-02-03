@@ -14,6 +14,8 @@ pub enum MetadataSource {
     UserEdited,
 }
 
+pub const FOLDER_INFERRED_CONFIDENCE: f32 = 0.3;
+
 /// Wrapper for metadata values with provenance
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetadataValue<T> {
@@ -137,7 +139,7 @@ pub struct ArtistNode {
 }
 
 /// Complete library representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct Library {
     pub artists: Vec<ArtistNode>,
     pub total_tracks: usize,
@@ -164,12 +166,7 @@ pub enum OperationResult {
 
 impl Library {
     pub fn new() -> Self {
-        Self {
-            artists: Vec::new(),
-            total_tracks: 0,
-            total_artists: 0,
-            total_albums: 0,
-        }
+        Self::default()
     }
 
     pub fn add_artist(&mut self, artist: ArtistNode) {
