@@ -155,7 +155,7 @@ musicctl read /Music/Tracks/Track1.flac
 
 Detailed metadata extraction:
 
-```
+```json
 {
   "file_path": "/Music/Tracks/Track1.flac",
   "metadata": {
@@ -287,7 +287,7 @@ musicctl validate ~/Music/ --json
 **Output Examples:**
 
 *Human-readable:*
-```
+```md
 === METADATA VALIDATION RESULTS ===
 📊 Summary:
   Total files: 5
