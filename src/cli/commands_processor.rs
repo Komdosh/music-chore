@@ -1,14 +1,13 @@
 use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
-use crate::domain::models::{AlbumNode, TrackNode};
 use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::{generate_cue_content, generate_cue_file_name, write_cue_file};
+use crate::services::cue::{generate_cue_for_path, CueGenerationError};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
 use crate::services::normalization::normalize;
-use crate::services::scanner::{scan_dir, scan_dir_immediate, scan_tracks};
+use crate::services::scanner::{scan_dir, scan_tracks};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
@@ -132,75 +131,44 @@ fn handle_cue(
     dry_run: bool,
     force: bool,
 ) -> Result<(), i32> {
-    let file_paths = scan_dir_immediate(&path);
-    if file_paths.is_empty() {
-        eprintln!(
-            "No music files found in directory (checked only immediate files, not subdirectories)"
-        );
-        return Err(1);
-    }
-
-    let mut tracks = Vec::new();
-    for file_path in &file_paths {
-        match read_metadata(file_path) {
-            Ok(track) => tracks.push(track),
-            Err(e) => {
-                eprintln!("Warning: Failed to read {}: {}", file_path.display(), e);
-            }
-        }
-    }
-
-    if tracks.is_empty() {
-        eprintln!("No readable music files found in directory");
-        return Err(1);
-    }
-
-    let album_name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "Unknown Album".to_string());
-
-    let first_track = tracks.first();
-    let year = first_track.and_then(|t| t.metadata.year.as_ref().map(|y| y.value));
-
-    let track_nodes: Vec<TrackNode> = tracks
-        .into_iter()
-        .map(|track| TrackNode {
-            file_path: track.file_path,
-            metadata: track.metadata,
-        })
-        .collect();
-
-    let album = AlbumNode {
-        title: album_name,
-        year,
-        tracks: track_nodes,
-        path: path.clone(),
-    };
-
-    let output_path = output.unwrap_or_else(|| path.join(generate_cue_file_name(&album)));
-
-    if output_path.exists() && !force && !dry_run {
-        eprintln!(
-            "Error: Cue file already exists at '{}'. Use --force to overwrite.",
-            output_path.display()
-        );
-        return Err(1);
-    }
-
-    if dry_run {
-        let cue_content = generate_cue_content(&album);
-        println!("{}", cue_content);
-        println!("---");
-        println!("Would write to: {}", output_path.display());
-    } else {
-        match write_cue_file(&album, &output_path) {
-            Ok(_) => println!("Cue file written to: {}", output_path.display()),
-            Err(e) => {
-                eprintln!("Error writing cue file: {}", e);
+    match generate_cue_for_path(&path, output) {
+        Ok(result) => {
+            if !dry_run && result.output_path.exists() && !force {
+                eprintln!(
+                    "Error: Cue file already exists at '{}'. Use --force to overwrite.",
+                    result.output_path.display()
+                );
                 return Err(1);
             }
+
+            if dry_run {
+                println!("{}", result.cue_content);
+                println!("---");
+                println!("Would write to: {}", result.output_path.display());
+            } else {
+                match std::fs::write(&result.output_path, &result.cue_content) {
+                    Ok(_) => println!("Cue file written to: {}", result.output_path.display()),
+                    Err(e) => {
+                        eprintln!("Error writing cue file: {}", e);
+                        return Err(1);
+                    }
+                }
+            }
+            Ok(())
+        }
+        Err(CueGenerationError::NoMusicFiles) => {
+            eprintln!(
+                "No music files found in directory (checked only immediate files, not subdirectories)"
+            );
+            Err(1)
+        }
+        Err(CueGenerationError::NoReadableFiles) => {
+            eprintln!("No readable music files found in directory");
+            Err(1)
+        }
+        Err(CueGenerationError::FileReadError(msg)) => {
+            eprintln!("{}", msg);
+            Err(1)
         }
     }
-    Ok(())
 }

@@ -1,7 +1,8 @@
 //! Cue file generation and parsing services.
 
-use crate::domain::models::{AlbumNode, TrackNode};
-use std::path::Path;
+use crate::domain::models::{AlbumNode, MetadataValue, TrackNode};
+use crate::services::normalization::to_title_case;
+use std::path::{Path, PathBuf};
 
 fn extract_track_artist(track: &TrackNode) -> Option<&String> {
     track.metadata.artist.as_ref().map(|mv| &mv.value)
@@ -20,23 +21,174 @@ fn extract_track_performer(track: &TrackNode) -> Option<&String> {
         .or(track.metadata.artist.as_ref().map(|mv| &mv.value))
 }
 
-/// Generates a .cue file content for an album based on its track metadata.
-pub fn generate_cue_content(album: &AlbumNode) -> String {
-    let mut cue_content = String::new();
+fn get_track_genre(track: &TrackNode) -> Option<&String> {
+    track.metadata.genre.as_ref().map(|mv| &mv.value)
+}
 
-    // Add PERFORMER (artist) if available from first track
-    if let Some(first_track) = album.tracks.first() {
-        if let Some(artist) = extract_track_artist(first_track) {
-            cue_content.push_str(&format!("PERFORMER \"{}\"\n", artist));
+fn get_track_album(track: &TrackNode) -> Option<&String> {
+    track.metadata.album.as_ref().map(|mv| &mv.value)
+}
+
+fn get_track_album_artist(track: &TrackNode) -> Option<&String> {
+    track.metadata.album_artist.as_ref().map(|mv| &mv.value)
+}
+
+fn confidence_is_embedded(mv: &MetadataValue<String>) -> bool {
+    matches!(mv.source, crate::domain::models::MetadataSource::Embedded)
+}
+
+fn year_confidence_is_embedded(mv: &MetadataValue<u32>) -> bool {
+    matches!(mv.source, crate::domain::models::MetadataSource::Embedded)
+}
+
+fn get_highest_confidence_value(
+    tracks: &[TrackNode],
+    extractor: fn(&TrackNode) -> Option<&String>,
+) -> Option<String> {
+    let mut best_value: Option<(String, bool, f32)> = None;
+
+    for track in tracks {
+        if let Some(value) = extractor(track) {
+            let is_embedded = track
+                .metadata
+                .album
+                .as_ref()
+                .filter(|mv| confidence_is_embedded(mv))
+                .is_some()
+                || track
+                    .metadata
+                    .artist
+                    .as_ref()
+                    .filter(|mv| confidence_is_embedded(mv))
+                    .is_some()
+                || track
+                    .metadata
+                    .genre
+                    .as_ref()
+                    .filter(|mv| confidence_is_embedded(mv))
+                    .is_some();
+
+            let confidence = track
+                .metadata
+                .album
+                .as_ref()
+                .map(|mv| mv.confidence)
+                .or_else(|| track.metadata.artist.as_ref().map(|mv| mv.confidence))
+                .or_else(|| track.metadata.genre.as_ref().map(|mv| mv.confidence))
+                .unwrap_or(0.0);
+
+            let is_embedded_for_genre = track
+                .metadata
+                .genre
+                .as_ref()
+                .filter(|mv| confidence_is_embedded(mv))
+                .is_some();
+
+            let genre_confidence = track
+                .metadata
+                .genre
+                .as_ref()
+                .map(|mv| mv.confidence)
+                .unwrap_or(0.0);
+
+            let final_is_embedded = is_embedded || is_embedded_for_genre;
+            let final_confidence = if is_embedded_for_genre {
+                genre_confidence
+            } else {
+                confidence
+            };
+
+            match &best_value {
+                Some((_, existing_is_embedded, existing_confidence)) => {
+                    if final_is_embedded && !existing_is_embedded {
+                        best_value = Some((value.clone(), final_is_embedded, final_confidence));
+                    } else if final_is_embedded == *existing_is_embedded
+                        && final_confidence > *existing_confidence
+                    {
+                        best_value = Some((value.clone(), final_is_embedded, final_confidence));
+                    }
+                }
+                None => {
+                    best_value = Some((value.clone(), final_is_embedded, final_confidence));
+                }
+            }
         }
     }
 
-    // Add TITLE (album title)
-    cue_content.push_str(&format!("TITLE \"{}\"\n", album.title));
+    best_value.map(|(v, _, _)| v)
+}
 
-    // Add REM YEAR if available
-    if let Some(year) = album.year {
-        cue_content.push_str(&format!("REM DATE {}\n", year));
+fn get_embedded_year(tracks: &[TrackNode]) -> Option<u32> {
+    for track in tracks {
+        if let Some(year) = &track.metadata.year
+            && year_confidence_is_embedded(year)
+        {
+            return Some(year.value);
+        }
+    }
+    None
+}
+
+fn get_highest_confidence_year(tracks: &[TrackNode]) -> Option<u32> {
+    let mut best_year: Option<(u32, bool, f32)> = None;
+
+    for track in tracks {
+        if let Some(year) = &track.metadata.year {
+            let is_embedded = year_confidence_is_embedded(year);
+            let confidence = year.confidence;
+
+            match &best_year {
+                Some((_, existing_is_embedded, existing_confidence)) => {
+                    if is_embedded && !existing_is_embedded {
+                        best_year = Some((year.value, is_embedded, confidence));
+                    } else if is_embedded == *existing_is_embedded
+                        && confidence > *existing_confidence
+                    {
+                        best_year = Some((year.value, is_embedded, confidence));
+                    }
+                }
+                None => {
+                    best_year = Some((year.value, is_embedded, confidence));
+                }
+            }
+        }
+    }
+
+    best_year.map(|(v, _, _)| v)
+}
+
+/// Generates a .cue file content for an album based on its track metadata.
+/// When tracks contain conflicting metadata (different artists, years, or genres),
+/// embedded metadata (confidence=1.0) takes precedence over folder-inferred metadata.
+/// If multiple embedded values exist, the most common value is selected.
+/// All text fields (artist, album, genre) are normalized to title case.
+pub fn generate_cue_content(album: &AlbumNode) -> String {
+    let mut cue_content = String::new();
+
+    let tracks = &album.tracks;
+
+    let artist = get_highest_confidence_value(tracks, get_track_album_artist)
+        .or_else(|| get_highest_confidence_value(tracks, extract_track_artist));
+
+    if let Some(artist_name) = artist {
+        cue_content.push_str(&format!("PERFORMER \"{}\"\n", to_title_case(&artist_name)));
+    }
+
+    let album_title = get_highest_confidence_value(tracks, get_track_album)
+        .unwrap_or_else(|| album.title.clone());
+
+    cue_content.push_str(&format!("TITLE \"{}\"\n", to_title_case(&album_title)));
+
+    let genre = get_highest_confidence_value(tracks, get_track_genre);
+    if let Some(genre_value) = genre {
+        cue_content.push_str(&format!("REM GENRE {}\n", to_title_case(&genre_value)));
+    }
+
+    let year = get_embedded_year(tracks)
+        .or(album.year)
+        .or_else(|| get_highest_confidence_year(tracks));
+    if let Some(year_value) = year {
+        cue_content.push_str(&format!("REM DATE {}\n", year_value));
     }
 
     // Group tracks by their source file
@@ -71,9 +223,9 @@ pub fn generate_cue_content(album: &AlbumNode) -> String {
             cue_content.push_str(&format!("    TITLE \"{}\"\n", title));
         }
 
-        // Add PERFORMER if available
+        // Add PERFORMER if available (normalized to title case)
         if let Some(performer) = extract_track_performer(track) {
-            cue_content.push_str(&format!("    PERFORMER \"{}\"\n", performer));
+            cue_content.push_str(&format!("    PERFORMER \"{}\"\n", to_title_case(performer)));
         }
 
         // Add INDEX 01 for track start
@@ -96,6 +248,82 @@ pub fn generate_cue_file_name(album: &AlbumNode) -> String {
 pub fn write_cue_file(album: &AlbumNode, output_path: &Path) -> Result<(), std::io::Error> {
     let cue_content = generate_cue_content(album);
     std::fs::write(output_path, cue_content)
+}
+
+use crate::services::formats::read_metadata;
+use crate::services::scanner::scan_dir_immediate;
+
+pub struct CueGenerationResult {
+    pub cue_content: String,
+    pub output_path: PathBuf,
+    pub tracks_count: usize,
+}
+
+pub enum CueGenerationError {
+    NoMusicFiles,
+    NoReadableFiles,
+    FileReadError(String),
+}
+
+pub fn generate_cue_for_path(
+    path: &Path,
+    output: Option<PathBuf>,
+) -> Result<CueGenerationResult, CueGenerationError> {
+    let file_paths = scan_dir_immediate(path);
+    if file_paths.is_empty() {
+        return Err(CueGenerationError::NoMusicFiles);
+    }
+
+    let mut tracks = Vec::new();
+    for file_path in &file_paths {
+        match read_metadata(file_path) {
+            Ok(track) => tracks.push(track),
+            Err(e) => {
+                return Err(CueGenerationError::FileReadError(format!(
+                    "Failed to read {}: {}",
+                    file_path.display(),
+                    e
+                )));
+            }
+        }
+    }
+
+    if tracks.is_empty() {
+        return Err(CueGenerationError::NoReadableFiles);
+    }
+
+    let album_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Unknown Album".to_string());
+
+    let tracks_count = tracks.len();
+
+    let track_nodes: Vec<TrackNode> = tracks
+        .into_iter()
+        .map(|track| TrackNode {
+            file_path: track.file_path,
+            metadata: track.metadata,
+        })
+        .collect();
+
+    let album = AlbumNode {
+        title: album_name.clone(),
+        year: None,
+        tracks: track_nodes,
+        path: path.to_path_buf(),
+    };
+
+    let cue_file_name = generate_cue_file_name(&album);
+    let output_path = output.unwrap_or_else(|| path.join(cue_file_name));
+
+    let cue_content = generate_cue_content(&album);
+
+    Ok(CueGenerationResult {
+        cue_content,
+        output_path,
+        tracks_count,
+    })
 }
 
 /// Parses a .cue file and extracts basic information.
@@ -228,7 +456,13 @@ mod tests {
     use crate::domain::models::{AlbumNode, MetadataValue, TrackMetadata, TrackNode};
     use std::path::PathBuf;
 
-    fn create_test_track(title: &str, artist: &str, file_name: &str) -> TrackNode {
+    fn create_test_track(
+        title: &str,
+        artist: &str,
+        file_name: &str,
+        year: Option<u32>,
+        genre: Option<&str>,
+    ) -> TrackNode {
         TrackNode {
             file_path: PathBuf::from(file_name),
             metadata: TrackMetadata {
@@ -238,8 +472,8 @@ mod tests {
                 album_artist: None,
                 track_number: None,
                 disc_number: None,
-                year: None,
-                genre: None,
+                year: year.map(|y| MetadataValue::embedded(y)),
+                genre: genre.map(|g| MetadataValue::embedded(g.to_string())),
                 duration: None,
                 format: "FLAC".to_string(),
                 path: PathBuf::from(file_name),
@@ -247,7 +481,12 @@ mod tests {
         }
     }
 
-    fn create_test_album(title: &str, year: Option<u32>, tracks: Vec<TrackNode>) -> AlbumNode {
+    fn create_test_album_with_genre(
+        title: &str,
+        year: Option<u32>,
+        _genre: Option<&str>,
+        tracks: Vec<TrackNode>,
+    ) -> AlbumNode {
         AlbumNode {
             title: title.to_string(),
             year,
@@ -259,16 +498,29 @@ mod tests {
     #[test]
     fn test_generate_cue_content_basic() {
         let tracks = vec![
-            create_test_track("Song One", "Test Artist", "track1.flac"),
-            create_test_track("Song Two", "Test Artist", "track2.flac"),
+            create_test_track(
+                "Song One",
+                "Test Artist",
+                "track1.flac",
+                Some(2024),
+                Some("Rock"),
+            ),
+            create_test_track(
+                "Song Two",
+                "Test Artist",
+                "track2.flac",
+                Some(2024),
+                Some("Rock"),
+            ),
         ];
-        let album = create_test_album("Test Album", Some(2024), tracks);
+        let album = create_test_album_with_genre("Test Album", Some(2024), Some("Rock"), tracks);
 
         let content = generate_cue_content(&album);
 
         assert!(content.contains("PERFORMER \"Test Artist\""));
         assert!(content.contains("TITLE \"Test Album\""));
         assert!(content.contains("REM DATE 2024"));
+        assert!(content.contains("REM GENRE Rock"));
         assert!(content.contains("FILE \"track1.flac\" WAVE"));
         assert!(content.contains("FILE \"track2.flac\" WAVE"));
         assert!(content.contains("TRACK 01 AUDIO"));
@@ -277,7 +529,7 @@ mod tests {
 
     #[test]
     fn test_generate_cue_file_name() {
-        let album = create_test_album("My Album", None, vec![]);
+        let album = create_test_album_with_genre("My Album", None, None, vec![]);
         let name = generate_cue_file_name(&album);
 
         assert_eq!(name, "My Album.cue");
@@ -288,8 +540,14 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("Test Album.cue");
 
-        let tracks = vec![create_test_track("Song", "Artist", "file.flac")];
-        let album = create_test_album("Test Album", Some(2024), tracks);
+        let tracks = vec![create_test_track(
+            "Song",
+            "Artist",
+            "file.flac",
+            None,
+            Some("Rock"),
+        )];
+        let album = create_test_album_with_genre("Test Album", Some(2024), Some("Rock"), tracks);
 
         write_cue_file(&album, &cue_path).unwrap();
 
@@ -298,16 +556,17 @@ mod tests {
         let content = std::fs::read_to_string(&cue_path).unwrap();
         assert!(content.contains("PERFORMER \"Artist\""));
         assert!(content.contains("TITLE \"Test Album\""));
+        assert!(content.contains("REM GENRE Rock"));
     }
 
     #[test]
     fn test_generate_cue_content_single_file_all_tracks() {
         let tracks = vec![
-            create_test_track("Track 1", "Artist", "album.flac"),
-            create_test_track("Track 2", "Artist", "album.flac"),
-            create_test_track("Track 3", "Artist", "album.flac"),
+            create_test_track("Track 1", "Artist", "album.flac", Some(2023), Some("Jazz")),
+            create_test_track("Track 2", "Artist", "album.flac", Some(2023), Some("Jazz")),
+            create_test_track("Track 3", "Artist", "album.flac", Some(2023), Some("Jazz")),
         ];
-        let album = create_test_album("Album", None, tracks);
+        let album = create_test_album_with_genre("Album", Some(2023), Some("Jazz"), tracks);
 
         let content = generate_cue_content(&album);
 
@@ -325,11 +584,11 @@ mod tests {
     #[test]
     fn test_generate_cue_content_multiple_files() {
         let tracks = vec![
-            create_test_track("Track 1", "Artist", "01.flac"),
-            create_test_track("Track 2", "Artist", "02.flac"),
-            create_test_track("Track 3", "Artist", "03.flac"),
+            create_test_track("Track 1", "Artist", "01.flac", None, Some("Electronic")),
+            create_test_track("Track 2", "Artist", "02.flac", None, Some("Electronic")),
+            create_test_track("Track 3", "Artist", "03.flac", None, Some("Electronic")),
         ];
-        let album = create_test_album("Album", None, tracks);
+        let album = create_test_album_with_genre("Album", None, Some("Electronic"), tracks);
 
         let content = generate_cue_content(&album);
 
@@ -343,15 +602,216 @@ mod tests {
     #[test]
     fn test_generate_cue_content_track_timing() {
         let tracks = vec![
-            create_test_track("Track 1", "Artist", "file.flac"),
-            create_test_track("Track 2", "Artist", "file.flac"),
+            create_test_track("Track 1", "Artist", "file.flac", None, None),
+            create_test_track("Track 2", "Artist", "file.flac", None, None),
         ];
-        let album = create_test_album("Album", None, tracks);
+        let album = create_test_album_with_genre("Album", None, None, tracks);
 
         let content = generate_cue_content(&album);
 
         assert!(content.contains("INDEX 01 00:00:00"));
         assert!(content.contains("INDEX 01 00:02:00"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_genre_from_track() {
+        let tracks = vec![
+            create_test_track(
+                "Song One",
+                "Artist",
+                "track1.flac",
+                Some(2020),
+                Some("Classical"),
+            ),
+            create_test_track(
+                "Song Two",
+                "Artist",
+                "track2.flac",
+                Some(2020),
+                Some("Classical"),
+            ),
+        ];
+        let album =
+            create_test_album_with_genre("Album Title", Some(2020), Some("Classical"), tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("REM GENRE Classical"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_year_from_track() {
+        let tracks = vec![
+            create_test_track("Song One", "Artist", "track1.flac", Some(2019), Some("Pop")),
+            create_test_track("Song Two", "Artist", "track2.flac", Some(2019), Some("Pop")),
+        ];
+        let album = create_test_album_with_genre("Album", None, Some("Pop"), tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("REM DATE 2019"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_no_genre() {
+        let tracks = vec![
+            create_test_track("Song One", "Artist", "track1.flac", None, None),
+            create_test_track("Song Two", "Artist", "track2.flac", None, None),
+        ];
+        let album = create_test_album_with_genre("Album", None, None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(!content.contains("REM GENRE"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_album_artist_takes_precedence() {
+        let tracks = vec![
+            TrackNode {
+                file_path: PathBuf::from("track1.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song One".to_string())),
+                    artist: Some(MetadataValue::embedded("Track Artist".to_string())),
+                    album: None,
+                    album_artist: Some(MetadataValue::embedded("Album Artist".to_string())),
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track1.flac"),
+                },
+            },
+            TrackNode {
+                file_path: PathBuf::from("track2.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song Two".to_string())),
+                    artist: Some(MetadataValue::embedded("Track Artist".to_string())),
+                    album: None,
+                    album_artist: Some(MetadataValue::embedded("Album Artist".to_string())),
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track2.flac"),
+                },
+            },
+        ];
+        let album = create_test_album_with_genre("Album", None, None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("PERFORMER \"Album Artist\""));
+    }
+
+    #[test]
+    fn test_generate_cue_content_album_title_from_track_metadata() {
+        let tracks = vec![
+            TrackNode {
+                file_path: PathBuf::from("track1.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song One".to_string())),
+                    artist: Some(MetadataValue::embedded("Artist".to_string())),
+                    album: Some(MetadataValue::embedded("Real Album Name".to_string())),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track1.flac"),
+                },
+            },
+            TrackNode {
+                file_path: PathBuf::from("track2.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song Two".to_string())),
+                    artist: Some(MetadataValue::embedded("Artist".to_string())),
+                    album: Some(MetadataValue::embedded("Real Album Name".to_string())),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track2.flac"),
+                },
+            },
+        ];
+        let album = create_test_album_with_genre("Folder Name", None, None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("TITLE \"Real Album Name\""));
+    }
+
+    #[test]
+    fn test_generate_cue_content_conflicting_metadata_uses_embedded() {
+        let tracks = vec![
+            TrackNode {
+                file_path: PathBuf::from("track1.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song One".to_string())),
+                    artist: Some(MetadataValue::embedded("Artist".to_string())),
+                    album: Some(MetadataValue::embedded("Album From Tags".to_string())),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: Some(MetadataValue::embedded(2021)),
+                    genre: Some(MetadataValue::embedded("Metal".to_string())),
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track1.flac"),
+                },
+            },
+            TrackNode {
+                file_path: PathBuf::from("track2.flac"),
+                metadata: TrackMetadata {
+                    title: Some(MetadataValue::embedded("Song Two".to_string())),
+                    artist: Some(MetadataValue::embedded("Artist".to_string())),
+                    album: Some(MetadataValue::inferred("Folder Album".to_string(), 0.3)),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: Some(MetadataValue::inferred(2020, 0.3)),
+                    genre: Some(MetadataValue::inferred("Rock".to_string(), 0.3)),
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track2.flac"),
+                },
+            },
+        ];
+        let album = create_test_album_with_genre("Folder Album", None, Some("Rock"), tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("TITLE \"Album From Tags\""));
+        assert!(content.contains("REM DATE 2021"));
+        assert!(content.contains("REM GENRE Metal"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_title_case_normalization() {
+        let tracks = vec![create_test_track(
+            "Song",
+            "UPPERCASE ARTIST",
+            "track1.flac",
+            Some(2020),
+            Some("ROCK"),
+        )];
+        let album = create_test_album_with_genre("UPPERCASE ALBUM", Some(2020), Some("ROCK"), tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("PERFORMER \"Uppercase Artist\""));
+        assert!(content.contains("TITLE \"Uppercase Album\""));
+        assert!(content.contains("REM GENRE Rock"));
     }
 
     #[test]
