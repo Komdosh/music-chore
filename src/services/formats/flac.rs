@@ -52,10 +52,7 @@ impl AudioFile for FlacHandler {
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
 
-        Ok(Track {
-            file_path: path.to_path_buf(),
-            metadata,
-        })
+        Ok(Track::new(path.to_path_buf(), metadata))
     }
 
     fn write_metadata(&self, path: &Path, metadata: &TrackMetadata) -> Result<(), AudioFileError> {
@@ -64,7 +61,7 @@ impl AudioFile for FlacHandler {
         }
 
         // Use lofty to write metadata to FLAC file
-        let mut tagged_file = lofty::read_from_path(path)
+        let mut tagged_file = read_from_path(path)
             .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read FLAC file: {}", e)))?;
 
         // Get or create the primary tag (Vorbis Comments for FLAC)

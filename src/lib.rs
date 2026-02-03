@@ -13,5 +13,5 @@ pub use domain::{
 };
 
 pub use services::{
-    infer_album_from_path, infer_artist_from_path, normalize_track_titles, to_title_case,
+    infer_album_from_path, infer_artist_from_path, normalization::to_title_case,
 };

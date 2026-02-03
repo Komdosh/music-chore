@@ -2,7 +2,7 @@
 
 use crate::domain::models::{OperationResult, Track};
 use crate::services::formats;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Convert string to title case (first letter of each word capitalized)
 pub fn to_title_case(input: &str) -> String {
@@ -28,13 +28,64 @@ pub fn to_title_case(input: &str) -> String {
     result
 }
 
-/// Normalize track titles to title case
-pub fn normalize_track_titles(path: &Path) -> Result<Vec<OperationResult>, String> {
-    normalize_track_titles_with_options(path, false)
-}
-
 /// Normalize track titles to title case with options
-pub fn normalize_track_titles_with_options(
+pub fn normalize(path: PathBuf, dry_run: bool) -> Result<String, String> {
+    let mut out = String::new();
+
+    match normalize_track_titles_with_options(&path, dry_run) {
+        Ok(results) => {
+            for result in results {
+                match result {
+                    OperationResult::Updated {
+                        track,
+                        old_title,
+                        new_title,
+                    } => {
+                        if dry_run {
+                            out.push_str(&format!(
+                                "DRY RUN: Would normalize '{}' -> '{}' in {}\n",
+                                track.file_path.display(),
+                                old_title,
+                                new_title
+                            ));
+                        } else {
+                            out.push_str(&format!(
+                                "NORMALIZED: '{}' -> '{}' in {}\n",
+                                track.file_path.display(),
+                                old_title,
+                                new_title
+                            ));
+                        }
+                    }
+
+                    OperationResult::NoChange { track } => {
+                        if !dry_run {
+                            out.push_str(&format!(
+                                "NO CHANGE: Title already title case in {}\n",
+                                track.file_path.display()
+                            ));
+                        }
+                    }
+
+                    OperationResult::Error { track, error } => {
+                        out.push_str(&format!(
+                            "ERROR: {} in {}\n",
+                            error,
+                            track.file_path.display()
+                        ));
+                    }
+                }
+            }
+
+            Ok(out)
+        }
+
+        Err(e) => {
+            Err(format!("Error normalizing titles: {}\n", e))
+        }
+    }
+}
+fn normalize_track_titles_with_options(
     path: &Path,
     dry_run: bool,
 ) -> Result<Vec<OperationResult>, String> {
