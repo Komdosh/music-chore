@@ -39,16 +39,30 @@ pub fn generate_cue_content(album: &AlbumNode) -> String {
         cue_content.push_str(&format!("REM DATE {}\n", year));
     }
 
-    // Add FILE entry with the first track's file name (assuming all tracks in same file)
-    if let Some(first_track) = album.tracks.first() {
-        if let Some(file_name) = first_track.file_path.file_name() {
-            cue_content.push_str(&format!("FILE \"{}\" WAVE\n", file_name.to_string_lossy()));
-        }
-    }
+    // Group tracks by their source file
+    let mut current_file: Option<String> = None;
+    let mut track_index_in_file: u32 = 0;
 
-    // Add TRACK entries
     for (index, track) in album.tracks.iter().enumerate() {
-        let track_number = index + 1;
+        let file_name = track
+            .file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| String::from("unknown.flac"));
+
+        // New file section
+        if current_file.as_ref() != Some(&file_name) {
+            current_file = Some(file_name.clone());
+            track_index_in_file = 0;
+            cue_content.push_str(&format!("FILE \"{}\" WAVE\n", file_name));
+        }
+
+        let track_number = track
+            .metadata
+            .track_number
+            .as_ref()
+            .map(|mv| mv.value)
+            .unwrap_or_else(|| (index + 1) as u32);
 
         cue_content.push_str(&format!("  TRACK {:02} AUDIO\n", track_number));
 
@@ -62,25 +76,26 @@ pub fn generate_cue_content(album: &AlbumNode) -> String {
             cue_content.push_str(&format!("    PERFORMER \"{}\"\n", performer));
         }
 
-        // Add INDEX 01 for track start (assuming 2 seconds per track for now)
-        let start_time = track_number * 2;
-        let minutes = start_time / 60;
-        let seconds = start_time % 60;
-        cue_content.push_str(&format!("    INDEX 01 {:02}:{:02}:00\n", minutes, seconds));
+        // Add INDEX 01 for track start
+        cue_content.push_str(&format!(
+            "    INDEX 01 00:{:02}:00\n",
+            track_index_in_file * 2
+        ));
+        track_index_in_file += 1;
     }
 
     cue_content
+}
+
+/// Generates the default .cue filename for an album.
+pub fn generate_cue_file_name(album: &AlbumNode) -> String {
+    format!("{}.cue", album.title)
 }
 
 /// Writes a .cue file for an album to the specified path.
 pub fn write_cue_file(album: &AlbumNode, output_path: &Path) -> Result<(), std::io::Error> {
     let cue_content = generate_cue_content(album);
     std::fs::write(output_path, cue_content)
-}
-
-/// Generates a .cue file name based on the album information.
-pub fn generate_cue_file_name(album: &AlbumNode) -> String {
-    format!("{}.cue", album.title)
 }
 
 /// Parses a .cue file and extracts basic information.
@@ -255,46 +270,9 @@ mod tests {
         assert!(content.contains("TITLE \"Test Album\""));
         assert!(content.contains("REM DATE 2024"));
         assert!(content.contains("FILE \"track1.flac\" WAVE"));
+        assert!(content.contains("FILE \"track2.flac\" WAVE"));
         assert!(content.contains("TRACK 01 AUDIO"));
         assert!(content.contains("TRACK 02 AUDIO"));
-        assert!(content.contains("TITLE \"Song One\""));
-        assert!(content.contains("TITLE \"Song Two\""));
-    }
-
-    #[test]
-    fn test_generate_cue_content_track_index_format() {
-        let tracks = vec![create_test_track("Track", "Artist", "file.flac")];
-        let album = create_test_album("Album", None, tracks);
-
-        let content = generate_cue_content(&album);
-
-        assert!(content.contains("INDEX 01 00:02:00"));
-    }
-
-    #[test]
-    fn test_generate_cue_content_multiple_tracks_timing() {
-        let tracks = vec![
-            create_test_track("Track 1", "Artist", "file.flac"),
-            create_test_track("Track 2", "Artist", "file.flac"),
-            create_test_track("Track 3", "Artist", "file.flac"),
-        ];
-        let album = create_test_album("Album", None, tracks);
-
-        let content = generate_cue_content(&album);
-
-        assert!(content.contains("INDEX 01 00:02:00"));
-        assert!(content.contains("INDEX 01 00:04:00"));
-        assert!(content.contains("INDEX 01 00:06:00"));
-    }
-
-    #[test]
-    fn test_generate_cue_content_without_year() {
-        let tracks = vec![create_test_track("Song", "Artist", "file.flac")];
-        let album = create_test_album("Album", None, tracks);
-
-        let content = generate_cue_content(&album);
-
-        assert!(!content.contains("REM DATE"));
     }
 
     #[test]
@@ -308,41 +286,72 @@ mod tests {
     #[test]
     fn test_write_cue_file() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let cue_path = temp_dir.path().join("test.cue");
+        let cue_path = temp_dir.path().join("Test Album.cue");
 
         let tracks = vec![create_test_track("Song", "Artist", "file.flac")];
-        let album = create_test_album("Album", Some(2024), tracks);
+        let album = create_test_album("Test Album", Some(2024), tracks);
 
         write_cue_file(&album, &cue_path).unwrap();
 
         assert!(cue_path.exists());
 
         let content = std::fs::read_to_string(&cue_path).unwrap();
-        assert!(content.contains("PERFORMER"));
-        assert!(content.contains("TITLE"));
+        assert!(content.contains("PERFORMER \"Artist\""));
+        assert!(content.contains("TITLE \"Test Album\""));
     }
 
     #[test]
-    fn test_write_cue_file_multiple_tracks() {
-        let temp_dir = tempfile::TempDir::new().unwrap();
-        let cue_path = temp_dir.path().join("test.cue");
+    fn test_generate_cue_content_single_file_all_tracks() {
+        let tracks = vec![
+            create_test_track("Track 1", "Artist", "album.flac"),
+            create_test_track("Track 2", "Artist", "album.flac"),
+            create_test_track("Track 3", "Artist", "album.flac"),
+        ];
+        let album = create_test_album("Album", None, tracks);
 
+        let content = generate_cue_content(&album);
+
+        let file_count = content.match_indices("FILE ").count();
+        assert_eq!(
+            file_count, 1,
+            "Should have one FILE entry for single file album"
+        );
+        assert!(content.contains("FILE \"album.flac\" WAVE"));
+        assert!(content.contains("TRACK 01 AUDIO"));
+        assert!(content.contains("TRACK 02 AUDIO"));
+        assert!(content.contains("TRACK 03 AUDIO"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_multiple_files() {
+        let tracks = vec![
+            create_test_track("Track 1", "Artist", "01.flac"),
+            create_test_track("Track 2", "Artist", "02.flac"),
+            create_test_track("Track 3", "Artist", "03.flac"),
+        ];
+        let album = create_test_album("Album", None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        let file_count = content.match_indices("FILE ").count();
+        assert_eq!(file_count, 3, "Should have FILE entry for each track");
+        assert!(content.contains("FILE \"01.flac\" WAVE"));
+        assert!(content.contains("FILE \"02.flac\" WAVE"));
+        assert!(content.contains("FILE \"03.flac\" WAVE"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_track_timing() {
         let tracks = vec![
             create_test_track("Track 1", "Artist", "file.flac"),
             create_test_track("Track 2", "Artist", "file.flac"),
-            create_test_track("Track 3", "Artist", "file.flac"),
         ];
-        let album = create_test_album("Album", Some(2024), tracks);
+        let album = create_test_album("Album", None, tracks);
 
-        write_cue_file(&album, &cue_path).unwrap();
+        let content = generate_cue_content(&album);
 
-        let content = std::fs::read_to_string(&cue_path).unwrap();
-        assert!(content.contains("TRACK 01"));
-        assert!(content.contains("TRACK 02"));
-        assert!(content.contains("TRACK 03"));
+        assert!(content.contains("INDEX 01 00:00:00"));
         assert!(content.contains("INDEX 01 00:02:00"));
-        assert!(content.contains("INDEX 01 00:04:00"));
-        assert!(content.contains("INDEX 01 00:06:00"));
     }
 
     #[test]

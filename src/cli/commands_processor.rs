@@ -2,7 +2,7 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::{generate_cue_content, write_cue_file};
+use crate::services::cue::{generate_cue_content, generate_cue_file_name, write_cue_file};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
@@ -131,7 +131,6 @@ fn handle_cue(
     dry_run: bool,
     force: bool,
 ) -> Result<(), i32> {
-    let output_path = output.unwrap_or_else(|| path.join("album.cue"));
     let tracks = scan_dir(&path);
     if tracks.is_empty() {
         eprintln!("No tracks found in directory");
@@ -139,32 +138,37 @@ fn handle_cue(
     }
 
     let library = build_library_hierarchy(tracks);
-    if let Some(album) = library.artists.first().and_then(|a| a.albums.first()) {
-        if output_path.exists() && !force && !dry_run {
-            eprintln!(
-                "Error: Cue file already exists at '{}'. Use --force to overwrite.",
-                output_path.display()
-            );
+    let album = match library.artists.first().and_then(|a| a.albums.first()) {
+        Some(album) => album,
+        None => {
+            eprintln!("No album found in directory");
             return Err(1);
         }
+    };
 
-        if dry_run {
-            let cue_content = generate_cue_content(album);
-            println!("{}", cue_content);
-            println!("---");
-            println!("Would write to: {}", output_path.display());
-        } else {
-            match write_cue_file(album, &output_path) {
-                Ok(_) => println!("Cue file written to: {}", output_path.display()),
-                Err(e) => {
-                    eprintln!("Error writing cue file: {}", e);
-                    return Err(1);
-                }
+    let output_path = output.unwrap_or_else(|| path.join(generate_cue_file_name(album)));
+
+    if output_path.exists() && !force && !dry_run {
+        eprintln!(
+            "Error: Cue file already exists at '{}'. Use --force to overwrite.",
+            output_path.display()
+        );
+        return Err(1);
+    }
+
+    if dry_run {
+        let cue_content = generate_cue_content(album);
+        println!("{}", cue_content);
+        println!("---");
+        println!("Would write to: {}", output_path.display());
+    } else {
+        match write_cue_file(album, &output_path) {
+            Ok(_) => println!("Cue file written to: {}", output_path.display()),
+            Err(e) => {
+                eprintln!("Error writing cue file: {}", e);
+                return Err(1);
             }
         }
-    } else {
-        eprintln!("No album found in directory");
-        return Err(1);
     }
     Ok(())
 }

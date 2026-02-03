@@ -16,6 +16,7 @@ fn test_cue_command_basic() {
     assert!(stdout.contains("TITLE"));
     assert!(stdout.contains("TRACK"));
     assert!(stdout.contains("Would write to:"));
+    assert!(stdout.contains("simple.cue"));
 }
 
 #[test]

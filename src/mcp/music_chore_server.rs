@@ -13,7 +13,7 @@ use crate::mcp::params::{
     EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
     ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::cue::{generate_cue_content, write_cue_file};
+use crate::services::cue::{generate_cue_content, generate_cue_file_name, write_cue_file};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
@@ -171,11 +171,10 @@ pub struct MusicChoreServer {
         params: Parameters<GenerateCueParams>,
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
-        let output_path = params.0.output.map(PathBuf::from).unwrap_or_else(|| path.join("album.cue"));
         let dry_run = params.0.dry_run.unwrap_or(false);
         let force = params.0.force.unwrap_or(false);
 
-        log::info!("generate_cue_file called with path: {}, output: {}, dry_run: {}, force: {}", path.display(), output_path.display(), dry_run, force);
+        log::info!("generate_cue_file called with path: {}, dry_run: {}, force: {}", path.display(), dry_run, force);
 
         let tracks = scan_dir(&path);
         if tracks.is_empty() {
@@ -189,6 +188,8 @@ pub struct MusicChoreServer {
                 return Ok(CallToolResult::error(vec![Content::text("No album found in directory")]));
             }
         };
+
+        let output_path = params.0.output.map(PathBuf::from).unwrap_or_else(|| path.join(generate_cue_file_name(album)));
 
         if output_path.exists() && !force && !dry_run {
             return Ok(CallToolResult::error(vec![Content::text(format!(
