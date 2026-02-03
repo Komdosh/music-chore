@@ -111,6 +111,7 @@ mod tests {
 
         let track = Track {
             file_path: PathBuf::from("/test/track.flac"),
+            checksum: None,
             metadata,
         };
 
@@ -336,6 +337,7 @@ mod tests {
 
         let track = Track {
             file_path: PathBuf::from("/serial/track.flac"),
+            checksum: None,
             metadata,
         };
 

@@ -6,10 +6,11 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 5 core tools exposed and working (CLI has 7 commands)
+- ✅ All 6 core tools exposed and working
 - ✅ Proper initialization and shutdown handling  
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
+- ✅ Duplicate detection with SHA256 checksums
 
 ## Overview
 
@@ -18,9 +19,10 @@ The MCP server allows AI agents to:
 - Read and analyze metadata from individual files
 - Get hierarchical library tree views
 - Normalize track titles automatically
+- Find duplicate tracks by checksum
 - Emit structured library metadata for analysis
 
-**Note**: The CLI also includes additional commands like `duplicates` (find duplicate tracks) and `validate` (metadata validation) which are not exposed via MCP.
+**Note**: The CLI also includes additional commands like `validate` (metadata validation) which are not exposed via MCP.
 
 ## Installation
 
@@ -308,6 +310,29 @@ Complete library information with summary statistics and detailed track informat
   "arguments": {
     "path": "/Users/music/FLAC",
     "format": "text"
+  }
+}
+```
+
+### 6. `find_duplicates`
+
+Find duplicate tracks by comparing SHA256 checksums of audio files.
+
+**Parameters:**
+- `path` (string, required): Base directory path to scan for duplicate tracks
+- `json_output` (boolean, optional): Return results as JSON (true) or human-readable groups (false). Default: false
+
+**Returns:**
+- If `json_output=false`: Human-readable groups of duplicate files with their paths
+- If `json_output=true`: JSON array where each element is an array of duplicate tracks with full metadata and checksums
+
+**Example:**
+```json
+{
+  "name": "find_duplicates",
+  "arguments": {
+    "path": "/Users/music/FLAC",
+    "json_output": false
   }
 }
 ```

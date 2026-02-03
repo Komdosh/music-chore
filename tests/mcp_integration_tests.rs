@@ -424,6 +424,63 @@ async fn test_validate_nested_directory() -> Result<()> {
     shutdown(client).await
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_find_duplicates() -> Result<()> {
+    let client = spawn_client().await?;
+
+    // Test with duplicates
+    let result = call_tool(
+        &client,
+        "find_duplicates",
+        object!({
+            "path": "tests/fixtures/duplicates",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Found") && text.contains("duplicate groups"));
+    assert!(text.contains("Duplicate Group 1"));
+    assert!(text.contains("track1.flac") || text.contains("track2.flac"));
+
+    // Test JSON output
+    let result = call_tool(
+        &client,
+        "find_duplicates",
+        object!({
+            "path": "tests/fixtures/duplicates",
+            "json_output": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let json_text = text_content(&result);
+    assert!(json_text.starts_with("["));
+    assert!(json_text.contains("checksum"));
+
+    // Test with no duplicates
+    let result = call_tool(
+        &client,
+        "find_duplicates",
+        object!({
+            "path": "tests/fixtures/flac/simple",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+    let text = text_content(&result);
+    assert!(text.contains("No duplicate tracks found"));
+
+    shutdown(client).await
+}
+
 /* -------------------------- Binary CLI smoke tests ------------------------- */
 
 #[test]

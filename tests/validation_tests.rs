@@ -20,10 +20,12 @@ fn test_validate_perfect_tracks() {
     let tracks = vec![
         crate::Track {
             file_path: PathBuf::from("/test/track1.flac"),
+            checksum: None,
             metadata: create_basic_metadata("Track 1", 1),
         },
         crate::Track {
             file_path: PathBuf::from("/test/track2.flac"),
+            checksum: None,
             metadata: create_basic_metadata("Track 2", 2),
         },
     ];
@@ -43,6 +45,7 @@ fn test_validate_perfect_tracks() {
 fn test_validate_missing_metadata() {
     let tracks = vec![crate::Track {
         file_path: PathBuf::from("/test/track1.flac"),
+        checksum: None,
         metadata: TrackMetadata {
             title: None,  // Missing title (error)
             artist: None, // Missing artist (error)
@@ -84,6 +87,7 @@ fn test_validate_missing_metadata() {
 fn test_validate_unusual_values() {
     let tracks = vec![crate::Track {
         file_path: PathBuf::from("/test/unusual.flac"),
+        checksum: None,
         metadata: TrackMetadata {
             title: Some(MetadataValue::embedded("Valid Title".to_string())),
             artist: Some(MetadataValue::embedded("Valid Artist".to_string())),
@@ -118,11 +122,13 @@ fn test_validate_mixed_quality() {
         // Good track
         crate::Track {
             file_path: PathBuf::from("/test/good.flac"),
+            checksum: None,
             metadata: create_basic_metadata("Good Track", 1),
         },
         // Bad track - missing required fields
         crate::Track {
             file_path: PathBuf::from("/test/bad.flac"),
+            checksum: None,
             metadata: TrackMetadata {
                 title: None, // Missing title (error)
                 artist: Some(MetadataValue::embedded("Artist".to_string())),

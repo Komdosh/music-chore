@@ -13,6 +13,7 @@ mod tests {
     ) -> Track {
         Track {
             file_path: PathBuf::from(path),
+            checksum: None,
             metadata: TrackMetadata {
                 title: title.map(|t| MetadataValue {
                     value: t.to_string(),
@@ -125,6 +126,7 @@ mod tests {
     fn test_build_library_hierarchy_missing_metadata() {
         let tracks = vec![Track {
             file_path: PathBuf::from("UnknownArtist/UnknownAlbum/track1.flac"),
+            checksum: None,
             metadata: TrackMetadata {
                 title: None,
                 artist: None,
