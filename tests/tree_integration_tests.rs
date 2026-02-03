@@ -1,15 +1,15 @@
-use music_chore::{
-    build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue,
-    TrackNode,
-};
-use std::fs;
-use std::path::PathBuf;
-use tempfile::tempdir;
+
 
 // Test the tree command functionality via CLI integration
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use music_chore::{
+        build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue,
+        TrackNode,
+    };
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
     use music_chore::services::scanner::scan_dir;
 
     fn create_test_library() -> Library {
