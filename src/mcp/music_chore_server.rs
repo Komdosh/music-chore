@@ -10,9 +10,10 @@ use rmcp::{
 use std::path::PathBuf;
 use crate::cli::commands::validate_path;
 use crate::mcp::params::{
-    EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeTitlesParams,
+    EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
     ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
+use crate::services::cue::{generate_cue_for_path, CueGenerationError};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
@@ -162,6 +163,57 @@ pub struct MusicChoreServer {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
             Err(result) => Ok(CallToolResult::error(vec![Content::text(result)])),
         };
+    }
+
+    #[tool(description = "Generate a .cue file for an album folder")]
+    async fn generate_cue_file(
+        &self,
+        params: Parameters<GenerateCueParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let dry_run = params.0.dry_run.unwrap_or(false);
+        let force = params.0.force.unwrap_or(false);
+
+        log::info!("generate_cue_file called with path: {}, dry_run: {}, force: {}", path.display(), dry_run, force);
+
+        match generate_cue_for_path(&path, params.0.output.map(PathBuf::from)) {
+            Ok(result) => {
+                if !dry_run && result.output_path.exists() && !force {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Cue file already exists at '{}'. Use force=true to overwrite.",
+                        result.output_path.display()
+                    ))]));
+                }
+
+                if dry_run {
+                    Ok(CallToolResult::success(vec![Content::text(format!(
+                        "Would write to: {}\n\n{}",
+                        result.output_path.display(),
+                        result.cue_content
+                    ))]))
+                } else {
+                    match std::fs::write(&result.output_path, &result.cue_content) {
+                        Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                            "Cue file written to: {}",
+                            result.output_path.display()
+                        ))])),
+                        Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Error writing cue file: {}",
+                            e
+                        ))])),
+                    }
+                }
+            }
+            Err(CueGenerationError::NoMusicFiles) => {
+                Ok(CallToolResult::error(vec![Content::text("No music files found in directory (checked only immediate files, not subdirectories)")]))
+            }
+            Err(CueGenerationError::NoReadableFiles) => {
+                Ok(CallToolResult::error(vec![Content::text("No readable music files found in directory")]))
+            }
+            Err(CueGenerationError::FileReadError(msg)) => {
+                Ok(CallToolResult::error(vec![Content::text(msg)]))
+            }
+        }
     }
 }
 

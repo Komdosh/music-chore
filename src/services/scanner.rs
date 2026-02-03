@@ -24,11 +24,11 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
 
         if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
             // Infer basic info from directory structure first (faster than full metadata read)
-            let inferred_artist =
-                infer_artist_from_path(path).map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+            let inferred_artist = infer_artist_from_path(path)
+                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
 
-            let inferred_album =
-                infer_album_from_path(path).map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+            let inferred_album = infer_album_from_path(path)
+                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
             // Get file extension for format identification
             let format = path
@@ -85,6 +85,28 @@ pub fn scan_dir_paths(base: &Path) -> Vec<PathBuf> {
     }
 
     // Sort for deterministic ordering
+    paths.sort();
+    paths
+}
+
+/// Scan only the immediate directory level (non-recursive) for music files.
+pub fn scan_dir_immediate(base: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    let supported_extensions = formats::get_supported_extensions();
+
+    if !base.exists() || !base.is_dir() {
+        return paths;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(base) {
+        for entry in entries.into_iter().flatten() {
+            let path = entry.path();
+            if path.is_file() && is_supported_audio_file(&path, &supported_extensions) {
+                paths.push(path);
+            }
+        }
+    }
+
     paths.sort();
     paths
 }

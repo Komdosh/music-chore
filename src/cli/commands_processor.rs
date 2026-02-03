@@ -2,6 +2,7 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
+use crate::services::cue::{generate_cue_for_path, CueGenerationError};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
@@ -42,6 +43,12 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             handle_emit(path, json);
             Ok(())
         }
+        Commands::Cue {
+            path,
+            output,
+            dry_run,
+            force,
+        } => handle_cue(path, output, dry_run, force),
         Commands::Validate { path, json } => {
             handle_validate(path, json);
             Ok(())
@@ -115,5 +122,53 @@ fn handle_validate(path: PathBuf, json: bool) {
     match validate_path(&path, json) {
         Ok(value) => println!("{}", value),
         Err(value) => eprintln!("{}", value),
+    }
+}
+
+fn handle_cue(
+    path: PathBuf,
+    output: Option<PathBuf>,
+    dry_run: bool,
+    force: bool,
+) -> Result<(), i32> {
+    match generate_cue_for_path(&path, output) {
+        Ok(result) => {
+            if !dry_run && result.output_path.exists() && !force {
+                eprintln!(
+                    "Error: Cue file already exists at '{}'. Use --force to overwrite.",
+                    result.output_path.display()
+                );
+                return Err(1);
+            }
+
+            if dry_run {
+                println!("{}", result.cue_content);
+                println!("---");
+                println!("Would write to: {}", result.output_path.display());
+            } else {
+                match std::fs::write(&result.output_path, &result.cue_content) {
+                    Ok(_) => println!("Cue file written to: {}", result.output_path.display()),
+                    Err(e) => {
+                        eprintln!("Error writing cue file: {}", e);
+                        return Err(1);
+                    }
+                }
+            }
+            Ok(())
+        }
+        Err(CueGenerationError::NoMusicFiles) => {
+            eprintln!(
+                "No music files found in directory (checked only immediate files, not subdirectories)"
+            );
+            Err(1)
+        }
+        Err(CueGenerationError::NoReadableFiles) => {
+            eprintln!("No readable music files found in directory");
+            Err(1)
+        }
+        Err(CueGenerationError::FileReadError(msg)) => {
+            eprintln!("{}", msg);
+            Err(1)
+        }
     }
 }

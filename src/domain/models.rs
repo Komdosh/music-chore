@@ -50,6 +50,12 @@ impl<T> MetadataValue<T> {
     }
 }
 
+impl<T: std::fmt::Display> std::fmt::Display for MetadataValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 /// Track metadata with provenance tracking
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrackMetadata {
