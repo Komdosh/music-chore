@@ -231,7 +231,7 @@ fn test_functionality() {
 let title = MetadataValue::embedded("Song Title".to_string());
 
 // Inferred from directory structure  
-let artist = MetadataValue::inferred("Artist Name".to_string(), 0.8);
+let artist = MetadataValue::inferred("Artist Name".to_string(), FOLDER_INFERRED_CONFIDENCE);
 
 // Set by user/cli
 let album = MetadataValue::user_set("Album Name".to_string());
