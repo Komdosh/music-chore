@@ -11,7 +11,7 @@ Design a CLI-only Rust program that:
 - Reads and writes .cue files
 - Exposes structured, machine-readable output suitable for AI agents
 - Supports incremental updates when new folders are added
-- **NOW SUPPORTS MULTIPLE AUDIO FORMATS** (FLAC, MP3 with extensible architecture)
+- **NOW SUPPORTS MULTIPLE AUDIO FORMATS** (FLAC, MP3, WAV with extensible architecture)
 
 ## Hard Constraints
 - CLI only (no GUI)
@@ -24,12 +24,12 @@ Design a CLI-only Rust program that:
 - **MCP server integration for AI agents**
 
 ## Supported File Formats
-### v1.1 (Current Scope - IMPLEMENTED)
+### v0.2 (Current Scope - IMPLEMENTED)
 - **.flac** files ✅
 - **.mp3** files ✅ (ID3v2 tag support)
+- **.wav** files ✅ (INFO chunk support)
 
-### v2 (Future Scope)
-- .wav
+### v1 (Future Scope)
 - .dsf
 
 ## Versioned Feature Scope
@@ -45,10 +45,16 @@ Design a CLI-only Rust program that:
 - CLI command to write/update metadata in .flac file ✅
 - Internals designed to support multiple formats later ✅
 
-### v1.1 — MP3 Support ✅ COMPLETED
+### v0.1.9 — MP3 Support ✅ COMPLETED
 - MP3 format support with ID3v2 tag reading/writing ✅
 - Multi-format architecture working ✅
 - All CLI commands work with both FLAC and MP3 ✅
+- Format-agnostic scanner and metadata processing ✅
+
+### v0.2.1 — WAV Support ✅ COMPLETED
+- WAV format support with INFO chunk reading/writing ✅
+- Multi-format architecture extended to three formats ✅
+- All CLI commands work with FLAC, MP3, and WAV ✅
 - Format-agnostic scanner and metadata processing ✅
 
 ### v2 — AI Agent Integration ✅ COMPLETED
@@ -61,7 +67,7 @@ Design a CLI-only Rust program that:
 - ✅ Comprehensive MCP test coverage (18 tests)
 
 **Planned for future versions**:
-- Support additional audio formats (WAV, DSF)
+- Support additional audio formats (DSF)
 - Generate a .cue file for an album folder using track metadata
 - Advanced metadata operations
 
@@ -276,6 +282,6 @@ Design it like a Unix tool:
 - Composable
 - Multi-format
 
-**Current State**: Production-ready v0.1.9 with FLAC+MP3 support, complete CLI, MCP server, and comprehensive testing.
+**Current State**: Production-ready v0.2.0 with FLAC+MP3+WAV support, complete CLI, MCP server, and comprehensive testing.
 
 When in doubt, choose simplicity and maintain the high quality standards established by the existing implementation.
