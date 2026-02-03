@@ -140,7 +140,7 @@ fn handle_cue(
 
     let library = build_library_hierarchy(tracks);
     if let Some(album) = library.artists.first().and_then(|a| a.albums.first()) {
-        if output_path.exists() && !force {
+        if output_path.exists() && !force && !dry_run {
             eprintln!(
                 "Error: Cue file already exists at '{}'. Use --force to overwrite.",
                 output_path.display()
