@@ -2,6 +2,7 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
+use crate::services::cue::write_cue_file;
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
@@ -40,6 +41,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         }
         Commands::Emit { path, json } => {
             handle_emit(path, json);
+            Ok(())
+        }
+        Commands::Cue { path, output } => {
+            handle_cue(path, output);
             Ok(())
         }
         Commands::Validate { path, json } => {
@@ -115,5 +120,24 @@ fn handle_validate(path: PathBuf, json: bool) {
     match validate_path(&path, json) {
         Ok(value) => println!("{}", value),
         Err(value) => eprintln!("{}", value),
+    }
+}
+
+fn handle_cue(path: PathBuf, output: Option<PathBuf>) {
+    let output_path = output.unwrap_or_else(|| path.join("album.cue"));
+    let tracks = scan_dir(&path);
+    if tracks.is_empty() {
+        eprintln!("No tracks found in directory");
+        return;
+    }
+
+    let library = build_library_hierarchy(tracks);
+    if let Some(album) = library.artists.first().and_then(|a| a.albums.first()) {
+        match write_cue_file(album, &output_path) {
+            Ok(_) => println!("Cue file written to: {}", output_path.display()),
+            Err(e) => eprintln!("Error writing cue file: {}", e),
+        }
+    } else {
+        eprintln!("No album found in directory");
     }
 }

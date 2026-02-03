@@ -65,6 +65,13 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Generate .cue file for an album folder.
+    Cue {
+        /// Path to the album directory.
+        path: PathBuf,
+        /// Output path for the .cue file (defaults to album directory).
+        output: Option<PathBuf>,
+    },
     /// Validate metadata completeness and consistency.
     Validate {
         /// Base directory to validate.

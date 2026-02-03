@@ -1,6 +1,7 @@
 //! Business logic services.
 
 pub mod apply_metadata;
+pub mod cue;
 pub mod duplicates;
 pub mod format_tree;
 pub mod formats;
