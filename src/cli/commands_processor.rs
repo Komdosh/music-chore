@@ -2,7 +2,7 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::write_cue_file;
+use crate::services::cue::{generate_cue_content, write_cue_file};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
@@ -43,8 +43,12 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             handle_emit(path, json);
             Ok(())
         }
-        Commands::Cue { path, output } => {
-            handle_cue(path, output);
+        Commands::Cue {
+            path,
+            output,
+            dry_run,
+        } => {
+            handle_cue(path, output, dry_run);
             Ok(())
         }
         Commands::Validate { path, json } => {
@@ -123,7 +127,7 @@ fn handle_validate(path: PathBuf, json: bool) {
     }
 }
 
-fn handle_cue(path: PathBuf, output: Option<PathBuf>) {
+fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool) {
     let output_path = output.unwrap_or_else(|| path.join("album.cue"));
     let tracks = scan_dir(&path);
     if tracks.is_empty() {
@@ -133,9 +137,16 @@ fn handle_cue(path: PathBuf, output: Option<PathBuf>) {
 
     let library = build_library_hierarchy(tracks);
     if let Some(album) = library.artists.first().and_then(|a| a.albums.first()) {
-        match write_cue_file(album, &output_path) {
-            Ok(_) => println!("Cue file written to: {}", output_path.display()),
-            Err(e) => eprintln!("Error writing cue file: {}", e),
+        if dry_run {
+            let cue_content = generate_cue_content(album);
+            println!("{}", cue_content);
+            println!("---");
+            println!("Would write to: {}", output_path.display());
+        } else {
+            match write_cue_file(album, &output_path) {
+                Ok(_) => println!("Cue file written to: {}", output_path.display()),
+                Err(e) => eprintln!("Error writing cue file: {}", e),
+            }
         }
     } else {
         eprintln!("No album found in directory");

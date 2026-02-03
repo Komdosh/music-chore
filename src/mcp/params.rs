@@ -43,4 +43,5 @@ pub struct FindDuplicatesParams {
 pub struct GenerateCueParams {
     pub(crate) path: String,
     pub(crate) output: Option<String>,
+    pub(crate) dry_run: Option<bool>,
 }

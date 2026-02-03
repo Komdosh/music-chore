@@ -13,7 +13,7 @@ use crate::mcp::params::{
     EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
     ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::cue::write_cue_file;
+use crate::services::cue::{generate_cue_content, write_cue_file};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
@@ -172,8 +172,9 @@ pub struct MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let output_path = params.0.output.map(PathBuf::from).unwrap_or_else(|| path.join("album.cue"));
+        let dry_run = params.0.dry_run.unwrap_or(false);
 
-        log::info!("generate_cue_file called with path: {}, output: {}", path.display(), output_path.display());
+        log::info!("generate_cue_file called with path: {}, output: {}, dry_run: {}", path.display(), output_path.display(), dry_run);
 
         let tracks = scan_dir(&path);
         if tracks.is_empty() {
@@ -188,15 +189,24 @@ pub struct MusicChoreServer {
             }
         };
 
-        match write_cue_file(album, &output_path) {
-            Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
-                "Cue file written to: {}",
-                output_path.display()
-            ))])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Error writing cue file: {}",
-                e
-            ))])),
+        if dry_run {
+            let cue_content = generate_cue_content(album);
+            Ok(CallToolResult::success(vec![Content::text(format!(
+                "Would write to: {}\n\n{}",
+                output_path.display(),
+                cue_content
+            ))]))
+        } else {
+            match write_cue_file(album, &output_path) {
+                Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Cue file written to: {}",
+                    output_path.display()
+                ))])),
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Error writing cue file: {}",
+                    e
+                ))])),
+            }
         }
     }
 }

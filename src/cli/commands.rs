@@ -71,6 +71,9 @@ pub enum Commands {
         path: PathBuf,
         /// Output path for the .cue file (defaults to album directory).
         output: Option<PathBuf>,
+        /// Show what would be written without actually writing the file.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Validate metadata completeness and consistency.
     Validate {
