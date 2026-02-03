@@ -17,12 +17,12 @@ The MCP server is **fully functional and tested** with:
 The MCP server allows AI agents to:
 - Scan directories for music files
 - Read and analyze metadata from individual files
-- Get hierarchical library tree views
+- Get hierarchical library tree views with format indicators
 - Normalize track titles automatically
 - Find duplicate tracks by checksum
-- Emit structured library metadata for analysis
+- Emit structured library metadata for analysis (mixed format)
 
-**Note**: The CLI also includes additional commands like `validate` (metadata validation) which are not exposed via MCP.
+**Note**: The CLI also includes additional commands like `validate` (metadata validation) and `write` (metadata updates) which are not exposed via MCP. All commands now support both FLAC and MP3 formats.
 
 ## Installation
 

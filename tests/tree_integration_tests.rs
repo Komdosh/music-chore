@@ -1,16 +1,16 @@
-use music_chore::{
-    build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource,
-    MetadataValue, TrackNode,
-};
-use std::fs;
-use std::path::PathBuf;
-use tempfile::tempdir;
+
 
 // Test the tree command functionality via CLI integration
 #[cfg(test)]
 mod tests {
+    use music_chore::{
+        build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue,
+        TrackNode,
+    };
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
     use music_chore::services::scanner::scan_dir;
-    use super::*;
 
     fn create_test_library() -> Library {
         let mut library = Library::new();
@@ -227,12 +227,13 @@ mod tests {
         let tracks = scan_dir(dir.path());
         let library = build_library_hierarchy(tracks);
 
-        // Should only find FLAC files (case insensitive)
-        assert_eq!(library.total_tracks, 2); // flac and FLAC
+        // Should find FLAC and MP3 files (case insensitive)
+        assert_eq!(library.total_tracks, 3); // flac, FLAC, and mp3 (wav not supported)
 
         let tracks = &library.artists[0].albums[0].tracks;
         let track_formats: Vec<_> = tracks.iter().map(|t| &t.metadata.format).collect();
 
         assert!(track_formats.contains(&&"flac".to_string()));
+        assert!(track_formats.contains(&&"mp3".to_string()));
     }
 }
