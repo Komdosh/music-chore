@@ -1,5 +1,5 @@
-use crate::services::scanner::scan_dir;
-use crate::{Track, TrackNode};
+use crate::services::scanner::{scan_dir, scan_dir_with_metadata};
+use crate::{build_library_hierarchy, Library, MetadataSource, Track, TrackNode};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -140,11 +140,11 @@ fn format_track_info_for_dir(track: &Track) -> String {
         .title
         .as_ref()
         .map(|t| &t.source)
-        .unwrap_or(&crate::MetadataSource::FolderInferred)
+        .unwrap_or(&MetadataSource::FolderInferred)
     {
-        crate::MetadataSource::Embedded => "🎯",
-        crate::MetadataSource::FolderInferred => "🤖",
-        crate::MetadataSource::UserEdited => "👤",
+        MetadataSource::Embedded => "🎯",
+        MetadataSource::FolderInferred => "🤖",
+        MetadataSource::UserEdited => "👤",
     };
 
     format!("[{}] {}", source, info.join(" | "))
@@ -178,7 +178,7 @@ fn count_dirs_in_tree(node: &DirNode) -> usize {
 
 /// Print library tree in human-readable format (metadata-based, deprecated)
 /// Use format_tree_output(base_path) instead for directory-based view
-pub fn format_library_output(library: &crate::Library) -> String {
+pub fn format_library_output(library: &Library) -> String {
     let mut output = String::new();
 
     for artist in &library.artists {
@@ -246,18 +246,18 @@ fn format_track_info(track: &TrackNode) -> String {
         .title
         .as_ref()
         .map(|t| &t.source)
-        .unwrap_or(&crate::MetadataSource::FolderInferred)
+        .unwrap_or(&MetadataSource::FolderInferred)
     {
-        crate::MetadataSource::Embedded => "🎯",
-        crate::MetadataSource::FolderInferred => "🤖",
-        crate::MetadataSource::UserEdited => "👤",
+        MetadataSource::Embedded => "🎯",
+        MetadataSource::FolderInferred => "🤖",
+        MetadataSource::UserEdited => "👤",
     };
 
     format!("[{}] {}", source, info.join(" | "))
 }
 
 /// Emit structured output optimized for AI agents
-pub fn emit_structured_output(library: &crate::Library) -> String {
+pub fn emit_structured_output(library: &Library) -> String {
     let mut out = String::new();
 
     out.push_str("=== MUSIC LIBRARY METADATA ===\n");
@@ -310,8 +310,15 @@ pub fn emit_structured_output(library: &crate::Library) -> String {
 }
 
 pub fn emit_by_path(path: &Path, json: bool) -> Result<String, String> {
-    let tracks = scan_dir(path);
-    let library = crate::build_library_hierarchy(tracks);
+    log::info!("emit_by_path called with path: {}", path.display());
+
+    let tracks = match scan_dir_with_metadata(path){
+        Ok(tracks) => tracks,
+        Err(e) => return Err(format!("Failed to scan directory: {}", e))
+    };
+    log::info!("Found {} tracks", tracks.len());
+
+    let library = build_library_hierarchy(tracks);
 
     if json {
         match to_string_pretty(&library) {

@@ -220,16 +220,15 @@ async fn test_emit_library_metadata_text() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
-    println!("{}", text);
     for expected in [
         "=== MUSIC LIBRARY METADATA ===",
-        "Total Artists: 1",
-        "Total Albums: 1",
+        "Total Artists: 2",
+        "Total Albums: 2",
         "Total Tracks: 2",
         "ARTIST: flac",
         "ALBUM: simple",
-        "TRACK: \"[Unknown Title]\" | Duration: 0:00 | File: tests/fixtures/flac/simple/track1.flac",
-        "TRACK: \"[Unknown Title]\" | Duration: 0:00 | File: tests/fixtures/flac/simple/track2.flac"
+        "TRACK: \"Test Song\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track1.flac",
+        "TRACK: \"[Unknown Title]\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track2.flac"
     ] {
         assert!(text.contains(expected));
     }
