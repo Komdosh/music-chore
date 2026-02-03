@@ -97,11 +97,12 @@ mod tests {
         let album_dir = artist_dir.join("Album1");
         fs::create_dir_all(&album_dir).unwrap();
 
-        // Create test files
+        // Copy test files from fixtures
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let track1 = album_dir.join("track1.flac");
         let track2 = album_dir.join("track2.flac");
-        fs::write(&track1, b"dummy flac data").unwrap();
-        fs::write(&track2, b"dummy flac data").unwrap();
+        fs::copy(&fixture_path, &track1).unwrap();
+        fs::copy(&fixture_path, &track2).unwrap();
 
         // Test scan and hierarchy building
         let tracks = scan_dir(dir.path());
@@ -123,9 +124,10 @@ mod tests {
     fn test_tree_with_missing_metadata() {
         let dir = tempdir().unwrap();
 
-        // Create file without proper directory structure
+        // Copy file without proper directory structure
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let orphan_file = dir.path().join("orphan.flac");
-        fs::write(&orphan_file, b"dummy flac data").unwrap();
+        fs::copy(&fixture_path, &orphan_file).unwrap();
 
         let tracks = scan_dir(dir.path());
         let library = build_library_hierarchy(tracks);
@@ -176,15 +178,19 @@ mod tests {
     fn test_tree_with_multiple_artists_and_albums() {
         let dir = tempdir().unwrap();
 
-        // Create multiple artists and albums
+        // Copy fixture files for multiple artists and albums
+        let flac_fixture = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
+        let mp3_fixture = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
+
         for artist_name in ["ArtistA", "ArtistB"] {
             for album_name in ["Album1", "Album2"] {
                 let album_dir = dir.path().join(artist_name).join(album_name);
                 fs::create_dir_all(&album_dir).unwrap();
 
-                for track_name in ["track1.flac", "track2.flac"] {
+                for (i, track_name) in ["track1.flac", "track2.mp3"].iter().enumerate() {
                     let track_path = album_dir.join(track_name);
-                    fs::write(&track_path, b"dummy flac data").unwrap();
+                    let fixture = if i == 0 { &flac_fixture } else { &mp3_fixture };
+                    fs::copy(fixture, &track_path).unwrap();
                 }
             }
         }
@@ -215,12 +221,20 @@ mod tests {
         let album_dir = artist_dir.join("TestAlbum");
         fs::create_dir_all(&album_dir).unwrap();
 
-        // Create files with different formats
-        let formats = ["flac", "FLAC", "mp3", "wav"];
-        for (i, format) in formats.iter().enumerate() {
-            let track_path = album_dir.join(format!("track{}.{}", i, format));
-            fs::write(&track_path, b"dummy data").unwrap();
-        }
+        // Copy files with different formats from fixtures
+        let flac_fixture = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
+        let mp3_fixture = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
+        let wav_fixture = PathBuf::from("tests/fixtures/wav/simple/track1.wav");
+
+        let track1 = album_dir.join("track1.flac");
+        let track2 = album_dir.join("track2.FLAC");
+        let track3 = album_dir.join("track3.mp3");
+        let track4 = album_dir.join("track4.wav");
+
+        fs::copy(&flac_fixture, &track1).unwrap();
+        fs::copy(&flac_fixture, &track2).unwrap();
+        fs::copy(&mp3_fixture, &track3).unwrap();
+        fs::copy(&wav_fixture, &track4).unwrap();
 
         let tracks = scan_dir(dir.path());
         let library = build_library_hierarchy(tracks);
