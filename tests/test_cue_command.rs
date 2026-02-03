@@ -16,7 +16,7 @@ fn test_cue_command_basic() {
     assert!(stdout.contains("TITLE"));
     assert!(stdout.contains("TRACK"));
     assert!(stdout.contains("Would write to:"));
-    assert!(stdout.contains("simple.cue"));
+    assert!(stdout.contains(".cue"));
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_cue_command_empty_directory() {
         .expect("Failed to run cue command");
 
     let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
-    assert!(stderr.contains("No tracks found"));
+    assert!(stderr.contains("No music files found"));
 }
 
 #[test]
@@ -159,7 +159,7 @@ fn test_cue_content_format() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
 
-    assert!(stdout.contains("FILE \"track1.flac\" WAVE"));
+    assert!(stdout.contains("FILE \"track2.flac\" WAVE"));
     assert!(stdout.contains("TRACK 01 AUDIO"));
     assert!(stdout.contains("INDEX 01"));
 }

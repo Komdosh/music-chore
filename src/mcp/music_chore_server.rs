@@ -17,7 +17,7 @@ use crate::services::cue::{generate_cue_content, generate_cue_file_name, write_c
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
-use crate::services::{formats::read_metadata, normalization::normalize, scanner::scan_dir};
+use crate::services::{formats::read_metadata, normalization::normalize, scanner::{scan_dir, scan_dir_immediate}};
 use crate::services::scanner::scan_tracks;
 
 #[derive(Clone)]
@@ -176,9 +176,23 @@ pub struct MusicChoreServer {
 
         log::info!("generate_cue_file called with path: {}, dry_run: {}, force: {}", path.display(), dry_run, force);
 
-        let tracks = scan_dir(&path);
+        let file_paths = scan_dir_immediate(&path);
+        if file_paths.is_empty() {
+            return Ok(CallToolResult::error(vec![Content::text("No music files found in directory (checked only immediate files, not subdirectories)")]));
+        }
+
+        let mut tracks = Vec::new();
+        for file_path in &file_paths {
+            match read_metadata(file_path) {
+                Ok(track) => tracks.push(track),
+                Err(e) => {
+                    log::warn!("Failed to read {}: {}", file_path.display(), e);
+                }
+            }
+        }
+
         if tracks.is_empty() {
-            return Ok(CallToolResult::error(vec![Content::text("No tracks found in directory")]));
+            return Ok(CallToolResult::error(vec![Content::text("No readable music files found in directory")]));
         }
 
         let library = build_library_hierarchy(tracks);

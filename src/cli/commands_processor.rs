@@ -7,7 +7,7 @@ use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
 use crate::services::normalization::normalize;
-use crate::services::scanner::{scan_dir, scan_tracks};
+use crate::services::scanner::{scan_dir, scan_dir_immediate, scan_tracks};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
@@ -131,9 +131,26 @@ fn handle_cue(
     dry_run: bool,
     force: bool,
 ) -> Result<(), i32> {
-    let tracks = scan_dir(&path);
+    let file_paths = scan_dir_immediate(&path);
+    if file_paths.is_empty() {
+        eprintln!(
+            "No music files found in directory (checked only immediate files, not subdirectories)"
+        );
+        return Err(1);
+    }
+
+    let mut tracks = Vec::new();
+    for file_path in &file_paths {
+        match read_metadata(file_path) {
+            Ok(track) => tracks.push(track),
+            Err(e) => {
+                eprintln!("Warning: Failed to read {}: {}", file_path.display(), e);
+            }
+        }
+    }
+
     if tracks.is_empty() {
-        eprintln!("No tracks found in directory");
+        eprintln!("No readable music files found in directory");
         return Err(1);
     }
 
