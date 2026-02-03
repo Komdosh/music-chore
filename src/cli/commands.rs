@@ -1,7 +1,11 @@
 //! CLI command definitions and handlers.
 
-use crate::services::{formats::read_metadata, formats::write_metadata, scanner::scan_dir};
-use crate::{Library, OperationResult, TrackNode, build_library_hierarchy, normalize_track_titles};
+use crate::services::{
+    formats::read_metadata,
+    formats::write_metadata,
+    scanner::{scan_dir, scan_with_duplicates},
+};
+use crate::{build_library_hierarchy, normalize_track_titles, Library, OperationResult, TrackNode};
 use clap::{Parser, Subcommand};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
@@ -105,6 +109,14 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Detect duplicate tracks by checksum.
+    Duplicates {
+        /// Base directory to scan.
+        path: PathBuf,
+        /// Output JSON instead of human-readable format.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Handle the parsed CLI command
@@ -138,6 +150,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         }
         Commands::Validate { path, json } => {
             println!("{}", handle_validate(path, json));
+            Ok(())
+        }
+        Commands::Duplicates { path, json } => {
+            handle_duplicates(path, json);
             Ok(())
         }
     }
@@ -709,6 +725,43 @@ pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
         errors,
         warnings,
         summary,
+    }
+}
+
+/// Handle duplicates command
+pub fn handle_duplicates(path: PathBuf, json: bool) {
+    let (tracks, duplicates) = scan_with_duplicates(&path);
+
+    if tracks.is_empty() {
+        println!("No music files found in directory: {}", path.display());
+        return;
+    }
+
+    if duplicates.is_empty() {
+        println!("No duplicate tracks found.");
+        return;
+    }
+
+    if json {
+        match to_string_pretty(&duplicates) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Error serializing to JSON: {}", e),
+        }
+    } else {
+        println!("Found {} duplicate groups:", duplicates.len());
+        println!();
+
+        for (i, duplicate_group) in duplicates.iter().enumerate() {
+            println!(
+                "Duplicate Group {} ({} files):",
+                i + 1,
+                duplicate_group.len()
+            );
+            for track in duplicate_group {
+                println!("  {}", track.file_path.display());
+            }
+            println!();
+        }
     }
 }
 

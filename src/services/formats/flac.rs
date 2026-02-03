@@ -52,10 +52,7 @@ impl AudioFile for FlacHandler {
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
 
-        Ok(Track {
-            file_path: path.to_path_buf(),
-            metadata,
-        })
+        Ok(Track::new(path.to_path_buf(), metadata))
     }
 
     fn write_metadata(&self, path: &Path, metadata: &TrackMetadata) -> Result<(), AudioFileError> {

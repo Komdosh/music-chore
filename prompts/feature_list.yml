@@ -76,21 +76,21 @@ features:
       - "Step 1: Create folder with Unicode characters"
       - "Step 2: Run musicctl scan"
       - "Step 3: Verify no errors"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 12: Handle non-ASCII artist names."
     steps:
       - "Step 1: Set artist name with non-ASCII"
       - "Step 2: Run musicctl scan"
       - "Step 3: Verify artist parsed correctly"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 13: Detect duplicate tracks by checksum."
     steps:
       - "Step 1: Copy track to two locations"
       - "Step 2: Run musicctl scan"
       - "Step 3: Verify duplicate detection"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 14: Generate .cue file from album."
     steps:

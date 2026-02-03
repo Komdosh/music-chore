@@ -69,6 +69,48 @@ pub struct TrackMetadata {
 pub struct Track {
     pub file_path: PathBuf,
     pub metadata: TrackMetadata,
+    pub checksum: Option<String>,
+}
+
+impl Track {
+    /// Create a new track without checksum
+    pub fn new(file_path: PathBuf, metadata: TrackMetadata) -> Self {
+        Self {
+            file_path,
+            metadata,
+            checksum: None,
+        }
+    }
+
+    /// Create a new track with checksum
+    pub fn with_checksum(file_path: PathBuf, metadata: TrackMetadata, checksum: String) -> Self {
+        Self {
+            file_path,
+            metadata,
+            checksum: Some(checksum),
+        }
+    }
+
+    /// Calculate SHA256 checksum of the file
+    pub fn calculate_checksum(&self) -> Result<String, Box<dyn std::error::Error>> {
+        use sha2::{Digest, Sha256};
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(&self.file_path)?;
+        let mut hasher = Sha256::new();
+        let mut buffer = [0; 8192];
+
+        loop {
+            let bytes_read = file.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..bytes_read]);
+        }
+
+        Ok(format!("{:x}", hasher.finalize()))
+    }
 }
 
 /// Album node in library hierarchy
