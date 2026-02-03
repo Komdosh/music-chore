@@ -74,6 +74,9 @@ pub enum Commands {
         /// Show what would be written without actually writing the file.
         #[arg(long)]
         dry_run: bool,
+        /// Overwrite existing .cue file.
+        #[arg(long)]
+        force: bool,
     },
     /// Validate metadata completeness and consistency.
     Validate {

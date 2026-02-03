@@ -47,8 +47,9 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             path,
             output,
             dry_run,
+            force,
         } => {
-            handle_cue(path, output, dry_run);
+            handle_cue(path, output, dry_run, force);
             Ok(())
         }
         Commands::Validate { path, json } => {
@@ -127,7 +128,7 @@ fn handle_validate(path: PathBuf, json: bool) {
     }
 }
 
-fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool) {
+fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool, force: bool) {
     let output_path = output.unwrap_or_else(|| path.join("album.cue"));
     let tracks = scan_dir(&path);
     if tracks.is_empty() {
@@ -137,6 +138,14 @@ fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool) {
 
     let library = build_library_hierarchy(tracks);
     if let Some(album) = library.artists.first().and_then(|a| a.albums.first()) {
+        if output_path.exists() && !force {
+            eprintln!(
+                "Error: Cue file already exists at '{}'. Use --force to overwrite.",
+                output_path.display()
+            );
+            return;
+        }
+
         if dry_run {
             let cue_content = generate_cue_content(album);
             println!("{}", cue_content);
