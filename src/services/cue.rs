@@ -114,8 +114,12 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
 
 fn extract_quoted_value(line: &str) -> Option<String> {
     let mut chars = line.chars();
-    if chars.next()? != '"' {
-        return None;
+    loop {
+        match chars.next() {
+            Some('"') => break,
+            Some(_) => continue,
+            None => return None,
+        }
     }
     let mut value = String::new();
     for c in chars {
@@ -201,4 +205,160 @@ pub struct CueValidationResult {
     pub parsing_error: bool,
     pub file_missing: bool,
     pub track_count_mismatch: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::models::{AlbumNode, MetadataValue, TrackMetadata, TrackNode};
+    use std::path::PathBuf;
+
+    fn create_test_track(title: &str, artist: &str, file_name: &str) -> TrackNode {
+        TrackNode {
+            file_path: PathBuf::from(file_name),
+            metadata: TrackMetadata {
+                title: Some(MetadataValue::embedded(title.to_string())),
+                artist: Some(MetadataValue::embedded(artist.to_string())),
+                album: None,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format: "FLAC".to_string(),
+                path: PathBuf::from(file_name),
+            },
+        }
+    }
+
+    fn create_test_album(title: &str, year: Option<u32>, tracks: Vec<TrackNode>) -> AlbumNode {
+        AlbumNode {
+            title: title.to_string(),
+            year,
+            tracks,
+            path: PathBuf::from("/test"),
+        }
+    }
+
+    #[test]
+    fn test_generate_cue_content_basic() {
+        let tracks = vec![
+            create_test_track("Song One", "Test Artist", "track1.flac"),
+            create_test_track("Song Two", "Test Artist", "track2.flac"),
+        ];
+        let album = create_test_album("Test Album", Some(2024), tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("PERFORMER \"Test Artist\""));
+        assert!(content.contains("TITLE \"Test Album\""));
+        assert!(content.contains("REM DATE 2024"));
+        assert!(content.contains("FILE \"track1.flac\" WAVE"));
+        assert!(content.contains("TRACK 01 AUDIO"));
+        assert!(content.contains("TRACK 02 AUDIO"));
+        assert!(content.contains("TITLE \"Song One\""));
+        assert!(content.contains("TITLE \"Song Two\""));
+    }
+
+    #[test]
+    fn test_generate_cue_content_track_index_format() {
+        let tracks = vec![create_test_track("Track", "Artist", "file.flac")];
+        let album = create_test_album("Album", None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("INDEX 01 00:02:00"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_multiple_tracks_timing() {
+        let tracks = vec![
+            create_test_track("Track 1", "Artist", "file.flac"),
+            create_test_track("Track 2", "Artist", "file.flac"),
+            create_test_track("Track 3", "Artist", "file.flac"),
+        ];
+        let album = create_test_album("Album", None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(content.contains("INDEX 01 00:02:00"));
+        assert!(content.contains("INDEX 01 00:04:00"));
+        assert!(content.contains("INDEX 01 00:06:00"));
+    }
+
+    #[test]
+    fn test_generate_cue_content_without_year() {
+        let tracks = vec![create_test_track("Song", "Artist", "file.flac")];
+        let album = create_test_album("Album", None, tracks);
+
+        let content = generate_cue_content(&album);
+
+        assert!(!content.contains("REM DATE"));
+    }
+
+    #[test]
+    fn test_generate_cue_file_name() {
+        let album = create_test_album("My Album", None, vec![]);
+        let name = generate_cue_file_name(&album);
+
+        assert_eq!(name, "My Album.cue");
+    }
+
+    #[test]
+    fn test_write_cue_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let tracks = vec![create_test_track("Song", "Artist", "file.flac")];
+        let album = create_test_album("Album", Some(2024), tracks);
+
+        write_cue_file(&album, &cue_path).unwrap();
+
+        assert!(cue_path.exists());
+
+        let content = std::fs::read_to_string(&cue_path).unwrap();
+        assert!(content.contains("PERFORMER"));
+        assert!(content.contains("TITLE"));
+    }
+
+    #[test]
+    fn test_write_cue_file_multiple_tracks() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let tracks = vec![
+            create_test_track("Track 1", "Artist", "file.flac"),
+            create_test_track("Track 2", "Artist", "file.flac"),
+            create_test_track("Track 3", "Artist", "file.flac"),
+        ];
+        let album = create_test_album("Album", Some(2024), tracks);
+
+        write_cue_file(&album, &cue_path).unwrap();
+
+        let content = std::fs::read_to_string(&cue_path).unwrap();
+        assert!(content.contains("TRACK 01"));
+        assert!(content.contains("TRACK 02"));
+        assert!(content.contains("TRACK 03"));
+        assert!(content.contains("INDEX 01 00:02:00"));
+        assert!(content.contains("INDEX 01 00:04:00"));
+        assert!(content.contains("INDEX 01 00:06:00"));
+    }
+
+    #[test]
+    fn test_extract_quoted_value() {
+        let line = r#"PERFORMER "Test Artist""#;
+        let result = extract_quoted_value(line);
+        assert_eq!(result, Some("Test Artist".to_string()));
+
+        let line2 = r#"TITLE "Test Album""#;
+        let result2 = extract_quoted_value(line2);
+        assert_eq!(result2, Some("Test Album".to_string()));
+    }
+
+    #[test]
+    fn test_extract_quoted_value_no_quotes() {
+        let result = extract_quoted_value("TITLE Hello World");
+        assert!(result.is_none());
+    }
 }

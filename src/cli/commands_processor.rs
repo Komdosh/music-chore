@@ -48,10 +48,7 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             output,
             dry_run,
             force,
-        } => {
-            handle_cue(path, output, dry_run, force);
-            Ok(())
-        }
+        } => handle_cue(path, output, dry_run, force),
         Commands::Validate { path, json } => {
             handle_validate(path, json);
             Ok(())
@@ -128,12 +125,17 @@ fn handle_validate(path: PathBuf, json: bool) {
     }
 }
 
-fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool, force: bool) {
+fn handle_cue(
+    path: PathBuf,
+    output: Option<PathBuf>,
+    dry_run: bool,
+    force: bool,
+) -> Result<(), i32> {
     let output_path = output.unwrap_or_else(|| path.join("album.cue"));
     let tracks = scan_dir(&path);
     if tracks.is_empty() {
         eprintln!("No tracks found in directory");
-        return;
+        return Err(1);
     }
 
     let library = build_library_hierarchy(tracks);
@@ -143,7 +145,7 @@ fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool, force: bool
                 "Error: Cue file already exists at '{}'. Use --force to overwrite.",
                 output_path.display()
             );
-            return;
+            return Err(1);
         }
 
         if dry_run {
@@ -154,10 +156,15 @@ fn handle_cue(path: PathBuf, output: Option<PathBuf>, dry_run: bool, force: bool
         } else {
             match write_cue_file(album, &output_path) {
                 Ok(_) => println!("Cue file written to: {}", output_path.display()),
-                Err(e) => eprintln!("Error writing cue file: {}", e),
+                Err(e) => {
+                    eprintln!("Error writing cue file: {}", e);
+                    return Err(1);
+                }
             }
         }
     } else {
         eprintln!("No album found in directory");
+        return Err(1);
     }
+    Ok(())
 }
