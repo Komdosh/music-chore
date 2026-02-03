@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
+use music_chore::services::formats::read_metadata;
 
 #[test]
 fn test_write_dry_run_prevents_file_writes() {
@@ -149,8 +150,6 @@ fn test_write_prevents_both_apply_and_dry_run() {
 }
 
 fn get_file_title(flac_path: &Path) -> String {
-    use music_chore::read_metadata;
-
     // Read the current metadata
     let track = read_metadata(flac_path).unwrap();
 

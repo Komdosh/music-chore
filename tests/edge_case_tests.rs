@@ -1,5 +1,5 @@
 use music_chore::{
-    build_library_hierarchy, scan_dir, MetadataSource, MetadataValue, Track, TrackMetadata,
+    build_library_hierarchy, MetadataSource, MetadataValue, Track, TrackMetadata,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -7,6 +7,7 @@ use tempfile::tempdir;
 
 #[cfg(test)]
 mod tests {
+    use music_chore::services::scanner::scan_dir;
     use super::*;
 
     #[test]

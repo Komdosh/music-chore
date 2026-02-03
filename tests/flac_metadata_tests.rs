@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod flac_metadata_tests {
-    use music_chore::read_metadata;
+    use music_chore::services::formats::read_metadata;
     use std::path::Path;
 
     #[test]

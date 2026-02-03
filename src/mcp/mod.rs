@@ -3,6 +3,5 @@
 //! This crate contains MCP-specific logic that bridges CLI functionality
 //! with Model Context Protocol interface.
 
-pub mod formatting;
 pub mod music_chore_server;
 mod params;

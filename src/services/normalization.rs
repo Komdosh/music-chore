@@ -1,7 +1,7 @@
 //! Text normalization services.
 
 use crate::domain::models::{OperationResult, Track};
-use crate::infrastructure::formats;
+use crate::services::formats;
 use std::path::Path;
 
 /// Convert string to title case (first letter of each word capitalized)
@@ -48,7 +48,7 @@ pub fn normalize_track_titles_with_options(
         results.push(normalize_single_track(track, dry_run));
     } else if path.is_dir() {
         // Directory - scan for supported audio files
-        let tracks = crate::infrastructure::scanner::scan_dir(path);
+        let tracks = crate::services::scanner::scan_dir(path);
         for track in tracks {
             results.push(normalize_single_track(track, dry_run));
         }

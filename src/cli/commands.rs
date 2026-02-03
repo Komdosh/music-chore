@@ -1,9 +1,7 @@
 //! CLI command definitions and handlers.
 
-use crate::{
-    build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir, Library,
-    OperationResult, TrackNode,
-};
+use crate::services::{formats::read_metadata, formats::write_metadata, scanner::scan_dir};
+use crate::{Library, OperationResult, TrackNode, build_library_hierarchy, normalize_track_titles};
 use clap::{Parser, Subcommand};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
@@ -176,7 +174,7 @@ pub fn handle_tree(path: PathBuf, json: bool) {
             Err(e) => eprintln!("Error serializing to JSON: {}", e),
         }
     } else {
-        print_tree(&library);
+        println!("{}", format_tree_output(&library));
     }
 }
 
@@ -214,13 +212,13 @@ pub fn handle_write(
         return Err(1);
     }
 
-    if !crate::infrastructure::is_format_supported(&file) {
+    if !crate::services::formats::is_format_supported(&file) {
         eprintln!("Error: Unsupported file format: {}", file.display());
         return Err(1);
     }
 
     // Read current metadata
-    let mut track = match crate::read_metadata(&file) {
+    let mut track = match read_metadata(&file) {
         Ok(track) => track,
         Err(e) => {
             eprintln!("Error reading metadata: {}", e);
@@ -257,7 +255,7 @@ pub fn handle_write(
     }
 
     // Apply changes to file
-    match crate::infrastructure::write_metadata(&file, &track.metadata) {
+    match write_metadata(&file, &track.metadata) {
         Ok(()) => {
             println!("Successfully updated metadata in: {}", file.display());
             Ok(())
@@ -378,13 +376,16 @@ pub fn emit_structured_output(library: &Library) {
 }
 
 /// Print library tree in human-readable format
-fn print_tree(library: &Library) {
+///
+pub fn format_tree_output(library: &Library) -> String {
+    let mut output = String::new();
+
     for artist in &library.artists {
-        println!("📁 {}", artist.name);
+        output.push_str(&format!("📁 {}\n", artist.name));
 
         for album in &artist.albums {
             let year_str = album.year.map(|y| format!(" ({})", y)).unwrap_or_default();
-            println!("├── 📂 {}{}", album.title, year_str);
+            output.push_str(&format!("├── 📂 {}{}\n", album.title, year_str));
 
             for (i, track) in album.tracks.iter().enumerate() {
                 let is_last = i == album.tracks.len() - 1;
@@ -395,8 +396,8 @@ fn print_tree(library: &Library) {
                 };
 
                 let track_info = format_track_info(track);
-                println!(
-                    "{}   {} {}",
+                output.push_str(&format!(
+                    "{}   {} {}\n",
                     prefix,
                     track
                         .file_path
@@ -404,17 +405,19 @@ fn print_tree(library: &Library) {
                         .unwrap_or_default()
                         .to_string_lossy(),
                     track_info
-                );
+                ));
             }
         }
-        println!();
+        output.push('\n');
     }
 
     // Print summary
-    println!("📊 Library Summary:");
-    println!("   Artists: {}", library.total_artists);
-    println!("   Albums: {}", library.total_albums);
-    println!("   Tracks: {}", library.total_tracks);
+    output.push_str("📊 Library Summary:\n");
+    output.push_str(&format!("   Artists: {}\n", library.total_artists));
+    output.push_str(&format!("   Albums: {}\n", library.total_albums));
+    output.push_str(&format!("   Tracks: {}\n", library.total_tracks));
+
+    output
 }
 
 /// Format track information for tree display
@@ -511,7 +514,10 @@ fn build_validation_results(results: &ValidationResult) -> String {
     output.push_str("📊 Summary:\n");
     output.push_str(&format!("  Total files: {}\n", results.summary.total_files));
     output.push_str(&format!("  Valid files: {}\n", results.summary.valid_files));
-    output.push_str(&format!("  Files with errors: {}\n", results.summary.files_with_errors));
+    output.push_str(&format!(
+        "  Files with errors: {}\n",
+        results.summary.files_with_errors
+    ));
     output.push_str(&format!(
         "  Files with warnings: {}\n\n",
         results.summary.files_with_warnings
@@ -520,7 +526,10 @@ fn build_validation_results(results: &ValidationResult) -> String {
     if results.valid {
         output.push_str("✅ All files passed validation!\n");
     } else {
-        output.push_str(&format!("❌ Validation failed with {} errors\n", results.errors.len()));
+        output.push_str(&format!(
+            "❌ Validation failed with {} errors\n",
+            results.errors.len()
+        ));
     }
 
     if !results.errors.is_empty() {
@@ -545,7 +554,6 @@ fn build_validation_results(results: &ValidationResult) -> String {
 
     output
 }
-
 
 /// Validate tracks for missing required fields and consistency issues
 pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
@@ -716,7 +724,7 @@ pub fn handle_validate(path: PathBuf, json: bool) -> String {
             )
         } else {
             "No music files found to validate.".to_string()
-        }
+        };
     }
 
     // Read metadata for validation
@@ -733,13 +741,14 @@ pub fn handle_validate(path: PathBuf, json: bool) -> String {
             )
         } else {
             "Unable to read metadata from any files for validation.".to_string()
-        }
+        };
     }
 
     let validation_results = validate_tracks(tracks_with_metadata);
 
     if json {
-        to_string_pretty(&validation_results).unwrap_or_else(|e| format!("Error serializing validation results: {}", e))
+        to_string_pretty(&validation_results)
+            .unwrap_or_else(|e| format!("Error serializing validation results: {}", e))
     } else {
         build_validation_results(&validation_results)
     }

@@ -1,19 +1,21 @@
-use rmcp::{
-    handler::server::{tool::ToolRouter, ServerHandler, wrapper::Parameters},
-    model::{ServerInfo, ServerCapabilities, Implementation, ProtocolVersion, CallToolResult, Content},
-    tool, tool_handler, tool_router,
-    ErrorData as McpError,
-};
 use log;
+use rmcp::{
+    ErrorData as McpError,
+    handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+    },
+    tool, tool_handler, tool_router,
+};
 use std::path::PathBuf;
 
-use crate::{
-    build_library_hierarchy, normalize_track_titles, read_metadata, scan_dir,
-    OperationResult,
-    mcp::formatting::format_tree_output,
+use crate::cli::commands::{format_tree_output, handle_validate};
+use crate::mcp::params::{
+    EmitLibraryMetadataParams, GetLibraryTreeParams, NormalizeTitlesParams, ReadFileMetadataParams,
+    ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::cli::commands::handle_validate;
-use crate::mcp::params::{EmitLibraryMetadataParams, GetLibraryTreeParams, NormalizeTitlesParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams};
+use crate::services::{formats::read_metadata, scanner::scan_dir};
+use crate::{OperationResult, build_library_hierarchy, normalize_track_titles};
 
 #[derive(Clone)]
 pub struct MusicChoreServer {
@@ -29,22 +31,28 @@ impl MusicChoreServer {
     }
 
     #[tool(description = "Recursively scan a directory for music files")]
-    async fn scan_directory(&self, params: Parameters<ScanDirectoryParams>) -> Result<CallToolResult, McpError> {
+    async fn scan_directory(
+        &self,
+        params: Parameters<ScanDirectoryParams>,
+    ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
         let tracks = scan_dir(&path);
 
         if tracks.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                format!("No music files found in directory: {}", path.display())
-            )]));
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No music files found in directory: {}",
+                path.display()
+            ))]));
         }
 
         let result = if json_output {
-            serde_json::to_string_pretty(&tracks)
-                .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?
+            serde_json::to_string_pretty(&tracks).map_err(|e| {
+                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+            })?
         } else {
-            tracks.iter()
+            tracks
+                .iter()
                 .map(|track| track.file_path.display().to_string())
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -54,7 +62,10 @@ impl MusicChoreServer {
     }
 
     #[tool(description = "Get hierarchical library tree view")]
-    async fn get_library_tree(&self, params: Parameters<GetLibraryTreeParams>) -> Result<CallToolResult, McpError> {
+    async fn get_library_tree(
+        &self,
+        params: Parameters<GetLibraryTreeParams>,
+    ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let _json_output = params.0.json_output.unwrap_or(false);
         let tracks = scan_dir(&path);
@@ -62,36 +73,52 @@ impl MusicChoreServer {
 
         log::info!("get_library_tree called with path: {}", path.display());
 
-        let result = serde_json::to_string_pretty(&library)
-            .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?;
+        let result = serde_json::to_string_pretty(&library).map_err(|e| {
+            McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+        })?;
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
     #[tool(description = "Read metadata from a single music file")]
-    async fn read_file_metadata(&self, params: Parameters<ReadFileMetadataParams>) -> Result<CallToolResult, McpError> {
+    async fn read_file_metadata(
+        &self,
+        params: Parameters<ReadFileMetadataParams>,
+    ) -> Result<CallToolResult, McpError> {
         let file = PathBuf::from(params.0.file_path);
 
-        log::info!("read_file_metadata called with file_path: {}", file.display());
+        log::info!(
+            "read_file_metadata called with file_path: {}",
+            file.display()
+        );
 
         match read_metadata(&file) {
             Ok(track) => {
-                let result = serde_json::to_string_pretty(&track)
-                    .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?;
+                let result = serde_json::to_string_pretty(&track).map_err(|e| {
+                    McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+                })?;
                 Ok(CallToolResult::success(vec![Content::text(result)]))
             }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("Error reading metadata: {}", e))]))
-            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Error reading metadata: {}",
+                e
+            ))])),
         }
     }
 
     #[tool(description = "Normalize track titles to title case")]
-    async fn normalize_titles(&self, params: Parameters<NormalizeTitlesParams>) -> Result<CallToolResult, McpError> {
+    async fn normalize_titles(
+        &self,
+        params: Parameters<NormalizeTitlesParams>,
+    ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let _dry_run = params.0.dry_run.unwrap_or(false);
 
-        log::info!("normalize_titles called with path: {}, dry_run: {}", path.display(), _dry_run);
+        log::info!(
+            "normalize_titles called with path: {}, dry_run: {}",
+            path.display(),
+            _dry_run
+        );
 
         match normalize_track_titles(&path) {
             Ok(results) => {
@@ -118,21 +145,31 @@ impl MusicChoreServer {
                             ));
                         }
                         OperationResult::Error { track, error } => {
-                            output.push(format!("ERROR: {} in {}", error, track.file_path.display()));
+                            output.push(format!(
+                                "ERROR: {} in {}",
+                                error,
+                                track.file_path.display()
+                            ));
                         }
                     }
                 }
 
-                Ok(CallToolResult::success(vec![Content::text(output.join("\n"))]))
+                Ok(CallToolResult::success(vec![Content::text(
+                    output.join("\n"),
+                )]))
             }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("Error normalizing titles: {}", e))]))
-            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Error normalizing titles: {}",
+                e
+            ))])),
         }
     }
 
     #[tool(description = "Emit library metadata in structured format")]
-    async fn emit_library_metadata(&self, params: Parameters<EmitLibraryMetadataParams>) -> Result<CallToolResult, McpError> {
+    async fn emit_library_metadata(
+        &self,
+        params: Parameters<EmitLibraryMetadataParams>,
+    ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
         let tracks = scan_dir(&path);
@@ -141,8 +178,9 @@ impl MusicChoreServer {
         let library = build_library_hierarchy(tracks);
 
         let result = if json_output {
-            serde_json::to_string_pretty(&library)
-                .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {}", e), None))?
+            serde_json::to_string_pretty(&library).map_err(|e| {
+                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+            })?
         } else {
             // Use MCP tree formatting logic
             format_tree_output(&library)
@@ -152,7 +190,10 @@ impl MusicChoreServer {
     }
 
     #[tool(description = "Validate music library for common issues and inconsistencies")]
-    async fn validate_library(&self, params: Parameters<ValidateLibraryParams>) -> Result<CallToolResult, McpError> {
+    async fn validate_library(
+        &self,
+        params: Parameters<ValidateLibraryParams>,
+    ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
 
@@ -169,9 +210,7 @@ impl ServerHandler for MusicChoreServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation {
                 name: "music-chore".into(),
                 version: env!("CARGO_PKG_VERSION").into(),

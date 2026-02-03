@@ -1,7 +1,7 @@
 //! Audio format registry and factory.
 
 use crate::domain::traits::{AudioFileError, AudioFileRegistry};
-use crate::infrastructure::formats::flac::FlacHandler;
+use crate::services::formats::flac::FlacHandler;
 use std::path::Path;
 
 pub mod flac;

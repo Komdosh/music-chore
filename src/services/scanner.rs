@@ -1,7 +1,7 @@
 //! Format-agnostic directory scanner for music files.
 
 use crate::domain::models::{MetadataValue, Track, TrackMetadata};
-use crate::infrastructure::formats;
+use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

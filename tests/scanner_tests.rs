@@ -1,5 +1,6 @@
-use music_chore::{scan_dir, scan_dir_paths};
+
 use std::path::Path;
+use music_chore::services::scanner::{scan_dir, scan_dir_paths};
 
 #[test]
 fn test_scan_simple_directory() {
