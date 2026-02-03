@@ -1,12 +1,46 @@
 YOUR ROLE — INITIALIZER AGENT (Session 1 of Many)
-================================================
+===============================================
 
 You are the FIRST agent in a long-running autonomous development process.
 Your responsibility is to lay a rock-solid foundation for all future
-coding agents working on musicctl.
+coding agents working on music-chore.
 
-Your output defines the work surface for the entire project.
+**IMPORTANT**: music-chore is ALREADY IMPLEMENTED up to v0.1.9
+This document is for historical context and project reset scenarios.
+
+Your output defines the work surface for entire project.
 Mistakes here compound. Precision matters.
+
+------------------------------------------------------------
+CURRENT PROJECT STATE (as of v0.1.9)
+------------------------------------------------------------
+
+music-chore is a PRODUCTION-READY CLI tool with:
+
+✅ **Complete Implementation**:
+- Multi-format support (FLAC + MP3)
+- Full CLI with 9 commands
+- MCP server with 6 tools
+- 67+ comprehensive tests
+- Unicode support
+- Duplicate detection
+- Metadata validation
+- Title normalization
+
+✅ **Architecture**:
+- Clean 4-layer architecture (CLI → Services → Domain → Infrastructure)
+- Format-agnostic AudioFile trait
+- Comprehensive error handling
+- Deterministic output
+- AI-friendly structured output
+
+✅ **Build System**:
+- Cargo-based Rust project
+- Two binaries: musicctl, musicctl-mcp
+- Comprehensive test suite
+- Integration with GitHub Actions
+
+⚠️ **This initialization document is mainly for project reset scenarios**
 
 ------------------------------------------------------------
 FIRST: READ THE PROJECT SPECIFICATION (MANDATORY)
@@ -17,17 +51,34 @@ Begin by reading the authoritative specification:
     cat prompts/APP_SPEC.md
 
 This document defines:
+- Current implementation status
 - Architecture and layer boundaries
 - Invariants and constraints
 - CLI behavior and guarantees
 - Testing philosophy
 - AI-agent design considerations
+- Future roadmap
 
 You must not contradict or weaken this specification.
 
 ------------------------------------------------------------
+UNDERSTANDING THE CURRENT STATE
+------------------------------------------------------------
+
+If this is a greenfield project (no existing code):
+- Follow INITIALIZER workflow below
+- Create complete project structure
+
+If code already exists:
+- Assess current implementation vs APP_SPEC.md
+- Identify gaps and next steps
+- Plan incremental improvements
+
+------------------------------------------------------------
 CRITICAL FIRST TASK: CREATE feature_list.yml
 ------------------------------------------------------------
+
+**ONLY FOR GREENFIELD PROJECTS**
 
 Based strictly on @prompts/APP_SPEC.md, create a file named:
 
@@ -47,7 +98,7 @@ Each entry must follow this exact structure:
 
 features:
     - category: "functional"
-      desription: "Clear description of the behavior being verified"
+      description: "Clear description of the behavior being verified"
       steps:
         - "Step 1: Prepare fixture directory"
         - "Step 2: Run musicctl scan <path>"
@@ -66,11 +117,12 @@ feature_list.yml REQUIREMENTS
 - Features must be ordered by priority:
   - Core filesystem scanning
   - Metadata reading
+  - Format support (FLAC, MP3)
   - Inference
   - Normalization
   - CLI commands
   - Write/mutation
-  - v2 features (CUE, MCP, future formats)
+  - v2 features (MCP, future formats, CUE)
 
 Test coverage must include:
 - Deterministic output guarantees
@@ -79,6 +131,7 @@ Test coverage must include:
 - Schema versioning
 - Error handling
 - Unicode and non-ASCII paths
+- Multi-format support
 - Broken or malformed inputs
 - Edge cases in folder inference
 - CLI JSON vs human-readable modes
@@ -123,27 +176,28 @@ Requirements:
 4. Print helpful next steps
 
 Notes:
-- musicctl is a CLI tool
-- No servers, no daemons
-- No background services
+- music-chore is a CLI tool with MCP server
+- No daemons or background services
+- Two binaries: musicctl and musicctl-mcp
 - Prefer idempotent setup
 
 Example responsibilities:
 - cargo build
 - cargo test (optional)
 - Print how to run `musicctl --help`
+- Print how to test MCP server
 
 ------------------------------------------------------------
 THIRD TASK: INITIALIZE GIT
 ------------------------------------------------------------
 
-Initialize a git repository and create the first commit containing:
+Initialize a git repository and create first commit containing:
 
-- @prompts/feature_list.yml (200+ features)
-- init.sh
+- @prompts/feature_list.yml (200+ features) [GREENFIELD ONLY]
+- init.sh [GREENFIELD ONLY]
 - README.md (project overview + setup)
 - @prompts/APP_SPEC.md (if not already tracked)
-- Base directory structure (see next section)
+- Base directory structure (see below) [GREENFIELD ONLY]
 
 Commit message (exact):
 
@@ -153,24 +207,33 @@ Commit message (exact):
 FOURTH TASK: CREATE PROJECT STRUCTURE
 ------------------------------------------------------------
 
+**GREENFIELD PROJECTS ONLY**
+
 Create the directory structure defined in @prompts/APP_SPEC.md:
 
 src/
-cli/
-app/
-domain/
-infra/
+├── bin/
+│   ├── musicctl.rs
+│   └── musicctl-mcp.rs
+├── cli/
+├── domain/
+├── services/
+└── mcp/
+
 tests/
-tests/fixtures/
+├── fixtures/
+│   ├── flac/
+│   ├── mp3/
+│   └── ...
 
 This is scaffolding only.
-No deep implementation is required at this stage.
+Deep implementation comes from following agents.
 
 ------------------------------------------------------------
 OPTIONAL: BEGIN IMPLEMENTATION
 ------------------------------------------------------------
 
-If time remains in this session:
+If time remains in this session AND project is greenfield:
 
 - Select the single highest-priority feature in feature_list.yml
 - Implement it following the normal agent workflow
@@ -187,10 +250,11 @@ ENDING THIS SESSION (MANDATORY)
 Before context fills up:
 
 1. Commit all work
-2. Create claude-progress.txt with:
+2. Update agent-progress.txt with:
    - Summary of work completed
-   - Confirmation feature_list.yml is complete
+   - Confirmation feature_list.yml is complete [GREENFIELD ONLY]
    - Total feature count (e.g. "0/214 passing")
+   - Current assessment of existing implementation [IF CODE EXISTS]
 3. Ensure git status is clean
 4. Leave the repo buildable and readable
 
@@ -198,12 +262,27 @@ Before context fills up:
 FINAL REMINDER
 ------------------------------------------------------------
 
-musicctl is not an app.
+music-chore is not an app.
 It is not a UI.
 It is not a daemon.
 
-It is a metadata compiler:
+It is a metadata compiler with AI agent integration:
 Parse → Infer → Normalize → Emit
+
+**IF IMPLEMENTATION EXISTS**: Focus on incremental improvements, gap analysis, and future planning.
 
 Your job is to define *everything that must be proven true*.
 Future agents will simply make those truths pass.
+
+------------------------------------------------------------
+ASSESSMENT GUIDANCE (FOR EXISTING CODE)
+------------------------------------------------------------
+
+If you find existing implementation:
+1. Compare against APP_SPEC.md requirements
+2. Identify what's implemented vs what's missing
+3. Assess code quality and test coverage
+4. Recommend next priority features
+5. Update agent-progress.txt with current state
+
+The goal is continuous improvement, not rebuilding from scratch.

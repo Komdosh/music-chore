@@ -209,8 +209,8 @@ Detailed metadata extraction:
       "source": "Embedded",
       "confidence": 1.0
     },
-     "format": "flac", // or "mp3" for MP3 files
-     "path": "/Music/Tracks/Track1.flac" // or Track1.mp3
+     "format": "flac",
+     "path": "/Music/Tracks/Track1.flac"
   }
 }
 ```
