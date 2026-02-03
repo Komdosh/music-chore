@@ -1,11 +1,184 @@
-use std::path::PathBuf;
-use serde_json::to_string_pretty;
-use crate::{build_library_hierarchy, Library, TrackNode};
 use crate::services::scanner::scan_dir;
+use crate::{Track, TrackNode};
+use serde_json::to_string_pretty;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
-/// Print library tree in human-readable format
-///
-pub fn format_tree_output(library: &Library) -> String {
+/// Directory tree node
+#[derive(Debug)]
+struct DirNode {
+    name: String,
+    subdirs: BTreeMap<String, DirNode>,
+    tracks: Vec<Track>,
+}
+
+/// Build directory tree from tracks
+fn build_dir_tree(base_path: &Path, tracks: Vec<Track>) -> DirNode {
+    let mut root = DirNode {
+        name: base_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("root")
+            .to_string(),
+        subdirs: BTreeMap::new(),
+        tracks: Vec::new(),
+    };
+
+    for track in tracks {
+        let rel_path = track
+            .file_path
+            .strip_prefix(base_path)
+            .unwrap_or(&track.file_path);
+        let components: Vec<&str> = rel_path
+            .components()
+            .filter_map(|c| c.as_os_str().to_str())
+            .collect();
+
+        if components.len() > 1 {
+            let (dirs, _filename) = components.split_at(components.len() - 1);
+            let mut current = &mut root;
+
+            for dir in dirs {
+                if !current.subdirs.contains_key(*dir) {
+                    current.subdirs.insert(
+                        dir.to_string(),
+                        DirNode {
+                            name: dir.to_string(),
+                            subdirs: BTreeMap::new(),
+                            tracks: Vec::new(),
+                        },
+                    );
+                }
+                current = current.subdirs.get_mut(*dir).unwrap();
+            }
+
+            current.tracks.push(track);
+        }
+    }
+
+    root
+}
+
+/// Format directory tree as string
+fn format_dir_tree(node: &DirNode, indent: &str, is_last: bool) -> String {
+    let mut output = String::new();
+
+    let prefix = if indent.is_empty() {
+        String::new()
+    } else if is_last {
+        "└──".to_string()
+    } else {
+        "├──".to_string()
+    };
+
+    let full_prefix = format!("{}{}", indent, prefix);
+
+    if !node.name.is_empty() && indent.is_empty() {
+        output.push_str(&format!("📁 {}\n", node.name));
+    } else if !node.name.is_empty() {
+        output.push_str(&format!("{} 📂 {}\n", full_prefix, node.name));
+    }
+
+    let child_indent = if indent.is_empty() {
+        String::new()
+    } else if is_last {
+        format!("{}   ", indent)
+    } else {
+        format!("{}│  ", indent)
+    };
+
+    let subdir_count = node.subdirs.len();
+    let mut index = 0;
+
+    for (_name, subdir) in &node.subdirs {
+        index += 1;
+        let sub_indent = if indent.is_empty() {
+            if index == subdir_count {
+                "   ".to_string()
+            } else {
+                "│  ".to_string()
+            }
+        } else {
+            child_indent.clone()
+        };
+        output.push_str(&format_dir_tree(subdir, &sub_indent, index == subdir_count));
+    }
+
+    for (i, track) in node.tracks.iter().enumerate() {
+        let is_last_track = i == node.tracks.len() - 1 && subdir_count == 0;
+        let track_prefix = if is_last_track {
+            format!("{}└─── 🎵", child_indent)
+        } else {
+            format!("{}├─── 🎵", child_indent)
+        };
+
+        let track_info = format_track_info_for_dir(track);
+        let filename = track
+            .file_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+
+        output.push_str(&format!("{}   {} {}\n", track_prefix, filename, track_info));
+    }
+
+    output
+}
+
+/// Format track info for directory tree view
+fn format_track_info_for_dir(track: &Track) -> String {
+    let mut info = Vec::new();
+
+    if let Some(format_str) = track.metadata.format.strip_prefix(".") {
+        info.push(format_str.to_uppercase());
+    } else {
+        info.push(track.metadata.format.to_uppercase());
+    }
+
+    let source = match track
+        .metadata
+        .title
+        .as_ref()
+        .map(|t| &t.source)
+        .unwrap_or(&crate::MetadataSource::FolderInferred)
+    {
+        crate::MetadataSource::Embedded => "🎯",
+        crate::MetadataSource::FolderInferred => "🤖",
+        crate::MetadataSource::UserEdited => "👤",
+    };
+
+    format!("[{}] {}", source, info.join(" | "))
+}
+
+/// Print library tree in human-readable format (preserving directory structure)
+pub fn format_tree_output(base_path: &Path) -> String {
+    let tracks = scan_dir(base_path);
+    let dir_tree = build_dir_tree(base_path, tracks);
+    let mut output = format_dir_tree(&dir_tree, "", true);
+
+    // Print summary
+    output.push_str("📊 Library Summary:\n");
+    output.push_str(&format!("   Files: {}\n", count_tracks_in_tree(&dir_tree)));
+    output.push_str(&format!("   Folders: {}\n", count_dirs_in_tree(&dir_tree)));
+
+    output
+}
+
+fn count_tracks_in_tree(node: &DirNode) -> usize {
+    let count = node.tracks.len();
+    let subdir_count: usize = node.subdirs.values().map(count_tracks_in_tree).sum();
+    count + subdir_count
+}
+
+fn count_dirs_in_tree(node: &DirNode) -> usize {
+    let subdir_count = node.subdirs.len();
+    let nested_count: usize = node.subdirs.values().map(count_dirs_in_tree).sum();
+    subdir_count + nested_count
+}
+
+/// Print library tree in human-readable format (metadata-based, deprecated)
+/// Use format_tree_output(base_path) instead for directory-based view
+pub fn format_library_output(library: &crate::Library) -> String {
     let mut output = String::new();
 
     for artist in &library.artists {
@@ -84,7 +257,7 @@ fn format_track_info(track: &TrackNode) -> String {
 }
 
 /// Emit structured output optimized for AI agents
-pub fn emit_structured_output(library: &Library) -> String {
+pub fn emit_structured_output(library: &crate::Library) -> String {
     let mut out = String::new();
 
     out.push_str("=== MUSIC LIBRARY METADATA ===\n");
@@ -138,7 +311,7 @@ pub fn emit_structured_output(library: &Library) -> String {
 
 pub fn emit_by_path(path: &PathBuf, json: bool) -> Result<String, String> {
     let tracks = scan_dir(&path);
-    let library = build_library_hierarchy(tracks);
+    let library = crate::build_library_hierarchy(tracks);
 
     if json {
         match to_string_pretty(&library) {

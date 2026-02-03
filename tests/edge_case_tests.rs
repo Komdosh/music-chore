@@ -41,14 +41,15 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("Artist/Album")).unwrap();
 
-        // Create files with various case combinations
+        // Copy fixture files with various case extensions
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let extensions = ["flac", "FLAC", "FlaC"];
         for (i, ext) in extensions.iter().enumerate() {
             let path = dir
                 .path()
                 .join("Artist/Album")
                 .join(format!("track{}.{}", i, ext));
-            fs::write(&path, b"dummy data").unwrap();
+            fs::copy(&fixture_path, &path).unwrap();
         }
 
         let tracks = scan_dir(dir.path());
@@ -80,8 +81,10 @@ mod tests {
             .join("Disc1");
         fs::create_dir_all(&deep_path).unwrap();
 
+        // Copy fixture file
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let track_path = deep_path.join("track.flac");
-        fs::write(&track_path, b"dummy flac data").unwrap();
+        fs::copy(&fixture_path, &track_path).unwrap();
 
         let tracks = scan_dir(dir.path());
         assert_eq!(tracks.len(), 1);
@@ -91,14 +94,13 @@ mod tests {
 
         // Check that inference works even with deep nesting
         let artist = &library.artists[0];
-        // Artist is inferred as the parent folder of the album folder
+        // Artist is inferred as parent folder of album folder
         assert!(artist.name.contains("TestAlbum") || artist.name == "Unknown Artist");
 
         let album = &artist.albums[0];
-        // Album is inferred as the immediate parent folder
+        // Album is inferred as immediate parent folder
         assert!(album.title.contains("Disc1") || album.title == "Unknown Album");
     }
-
 
     #[test]
     fn test_tracks_with_partial_metadata() {
@@ -184,11 +186,12 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("Artist/Album")).unwrap();
 
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let track1_path = dir.path().join("Artist/Album/track1.flac");
         let track2_path = dir.path().join("Artist/Album/track2.flac");
 
-        fs::write(&track1_path, b"dummy data 1").unwrap();
-        fs::write(&track2_path, b"dummy data 2").unwrap();
+        fs::copy(&fixture_path, &track1_path).unwrap();
+        fs::copy(&fixture_path, &track2_path).unwrap();
 
         let tracks = scan_dir(dir.path());
         assert_eq!(tracks.len(), 2);
@@ -220,8 +223,10 @@ mod tests {
         let album_dir = dir.path().join(special_artist).join(special_album);
         fs::create_dir_all(&album_dir).unwrap();
 
+        // Copy fixture file
+        let fixture_path = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
         let track_path = album_dir.join("track.flac");
-        fs::write(&track_path, b"dummy data").unwrap();
+        fs::copy(&fixture_path, &track_path).unwrap();
 
         let tracks = scan_dir(dir.path());
         assert_eq!(tracks.len(), 1);
@@ -235,7 +240,6 @@ mod tests {
         let album = &artist.albums[0];
         assert!(album.title.contains("Album_Vol") || album.title == "Unknown Album");
     }
-
 
     #[test]
     fn test_tracks_with_varied_metadata_sources() {

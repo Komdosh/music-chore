@@ -1,6 +1,6 @@
 use crate::build_library_hierarchy;
-use crate::cli::Commands;
 use crate::cli::commands::validate_path;
+use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
@@ -61,16 +61,15 @@ pub fn handle_scan(path: PathBuf, json: bool) {
 }
 
 pub fn handle_tree(path: PathBuf, json: bool) {
-    let tracks = scan_dir(&path);
-    let library = build_library_hierarchy(tracks);
-
     if json {
+        let tracks = scan_dir(&path);
+        let library = build_library_hierarchy(tracks);
         match to_string_pretty(&library) {
             Ok(s) => println!("{}", s),
             Err(e) => eprintln!("Error serializing to JSON: {}", e),
         }
     } else {
-        println!("{}", format_tree_output(&library));
+        println!("{}", format_tree_output(&path));
     }
 }
 

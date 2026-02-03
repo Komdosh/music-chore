@@ -11,6 +11,10 @@ path = "src/bin/musicctl.rs"
 name = "musicctl-mcp"
 path = "src/bin/musicctl-mcp.rs"
 
+[[bin]]
+name = "create-no-metadata-flac"
+path = "src/bin/create_no_metadata_flac.rs"
+
 [dependencies]
 walkdir = "2"
 serde_json = "1"
