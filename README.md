@@ -29,7 +29,7 @@ The product is provided as is, without warranties of any kind. Use at your own r
 ### ✨ What It Does
 
 - 🔍 **Recursively scans** music directories to discover albums and tracks
-- 🏷️ **Extracts metadata** from FLAC files using actual file parsing
+- 🏷️ **Extracts metadata** from FLAC, MP3, and WAV files using actual file parsing
 - 📂 **Infers structure** from your folder organization (Artist → Album → Tracks)
 - 🔤 **Normalizes text** (title case, consistent formatting)
 - 🌳 **Displays beautiful tree views** of your library hierarchy
@@ -38,8 +38,8 @@ The product is provided as is, without warranties of any kind. Use at your own r
 
 ### 🎵 Supported Formats
 
-- `.flac` and `.mp3` files
-- **Future**: `.wav`, `.dsf`
+- `.flac`, `.mp3`, and `.wav` files
+- **Future**: `.dsf`
 
 ---
 

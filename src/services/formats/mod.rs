@@ -3,10 +3,12 @@
 use crate::domain::traits::{AudioFileError, AudioFileRegistry};
 use crate::services::formats::flac::FlacHandler;
 use crate::services::formats::mp3::Mp3Handler;
+use crate::services::formats::wav::WavHandler;
 use std::path::Path;
 
 pub mod flac;
 pub mod mp3;
+pub mod wav;
 
 /// Create a new audio file registry with all supported format handlers
 pub fn create_audio_registry() -> AudioFileRegistry {
@@ -18,8 +20,10 @@ pub fn create_audio_registry() -> AudioFileRegistry {
     // Register MP3 handler
     registry.register(Box::new(Mp3Handler::new()));
 
+    // Register WAV handler
+    registry.register(Box::new(WavHandler::new()));
+
     // Future formats will be registered here:
-    // registry.register(Box::new(WavHandler::new()));
     // registry.register(Box::new(DsfHandler::new()));
 
     registry
