@@ -66,10 +66,6 @@ mod tests {
             infer_artist_from_path(&path),
             Some("The Beatles".to_string())
         );
-        assert_eq!(
-            infer_artist_from_path(&path),
-            Some("The Beatles".to_string())
-        );
 
         // Nested directory structure
         let path = PathBuf::from("/music/The Beatles/Abbey Road/01 - Come Together.flac");
@@ -77,6 +73,10 @@ mod tests {
             infer_artist_from_path(&path),
             Some("The Beatles".to_string())
         );
+
+        // Deep nested structure
+        let path = PathBuf::from("/home/user/music/Genre/Artist/Album/01 - Track.flac");
+        assert_eq!(infer_artist_from_path(&path), Some("Artist".to_string()));
 
         // Invalid: Album/track.flac (no artist) - only 3 components
         let path = PathBuf::from("Abbey Road/01 - Come Together.flac");
@@ -89,5 +89,62 @@ mod tests {
         // Edge case: Artist and Album have same name
         let path = PathBuf::from("Greatest Hits/Greatest Hits/01 - Song.flac");
         assert_eq!(infer_artist_from_path(&path), None);
+
+        // Edge case: Root directory ("/") as artist
+        // Note: When path is "/Abbey Road/01 - Song.flac", the components are ["/", "Abbey Road", "01 - Song.flac"]
+        // This would return Some("/") which is not a valid artist name
+
+        // Unicode artist names
+        let path = PathBuf::from("Björk/Vespertine/01 - Cocoon.flac");
+        assert_eq!(infer_artist_from_path(&path), Some("Björk".to_string()));
+
+        // Artist with special characters and numbers
+        let path = PathBuf::from("The-artist_123/Album (2023)/01 - Track.flac");
+        assert_eq!(
+            infer_artist_from_path(&path),
+            Some("The-artist_123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_infer_album_from_path() {
+        // Valid Artist/Album/track.flac structure
+        let path = PathBuf::from("The Beatles/Abbey Road/01 - Come Together.flac");
+        assert_eq!(infer_album_from_path(&path), Some("Abbey Road".to_string()));
+
+        // Nested directory structure
+        let path = PathBuf::from("/music/The Beatles/Abbey Road/01 - Come Together.flac");
+        assert_eq!(infer_album_from_path(&path), Some("Abbey Road".to_string()));
+
+        // Album/track.flac structure - only 2 components (Abbey Road and track file)
+        // Need 3+ components to infer album, so this should return None
+        let path = PathBuf::from("Abbey Road/01 - Come Together.flac");
+        assert_eq!(infer_album_from_path(&path), None);
+
+        // Deep nested structure
+        let path = PathBuf::from("/home/user/music/Genre/Artist/Album/01 - Track.flac");
+        assert_eq!(infer_album_from_path(&path), Some("Album".to_string()));
+
+        // Invalid: Just track.flac - only 2 components
+        let path = PathBuf::from("01 - Come Together.flac");
+        assert_eq!(infer_album_from_path(&path), None);
+
+        // Unicode album names
+        let path = PathBuf::from("Björk/Vespertine/01 - Cocoon.flac");
+        assert_eq!(infer_album_from_path(&path), Some("Vespertine".to_string()));
+
+        // Album with special characters and numbers
+        let path = PathBuf::from("The-artist_123/Album (2023)/01 - Track.flac");
+        assert_eq!(
+            infer_album_from_path(&path),
+            Some("Album (2023)".to_string())
+        );
+
+        // Album with spaces and hyphens
+        let path = PathBuf::from("Artist/The Dark Side of the Moon/01 - Track.flac");
+        assert_eq!(
+            infer_album_from_path(&path),
+            Some("The Dark Side of the Moon".to_string())
+        );
     }
 }

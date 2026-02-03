@@ -62,11 +62,11 @@ fn text_content(result: &rmcp::model::CallToolResult) -> &str {
 }
 
 fn assert_ok(result: &rmcp::model::CallToolResult) {
-    assert_eq!(result.is_error.unwrap_or(false), false);
+    assert!(!result.is_error.unwrap_or(false));
 }
 
 fn assert_err(result: &rmcp::model::CallToolResult) {
-    assert_eq!(result.is_error.unwrap_or(false), true);
+    assert!(result.is_error.unwrap_or(false));
 }
 
 async fn shutdown(client: RunningService<RoleClient, ()>) -> Result<()> {
