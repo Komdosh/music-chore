@@ -9,6 +9,7 @@ use rmcp::{
 };
 use std::path::PathBuf;
 use crate::cli::commands::validate_path;
+use crate::domain::models::{AlbumNode, TrackNode};
 use crate::mcp::params::{
     EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
     ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
@@ -195,15 +196,25 @@ pub struct MusicChoreServer {
             return Ok(CallToolResult::error(vec![Content::text("No readable music files found in directory")]));
         }
 
-        let library = build_library_hierarchy(tracks);
-        let album = match library.artists.first().and_then(|a| a.albums.first()) {
-            Some(album) => album,
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text("No album found in directory")]));
-            }
+        let album_name = path.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Unknown Album".to_string());
+
+        let year = tracks.first().and_then(|t| t.metadata.year.as_ref().map(|y| y.value));
+
+        let track_nodes: Vec<TrackNode> = tracks.into_iter().map(|track| TrackNode {
+            file_path: track.file_path,
+            metadata: track.metadata,
+        }).collect();
+
+        let album = AlbumNode {
+            title: album_name,
+            year,
+            tracks: track_nodes,
+            path: path.clone(),
         };
 
-        let output_path = params.0.output.map(PathBuf::from).unwrap_or_else(|| path.join(generate_cue_file_name(album)));
+        let output_path = params.0.output.map(PathBuf::from).unwrap_or_else(|| path.join(generate_cue_file_name(&album)));
 
         if output_path.exists() && !force && !dry_run {
             return Ok(CallToolResult::error(vec![Content::text(format!(
@@ -213,14 +224,14 @@ pub struct MusicChoreServer {
         }
 
         if dry_run {
-            let cue_content = generate_cue_content(album);
+            let cue_content = generate_cue_content(&album);
             Ok(CallToolResult::success(vec![Content::text(format!(
                 "Would write to: {}\n\n{}",
                 output_path.display(),
                 cue_content
             ))]))
         } else {
-            match write_cue_file(album, &output_path) {
+            match write_cue_file(&album, &output_path) {
                 Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
                     "Cue file written to: {}",
                     output_path.display()

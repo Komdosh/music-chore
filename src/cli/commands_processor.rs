@@ -1,6 +1,7 @@
 use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
+use crate::domain::models::{AlbumNode, TrackNode};
 use crate::services::apply_metadata::write_metadata_by_path;
 use crate::services::cue::{generate_cue_content, generate_cue_file_name, write_cue_file};
 use crate::services::duplicates::find_duplicates;
@@ -154,16 +155,30 @@ fn handle_cue(
         return Err(1);
     }
 
-    let library = build_library_hierarchy(tracks);
-    let album = match library.artists.first().and_then(|a| a.albums.first()) {
-        Some(album) => album,
-        None => {
-            eprintln!("No album found in directory");
-            return Err(1);
-        }
+    let album_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Unknown Album".to_string());
+
+    let first_track = tracks.first();
+    let year = first_track.and_then(|t| t.metadata.year.as_ref().map(|y| y.value));
+
+    let track_nodes: Vec<TrackNode> = tracks
+        .into_iter()
+        .map(|track| TrackNode {
+            file_path: track.file_path,
+            metadata: track.metadata,
+        })
+        .collect();
+
+    let album = AlbumNode {
+        title: album_name,
+        year,
+        tracks: track_nodes,
+        path: path.clone(),
     };
 
-    let output_path = output.unwrap_or_else(|| path.join(generate_cue_file_name(album)));
+    let output_path = output.unwrap_or_else(|| path.join(generate_cue_file_name(&album)));
 
     if output_path.exists() && !force && !dry_run {
         eprintln!(
@@ -174,12 +189,12 @@ fn handle_cue(
     }
 
     if dry_run {
-        let cue_content = generate_cue_content(album);
+        let cue_content = generate_cue_content(&album);
         println!("{}", cue_content);
         println!("---");
         println!("Would write to: {}", output_path.display());
     } else {
-        match write_cue_file(album, &output_path) {
+        match write_cue_file(&album, &output_path) {
             Ok(_) => println!("Cue file written to: {}", output_path.display()),
             Err(e) => {
                 eprintln!("Error writing cue file: {}", e);
