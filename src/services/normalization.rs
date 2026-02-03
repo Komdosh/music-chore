@@ -80,9 +80,7 @@ pub fn normalize(path: PathBuf, dry_run: bool) -> Result<String, String> {
             Ok(out)
         }
 
-        Err(e) => {
-            Err(format!("Error normalizing titles: {}\n", e))
-        }
+        Err(e) => Err(format!("Error normalizing titles: {}\n", e)),
     }
 }
 fn normalize_track_titles_with_options(
@@ -139,12 +137,21 @@ fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
         }
     } else {
         // Actually update the metadata
-        // TODO: Implement actual metadata writing
-        // For now, just return the operation result
-        OperationResult::Updated {
-            track,
-            old_title,
-            new_title: normalized_title,
+        let mut updated_metadata = track.metadata.clone();
+        updated_metadata.title = Some(crate::domain::models::MetadataValue::user_set(
+            normalized_title,
+        ));
+
+        match formats::write_metadata(&track.file_path, &updated_metadata) {
+            Ok(()) => OperationResult::Updated {
+                track,
+                old_title,
+                new_title: updated_metadata.title.unwrap().value,
+            },
+            Err(e) => OperationResult::Error {
+                track,
+                error: format!("Failed to write metadata: {}", e),
+            },
         }
     }
 }
