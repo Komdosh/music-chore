@@ -33,6 +33,7 @@ The product is provided as is, without warranties of any kind. Use at your own r
 - 📂 **Infers structure** from your folder organization (Artist → Album → Tracks)
 - 🔤 **Normalizes text** (title case, consistent formatting)
 - 🌳 **Displays beautiful tree views** of your library hierarchy
+- 🔄 **Detects duplicates** using SHA256 checksums across your entire library
 - 📊 **Outputs structured data** perfect for AI agents via MCP
 
 ### 🎵 Supported Formats
@@ -107,6 +108,9 @@ musicctl emit /path/to/music --json
 
 # Normalize track titles (dry run first)
 musicctl normalize /path/to/music --dry-run
+
+# Find duplicate tracks by checksum
+musicctl duplicates /path/to/music
 ```
 
 ---
@@ -330,6 +334,71 @@ musicctl validate ~/Music/ --json
   }
 }
 ```
+
+### 🔍 `duplicates` - Find Duplicate Tracks
+
+```bash
+# Find duplicate tracks by checksum
+musicctl duplicates /path/to/music
+
+# JSON output for automation
+musicctl duplicates /path/to/music --json
+```
+
+**Duplicate Detection Features:**
+- **SHA256 Checksums**: Identifies identical files regardless of filename
+- **Cross-Directory Detection**: Finds duplicates across different folders
+- **Multiple Formats**: Human-readable group view or structured JSON output
+
+**Examples:**
+```bash
+# Scan for duplicates in your library
+musicctl duplicates ~/Music/
+
+# JSON output for automation
+musicctl duplicates ~/Music/ --json
+```
+
+**Output Examples:**
+
+*Human-readable:*
+```
+Found 1 duplicate groups:
+
+Duplicate Group 1 (3 files):
+  /music/Artist/Album/track1.flac
+  /music/Artist/Album/track2.flac
+  /music/Compilations/track_copy.flac
+```
+
+*JSON:*
+```json
+[
+  [
+    {
+      "file_path": "/music/Artist/Album/track1.flac",
+      "metadata": { /* full track metadata */ },
+      "checksum": "ae8850161fcc2cbda1d34e22d6813a75785128ca4c7d8df0ea05f89a16b53e22"
+    },
+    {
+      "file_path": "/music/Artist/Album/track2.flac",
+      "metadata": { /* full track metadata */ },
+      "checksum": "ae8850161fcc2cbda1d34e22d6813a75785128ca4c7d8df0ea05f89a16b53e22"
+    },
+    {
+      "file_path": "/music/Compilations/track_copy.flac",
+      "metadata": { /* full track metadata */ },
+      "checksum": "ae8850161fcc2cbda1d34e22d6813a75785128ca4c7d8df0ea05f89a16b53e22"
+    }
+  ]
+]
+```
+
+**Use Cases:**
+- **Library Cleanup**: Remove redundant copies to save disk space
+- **Organization**: Identify duplicate tracks for playlist management
+- **Quality Control**: Ensure only the best quality versions remain
+- **Migration Planning**: Avoid importing duplicates when consolidating libraries
 
 ### 📤 `emit` - Export Structured Metadata
 

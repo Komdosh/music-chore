@@ -4,15 +4,21 @@
 
 ## 📅 Last Updated
 
-- **Date**: February 2, 2026
+- **Date**: February 3, 2026
 - **Version**: v0.1.7
-- **Features**: CLI with 6 commands + MCP server with 6 tools
+- **Features**: CLI with 7 commands + MCP server with 6 tools
 
 ## 📋 Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Command Reference](#command-reference)
+  - [scan - Discover Music Files](#-scan---discover-music-files)
+  - [tree - Display Library Hierarchy](#-tree---display-library-hierarchy)
+  - [read - Extract File Metadata](#-read---extract-file-metadata)
+  - [normalize - Normalize Track Titles](#-normalize---normalize-track-titles)
+  - [duplicates - Find Duplicate Tracks](#-duplicates---find-duplicate-tracks)
+  - [emit - Export Library Metadata](#-emit---export-library-metadata)
 - [Advanced Usage](#advanced-usage)
 - [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
@@ -72,6 +78,16 @@ musicctl emit ~/Music
 
 # JSON for programming
 musicctl emit ~/Music --json
+```
+
+### 6. Find Duplicate Tracks
+
+```bash
+# Find duplicates with human-readable output
+musicctl duplicates ~/Music
+
+# JSON output for automation
+musicctl duplicates ~/Music --json
 ```
 
 ---
@@ -332,6 +348,92 @@ Arguments:
 - Standardize track naming
 - Prepare files for display
 - Clean up messy metadata
+
+### 🔍 `duplicates` - Find Duplicate Tracks
+
+Identify duplicate audio files using SHA256 checksums.
+
+```bash
+musicctl duplicates [OPTIONS] <PATH>
+
+Options:
+  -j, --json        Output results as JSON
+
+Arguments:
+  <PATH>            Directory to scan (required)
+```
+
+**Output Examples:**
+
+```
+# Human-readable output
+Found 2 duplicate groups:
+
+Duplicate Group 1 (2 files):
+  /music/The Beatles/Abbey Road/01 - Come Together.flac
+  /music/Compilations/Best Of/01 - Come Together.flac
+
+Duplicate Group 2 (3 files):
+  /music/Pink Floyd/Dark Side/01 - Speak to Me.flac
+  /music/Compilations/Psychedelic/01 - Speak to Me.flac
+  /music/Backup/Pink Floyd Collection/01 - Speak to Me.flac
+```
+
+**JSON Output:**
+```json
+[
+  [
+    {
+      "file_path": "/music/The Beatles/Abbey Road/01 - Come Together.flac",
+      "metadata": {
+        "title": { "value": "Come Together", "source": "Embedded", "confidence": 1.0 },
+        "artist": { "value": "The Beatles", "source": "Embedded", "confidence": 1.0 },
+        "album": { "value": "Abbey Road", "source": "Embedded", "confidence": 1.0 }
+      },
+      "checksum": "ae8850161fcc2cbda1d34e22d6813a75785128ca4c7d8df0ea05f89a16b53e22"
+    },
+    {
+      "file_path": "/music/Compilations/Best Of/01 - Come Together.flac",
+      "metadata": {
+        "title": { "value": "Come Together", "source": "Embedded", "confidence": 1.0 },
+        "artist": { "value": "The Beatles", "source": "Embedded", "confidence": 1.0 },
+        "album": { "value": "Best Of", "source": "Embedded", "confidence": 1.0 }
+      },
+      "checksum": "ae8850161fcc2cbda1d34e22d6813a75785128ca4c7d8df0ea05f89a16b53e22"
+    }
+  ]
+]
+```
+
+**Advanced Examples:**
+
+```bash
+# Find duplicates and count them
+musicctl duplicates ~/Music --json | jq 'length'
+
+# Get total files that are duplicates
+musicctl duplicates ~/Music --json | jq 'map(length) | add'
+
+# Find duplicates by specific artist
+musicctl emit ~/Music --json | jq '.artists[] | select(.name == "The Beatles")'
+
+# Export duplicate list for cleanup
+musicctl duplicates ~/Music --json > duplicates.json
+```
+
+**Use Cases:**
+- **Library Cleanup**: Remove redundant copies to save disk space
+- **Organization**: Identify duplicate tracks for playlist management
+- **Quality Control**: Keep only the best quality versions
+- **Migration Planning**: Avoid importing duplicates when consolidating libraries
+- **Storage Analysis**: Understand duplicate impact on storage usage
+- **Metadata Comparison**: Compare metadata quality between duplicates
+
+**Performance Notes:**
+- Checksum calculation is CPU-intensive for large libraries
+- First run will be slower as checksums are calculated
+- Results are deterministic - same input always produces same output
+- JSON output includes full metadata for each duplicate file
 
 ### 📤 `emit` - Export Library Metadata
 
@@ -641,6 +743,7 @@ musicctl --help
 musicctl scan --help
 musicctl read --help
 musicctl normalize --help
+musicctl duplicates --help
 musicctl emit --help
 musicctl tree --help
 ```

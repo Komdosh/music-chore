@@ -6,7 +6,7 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 5 core tools exposed and working
+- ✅ All 5 core tools exposed and working (CLI has 7 commands)
 - ✅ Proper initialization and shutdown handling  
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
@@ -19,6 +19,8 @@ The MCP server allows AI agents to:
 - Get hierarchical library tree views
 - Normalize track titles automatically
 - Emit structured library metadata for analysis
+
+**Note**: The CLI also includes additional commands like `duplicates` (find duplicate tracks) and `validate` (metadata validation) which are not exposed via MCP.
 
 ## Installation
 
