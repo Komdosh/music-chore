@@ -38,14 +38,14 @@ The product is provided as is, without warranties of any kind. Use at your own r
 
 ### 🎵 Supported Formats
 
-- **v1**: `.flac` files
-- **Future**: `.mp3`, `.wav`, `.dsf`
+- `.flac` and `.mp3` files
+- **Future**: `.wav`, `.dsf`
 
 ---
 
 ## 🚀 Quick Start
 
-### 📦Installation
+### 📦Installation MacOS and Linux
 
 ```bash
 curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install.sh | bash
@@ -61,7 +61,7 @@ cargo install --path .
 cargo build --release
 ```
 
-### 🤖 MCP Server Setup
+### 🤖 MCP Server Setup MacOS and Linux
 
 **Install CLI MCP locally:**
 
@@ -94,14 +94,15 @@ claude mcp add music-chore -- musicctl-mcp
 ### 🔧 Basic CLI Usage
 
 ```bash
-# Scan your music directory
+# Scan your music directory (now supports both FLAC and MP3)
 musicctl scan /path/to/music
 
-# Show beautiful tree view
+# Show beautiful tree view with format indicators
 musicctl tree /path/to/music
 
-# Read metadata from a specific file
+# Read metadata from a specific file (FLAC or MP3)
 musicctl read /path/to/track.flac
+musicctl read /path/to/track.mp3
 
 # Emit structured metadata (JSON or AI-friendly format)
 musicctl emit /path/to/music --json
@@ -150,7 +151,11 @@ Beautiful hierarchical view of your music library:
 ### 📖 `read` - Extract Metadata
 
 ```bash
+# Read from FLAC file
 musicctl read /Music/Tracks/Track1.flac
+
+# Read from MP3 file  
+musicctl read /Music/Tracks/Track1.mp3
 ```
 
 Detailed metadata extraction:
@@ -204,8 +209,8 @@ Detailed metadata extraction:
       "source": "Embedded",
       "confidence": 1.0
     },
-    "format": "flac",
-    "path": "/Music/Tracks/Track1.flac"
+     "format": "flac", // or "mp3" for MP3 files
+     "path": "/Music/Tracks/Track1.flac" // or Track1.mp3
   }
 }
 ```
@@ -228,14 +233,16 @@ Transforms messy titles into clean title case:
 ### ✏️ `write` - Update Metadata
 
 ```bash
-# Preview metadata changes
+# Preview metadata changes (FLAC or MP3)
 musicctl write /path/to/track.flac --dry-run --set "title=New Title" --set "artist=New Artist"
+musicctl write /path/to/track.mp3 --dry-run --set "title=New Title" --set "artist=New Artist"
 
 # Apply metadata changes
 musicctl write /path/to/track.flac --apply --set "title=New Title" --set "artist=New Artist"
+musicctl write /path/to/track.mp3 --apply --set "title=New Title" --set "artist=New Artist"
 ```
 
-Update embedded metadata in FLAC files:
+Update embedded metadata in FLAC and MP3 files:
 
 **Supported Metadata Fields:**
 - `title` - Track title
@@ -249,14 +256,17 @@ Update embedded metadata in FLAC files:
 
 **Examples:**
 ```bash
-# Single field update
+# Single field update (FLAC or MP3)
 musicctl write track.flac --apply --set "title=Come Together"
+musicctl write track.mp3 --apply --set "title=Come Together"
 
 # Multiple field updates
 musicctl write track.flac --apply --set "title=Come Together" --set "artist=The Beatles" --set "tracknumber=1"
+musicctl write track.mp3 --apply --set "title=Come Together" --set "artist=The Beatles" --set "tracknumber=1"
 
 # Dry run to preview changes
 musicctl write track.flac --dry-run --set "year=1969"
+musicctl write track.mp3 --dry-run --set "year=1969"
 ```
 
 ### ✅ `validate` - Check Metadata Completeness
@@ -471,6 +481,8 @@ src/
 ├── infrastructure/         # External concerns
 │   ├── scanner.rs          # Format-agnostic directory scanning
 │   └── formats/            # Audio format implementations
+│       ├── flac.rs          # FLAC format handler
+│       └── mp3.rs           # MP3 format handler (ID3v2)
 └── services/               # Business services
     ├── inference.rs        # Path-based metadata inference
     └── normalization.rs    # Text normalization
@@ -478,7 +490,7 @@ src/
 
 ### 🎛️ Extensible Design
 
-Adding new audio formats is simple:
+Adding new audio formats is simple (MP3 example already implemented):
 
 ```rust
 impl AudioFile for Mp3Handler {
@@ -539,6 +551,14 @@ Claude: [Calls read_file_metadata]
 - Album: 'Abbey Road' (embedded, 100% confidence)
 - Duration: 4:19 (259 seconds)
 - Format: FLAC, 16-bit/44.1kHz"
+
+(Or for MP3 files):
+"This MP3 file contains:
+- Title: 'Come Together' (embedded, 100% confidence)
+- Artist: 'The Beatles' (embedded, 100% confidence)  
+- Album: 'Abbey Road' (embedded, 100% confidence)
+- Duration: 4:19 (259 seconds)
+- Format: MP3, ID3v2 tags"
 ```
 
 **Batch Operations:**

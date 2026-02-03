@@ -22,11 +22,11 @@ Design a CLI-only Rust program that:
 - Prefer correctness and clarity over cleverness
 
 ## Supported File Formats
-### v1 (Initial Scope)
-- .flac only
+### v1 (Current Scope)
+- .flac
+- .mp3 
 
 ### v2 (Future Scope)
-- .mp3
 - .wav
 - .dsf
 
@@ -41,12 +41,16 @@ Design a CLI-only Rust program that:
       * Tracks
 - CLI command to read metadata from a .flac file
 - CLI command to write/update metadata in a .flac file
+- CLI command to read metadata from a .mp3 file
+- CLI command to write/update metadata in a .mp3 file 
 - Internals designed to support multiple formats later
+- MCP awareness (agent-friendly command structure and output)
 
 ### v2 — AI Agent Integration
-Planned but not implemented in v1:
-- MCP awareness (agent-friendly command structure and output)
-- Support additional file formats
+**✅ COMPLETED in v1.1**:
+- Support additional file formats (MP3 implemented)
+
+Planned for future versions:
 - Generate a .cue file for an album folder using track metadata
 
 ## Explicit Non-Goals
