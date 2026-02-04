@@ -59,6 +59,9 @@ pub enum Commands {
         /// Normalize genres instead of titles.
         #[arg(long)]
         genres: bool,
+        /// Normalize titles (default behavior).
+        #[arg(long)]
+        title: bool,
         /// Show what would be changed without actually modifying files.
         #[arg(long)]
         dry_run: bool,

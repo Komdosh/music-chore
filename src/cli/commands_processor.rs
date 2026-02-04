@@ -40,6 +40,7 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         Commands::Normalize {
             path,
             genres,
+            title: _,
             dry_run,
         } => {
             if genres {
