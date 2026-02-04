@@ -100,11 +100,8 @@ fn get_highest_confidence_value(
 
             match &best_value {
                 Some((_, existing_is_embedded, existing_confidence)) => {
-                    if final_is_embedded && !existing_is_embedded {
-                        best_value = Some((value.clone(), final_is_embedded, final_confidence));
-                    } else if final_is_embedded == *existing_is_embedded
-                        && final_confidence > *existing_confidence
-                    {
+                    if (final_is_embedded && !existing_is_embedded) ||
+                       (final_is_embedded == *existing_is_embedded && final_confidence > *existing_confidence) {
                         best_value = Some((value.clone(), final_is_embedded, final_confidence));
                     }
                 }
@@ -139,11 +136,8 @@ fn get_highest_confidence_year(tracks: &[TrackNode]) -> Option<u32> {
 
             match &best_year {
                 Some((_, existing_is_embedded, existing_confidence)) => {
-                    if is_embedded && !existing_is_embedded {
-                        best_year = Some((year.value, is_embedded, confidence));
-                    } else if is_embedded == *existing_is_embedded
-                        && confidence > *existing_confidence
-                    {
+                    if (is_embedded && !existing_is_embedded) ||
+                       (is_embedded == *existing_is_embedded && confidence > *existing_confidence) {
                         best_year = Some((year.value, is_embedded, confidence));
                     }
                 }
@@ -373,17 +367,23 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
                 new_track.file = current_file.clone();
                 current_track = Some(new_track);
             }
-        } else if trimmed.starts_with("TITLE") && is_track_level && current_track.is_some() {
+        } else if trimmed.starts_with("TITLE") && is_track_level {
             if let Some(value) = extract_quoted_value(trimmed) {
-                current_track.as_mut().unwrap().title = Some(value);
+                if let Some(ref mut track) = current_track {
+                    track.title = Some(value);
+                }
             }
-        } else if trimmed.starts_with("PERFORMER") && is_track_level && current_track.is_some() {
+        } else if trimmed.starts_with("PERFORMER") && is_track_level {
             if let Some(value) = extract_quoted_value(trimmed) {
-                current_track.as_mut().unwrap().performer = Some(value);
+                if let Some(ref mut track) = current_track {
+                    track.performer = Some(value);
+                }
             }
-        } else if trimmed.starts_with("INDEX") && is_track_level && current_track.is_some() {
+        } else if trimmed.starts_with("INDEX") && is_track_level {
             if let Some(value) = extract_quoted_value(trimmed) {
-                current_track.as_mut().unwrap().index = Some(value);
+                if let Some(ref mut track) = current_track {
+                    track.index = Some(value);
+                }
             }
         }
     }
@@ -425,10 +425,10 @@ fn parse_track_line(line: &str) -> Option<CueTrack> {
         return None;
     }
 
-    let mut track = CueTrack::default();
-    track.number = track_number;
-
-    Some(track)
+    Some(CueTrack {
+        number: track_number,
+        ..Default::default()
+    })
 }
 
 /// Represents a parsed .cue file.
@@ -515,7 +515,7 @@ mod tests {
                 album_artist: None,
                 track_number: None,
                 disc_number: None,
-                year: year.map(|y| MetadataValue::embedded(y)),
+                year: year.map(MetadataValue::embedded),
                 genre: genre.map(|g| MetadataValue::embedded(g.to_string())),
                 duration: None,
                 format: "FLAC".to_string(),
