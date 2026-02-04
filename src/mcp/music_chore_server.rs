@@ -1,17 +1,8 @@
-use crate::cli::commands::validate_path;
 use crate::mcp::params::{
     CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
     NormalizeTitlesParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::cue::{
-    CueGenerationError, CueValidationResult, generate_cue_for_path, parse_cue_file,
-    validate_cue_consistency,
-};
-use crate::services::duplicates::find_duplicates;
-use crate::services::format_tree::emit_by_path;
-use crate::services::library::build_library_hierarchy;
-use crate::services::scanner::scan_tracks;
-use crate::services::{formats::read_metadata, normalization::normalize, scanner::scan_dir};
+
 use log;
 use rmcp::{
     ErrorData as McpError,
@@ -22,6 +13,14 @@ use rmcp::{
     tool, tool_handler, tool_router,
 };
 use std::path::{Path, PathBuf};
+use crate::adapters::audio_formats::read_metadata;
+use crate::build_library_hierarchy;
+use crate::core::services::cue::{generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
+use crate::core::services::duplicates::find_duplicates;
+use crate::core::services::format_tree::emit_by_path;
+use crate::core::services::normalization::normalize;
+use crate::core::services::scanner::{scan_dir, scan_tracks};
+use crate::presentation::cli::commands::validate_path;
 
 #[derive(Clone)]
 pub struct MusicChoreServer {

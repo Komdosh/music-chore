@@ -1,16 +1,16 @@
-use crate::build_library_hierarchy;
-use crate::cli::commands::validate_path;
-use crate::cli::Commands;
-use crate::domain::with_schema_version;
-use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::{
+use crate::core::services::library::build_library_hierarchy;
+use crate::presentation::cli::commands::validate_path;
+use crate::presentation::cli::Commands;
+use crate::core::domain::with_schema_version;
+use crate::core::services::apply_metadata::write_metadata_by_path;
+use crate::core::services::cue::{
     generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError,
 };
-use crate::services::duplicates::find_duplicates;
-use crate::services::format_tree::{emit_by_path, format_tree_output};
-use crate::services::formats::read_metadata;
-use crate::services::normalization::{normalize, normalize_genres_in_library};
-use crate::services::scanner::scan_dir;
+use crate::core::services::duplicates::find_duplicates;
+use crate::core::services::format_tree::{emit_by_path, format_tree_output};
+use crate::adapters::audio_formats::read_metadata;
+use crate::core::services::normalization::{normalize, normalize_genres_in_library};
+use crate::core::services::scanner::scan_dir;
 use serde_json::to_string_pretty;
 use std::path::{Path, PathBuf};
 
@@ -94,7 +94,7 @@ pub fn handle_scan(
     json: bool,
     verbose: bool,
 ) {
-    let tracks = crate::services::scanner::scan_dir_with_options_verbose(&path, max_depth, follow_symlinks, exclude, verbose);
+    let tracks = crate::core::services::scanner::scan_dir_with_options_verbose(&path, max_depth, follow_symlinks, exclude, verbose);
 
     if tracks.is_empty() {
         eprintln!("No music files found in directory: {}", path.display());

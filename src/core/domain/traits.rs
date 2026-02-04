@@ -1,6 +1,6 @@
 //! Format-agnostic trait for audio file operations.
 
-use crate::domain::models::{Track, TrackMetadata};
+use crate::core::domain::models::{Track, TrackMetadata};
 use std::path::Path;
 
 /// Errors that can occur during audio file operations

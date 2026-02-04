@@ -1,4 +1,4 @@
-//! WAV format implementation of the AudioFile trait.
+//! MP3 format implementation of the AudioFile trait.
 
 use lofty::{
     config::WriteOptions,
@@ -10,34 +10,34 @@ use lofty::{
 
 use std::path::Path;
 
-use crate::domain::models::{MetadataValue, Track, TrackMetadata};
-use crate::domain::traits::{AudioFile, AudioFileError};
-use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
+use crate::core::domain::traits::{AudioFile, AudioFileError};
+use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 
-/// WAV format handler
-pub struct WavHandler;
+/// MP3 format handler
+pub struct Mp3Handler;
 
-impl WavHandler {
-    /// Create a new WAV handler
+impl Mp3Handler {
+    /// Create a new MP3 handler
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for WavHandler {
+impl Default for Mp3Handler {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AudioFile for WavHandler {
+impl AudioFile for Mp3Handler {
     fn can_handle(&self, path: &Path) -> bool {
         path.extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("wav"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("mp3"))
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["wav"]
+        vec!["mp3"]
     }
 
     fn read_metadata(&self, path: &Path) -> Result<Track, AudioFileError> {
@@ -47,7 +47,7 @@ impl AudioFile for WavHandler {
 
         // Use lofty to read the file
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e)))?;
 
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
@@ -60,14 +60,14 @@ impl AudioFile for WavHandler {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        // Use lofty to write metadata to WAV file
+        // Use lofty to write metadata to MP3 file
         let mut tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e)))?;
 
-        // Get or create the primary tag
+        // Get or create the primary tag (ID3v2 for MP3)
         let tag = tagged_file
             .primary_tag_mut()
-            .ok_or_else(|| AudioFileError::WriteError("WAV file has no primary tag".to_string()))?;
+            .ok_or_else(|| AudioFileError::WriteError("MP3 file has no primary tag".to_string()))?;
 
         // Helper function to set a tag item
         let mut set_tag = |key: ItemKey, value: &str| {
@@ -107,11 +107,11 @@ impl AudioFile for WavHandler {
             set_tag(ItemKey::Genre, &genre.value);
         }
 
-        // Save changes to disk with default write options
+        // Save the changes to disk with default write options
         let write_options = WriteOptions::default();
         tagged_file
             .save_to_path(path, write_options)
-            .map_err(|e| AudioFileError::WriteError(format!("Failed to save WAV file: {}", e)))?;
+            .map_err(|e| AudioFileError::WriteError(format!("Failed to save MP3 file: {}", e)))?;
 
         Ok(())
     }
@@ -122,13 +122,13 @@ impl AudioFile for WavHandler {
         }
 
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e)))?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }
 }
 
-impl WavHandler {
+impl Mp3Handler {
     /// Extract metadata from lofty TaggedFile and convert to our TrackMetadata
     fn extract_metadata_from_tags(&self, tagged_file: &TaggedFile, path: &Path) -> TrackMetadata {
         let mut title = None;
@@ -140,7 +140,7 @@ impl WavHandler {
         let mut year = None;
         let mut genre = None;
 
-        // Get the primary tag (usually INFO chunks for WAV)
+        // Get the primary tag (usually ID3v2 for MP3)
         if let Some(tag) = tagged_file.primary_tag() {
             for tag_item in tag.items() {
                 // Helper function to convert ItemValue to string
@@ -164,12 +164,18 @@ impl WavHandler {
                         album_artist = Some(MetadataValue::embedded(item_value_str));
                     }
                     ItemKey::TrackNumber => {
-                        if let Ok(num) = item_value_str.parse::<u32>() {
+                        // Handle both "track/total" formats and plain numbers
+                        let clean_track =
+                            item_value_str.split('/').next().unwrap_or(&item_value_str);
+                        if let Ok(num) = clean_track.trim().parse::<u32>() {
                             track_number = Some(MetadataValue::embedded(num));
                         }
                     }
                     ItemKey::DiscNumber => {
-                        if let Ok(num) = item_value_str.parse::<u32>() {
+                        // Handle both "disc/total" formats and plain numbers
+                        let clean_disc =
+                            item_value_str.split('/').next().unwrap_or(&item_value_str);
+                        if let Ok(num) = clean_disc.trim().parse::<u32>() {
                             disc_number = Some(MetadataValue::embedded(num));
                         }
                     }
@@ -181,66 +187,97 @@ impl WavHandler {
                     ItemKey::Genre => {
                         genre = Some(MetadataValue::embedded(item_value_str));
                     }
-                    _ => {}
+                    ItemKey::RecordingDate => {
+                        let clean_value = item_value_str.trim();
+                        if let Ok(year_val) = clean_value.parse::<u32>() {
+                            year = Some(MetadataValue::embedded(year_val));
+                        }
+                    }
+                    _ => {} // Ignore other tags for now
                 }
             }
         }
 
-        // Fallback inference for missing metadata
-        if artist.is_none()
-            && let Some(inferred_artist) = infer_artist_from_path(path)
-        {
-            artist = Some(MetadataValue {
-                value: inferred_artist,
-                source: crate::domain::models::MetadataSource::FolderInferred,
-                confidence: 0.5,
-            });
-        }
+        // Get duration from file properties
+        let properties = tagged_file.properties();
+        let duration = Some(MetadataValue::embedded(properties.duration().as_secs_f64()));
 
-        if album.is_none()
-            && let Some(inferred_album) = infer_album_from_path(path)
-        {
-            album = Some(MetadataValue {
-                value: inferred_album,
-                source: crate::domain::models::MetadataSource::FolderInferred,
-                confidence: 0.5,
-            });
-        }
+        // Apply folder inference as fallback when embedded metadata is missing
+        let inferred_artist = if artist.is_none() {
+            infer_artist_from_path(path)
+                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE))
+        } else {
+            artist
+        };
 
-        // Extract duration from file properties
-        let duration = tagged_file.properties().duration().as_secs_f64();
+        let inferred_album = if album.is_none() {
+            infer_album_from_path(path)
+                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
+        } else {
+            album
+        };
 
         TrackMetadata {
             title,
-            artist,
-            album,
+            artist: inferred_artist,
+            album: inferred_album,
             album_artist,
             track_number,
             disc_number,
             year,
             genre,
-            duration: Some(MetadataValue::embedded(duration)),
-            format: "wav".to_string(),
+            duration,
+            format: "mp3".to_string(),
             path: path.to_path_buf(),
         }
     }
 
-    /// Extract basic metadata (only duration and format info)
+    /// Extract basic metadata (minimal parsing for performance)
     fn extract_basic_metadata(&self, tagged_file: &TaggedFile, path: &Path) -> TrackMetadata {
-        let duration = tagged_file.properties().duration().as_secs_f64();
+        // For basic info, just get format, duration, and use folder inference
+        let properties = tagged_file.properties();
+        let duration = Some(MetadataValue::embedded(properties.duration().as_secs_f64()));
+
+        let inferred_artist = infer_artist_from_path(path)
+            .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+        let inferred_album = infer_album_from_path(path)
+            .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
         TrackMetadata {
             title: None,
-            artist: None,
-            album: None,
+            artist: inferred_artist,
+            album: inferred_album,
             album_artist: None,
             track_number: None,
             disc_number: None,
             year: None,
             genre: None,
-            duration: Some(MetadataValue::embedded(duration)),
-            format: "wav".to_string(),
+            duration,
+            format: "mp3".to_string(),
             path: path.to_path_buf(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_mp3_handler_supported_extensions() {
+        let handler = Mp3Handler::new();
+        let extensions = handler.supported_extensions();
+        assert_eq!(extensions, vec!["mp3"]);
+    }
+
+    #[test]
+    fn test_mp3_handler_can_handle() {
+        let handler = Mp3Handler::new();
+
+        assert!(handler.can_handle(&PathBuf::from("test.mp3")));
+        assert!(handler.can_handle(&PathBuf::from("test.MP3")));
+        assert!(!handler.can_handle(&PathBuf::from("test.flac")));
+        assert!(!handler.can_handle(&PathBuf::from("test.wav")));
     }
 }

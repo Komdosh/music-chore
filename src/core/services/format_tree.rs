@@ -1,6 +1,6 @@
-use crate::domain::with_schema_version;
-use crate::services::scanner::{scan_dir, scan_dir_with_metadata};
-use crate::{Library, MetadataSource, Track, TrackNode, build_library_hierarchy};
+use crate::core::domain::with_schema_version;
+use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
+use crate::{build_library_hierarchy, Library, MetadataSource, Track, TrackNode};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::Path;

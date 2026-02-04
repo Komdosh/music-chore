@@ -1,5 +1,4 @@
-use crate::domain::with_schema_version;
-use crate::services::scanner::scan_with_duplicates;
+use crate::core::services::scanner::scan_with_duplicates;
 use serde_json::to_string_pretty;
 use std::fmt::Write;
 use std::path::Path;

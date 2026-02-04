@@ -1,11 +1,11 @@
 //! Audio format registry and factory.
 
-use crate::domain::traits::{AudioFileError, AudioFileRegistry};
-use crate::services::formats::dsf::DsfHandler;
-use crate::services::formats::flac::FlacHandler;
-use crate::services::formats::mp3::Mp3Handler;
-use crate::services::formats::wav::WavHandler;
-use crate::services::formats::wavpack::WavPackHandler;
+use crate::core::domain::traits::{AudioFileError, AudioFileRegistry};
+use crate::adapters::audio_formats::dsf::DsfHandler;
+use crate::adapters::audio_formats::flac::FlacHandler;
+use crate::adapters::audio_formats::mp3::Mp3Handler;
+use crate::adapters::audio_formats::wav::WavHandler;
+use crate::adapters::audio_formats::wavpack::WavPackHandler;
 use std::path::Path;
 
 pub mod dsf;
@@ -37,15 +37,14 @@ pub fn create_audio_registry() -> AudioFileRegistry {
 }
 
 /// Read metadata from a file using the appropriate format handler
-pub fn read_metadata(path: &Path) -> Result<crate::domain::models::Track, AudioFileError> {
+pub fn read_metadata(path: &Path) -> Result<crate::core::domain::models::Track, AudioFileError> {
     let registry = create_audio_registry();
     let handler = registry.find_handler(path)?;
     let track = handler.read_metadata(path)?;
 
-    // Optionally validate metadata schema after reading
-    if let Err(validation_error) = crate::services::validation::metadata_validation::validate_track_metadata(&track) {
-        eprintln!("Warning: Metadata validation failed for {}: {}", path.display(), validation_error);
-    }
+    // NOTE: We don't validate metadata schema during normal read operations
+    // to avoid side effects. Validation should be done explicitly by calling
+    // the validation functions when needed.
 
     Ok(track)
 }
@@ -53,7 +52,7 @@ pub fn read_metadata(path: &Path) -> Result<crate::domain::models::Track, AudioF
 /// Write metadata to a file using the appropriate format handler
 pub fn write_metadata(
     path: &Path,
-    metadata: &crate::domain::models::TrackMetadata,
+    metadata: &crate::core::domain::models::TrackMetadata,
 ) -> Result<(), AudioFileError> {
     let registry = create_audio_registry();
     let handler = registry.find_handler(path)?;

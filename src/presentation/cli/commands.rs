@@ -1,6 +1,6 @@
 //! CLI command definitions and handlers.
 
-pub(crate) use crate::services::validation::validate_path;
+pub(crate) use crate::core::services::validation::validate_path;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 

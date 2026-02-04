@@ -4,7 +4,6 @@ pub mod apply_metadata;
 pub mod cue;
 pub mod duplicates;
 pub mod format_tree;
-pub mod formats;
 pub mod inference;
 pub mod library;
 pub mod normalization;

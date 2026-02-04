@@ -1,9 +1,9 @@
 //! Integration tests for MP3 format support.
 
-use music_chore::domain::traits::AudioFile;
-use music_chore::services::formats::is_format_supported;
-use music_chore::services::formats::mp3::Mp3Handler;
-use music_chore::services::scanner::scan_dir;
+use music_chore::core::domain::traits::AudioFile;
+use music_chore::adapters::audio_formats::is_format_supported;
+use music_chore::adapters::audio_formats::mp3::Mp3Handler;
+use music_chore::core::services::scanner::scan_dir;
 use std::path::PathBuf;
 
 #[test]
@@ -114,7 +114,7 @@ fn test_mp3_basic_info_reading() {
 
 #[test]
 fn test_mp3_supported_extensions_registry() {
-    use music_chore::services::formats::get_supported_extensions;
+    use music_chore::adapters::audio_formats::get_supported_extensions;
 
     let extensions = get_supported_extensions();
 

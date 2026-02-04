@@ -1,7 +1,7 @@
 // Test the tree command functionality via CLI integration
 #[cfg(test)]
 mod tests {
-    use music_chore::services::scanner::scan_dir;
+    use music_chore::core::services::scanner::scan_dir;
     use music_chore::{
         AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, TrackNode,
         build_library_hierarchy,

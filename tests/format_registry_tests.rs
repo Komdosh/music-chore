@@ -1,6 +1,6 @@
 //! Tests for the audio format registry
 
-use music_chore::services::formats::{
+use music_chore::adapters::audio_formats::{
     create_audio_registry, get_supported_extensions, is_format_supported, read_metadata,
     write_metadata,
 };
@@ -69,7 +69,7 @@ fn test_read_metadata_nonexistent_file() {
 
 #[test]
 fn test_write_metadata_unsupported_format() {
-    use music_chore::domain::models::TrackMetadata;
+    use music_chore::core::domain::models::TrackMetadata;
 
     let path = PathBuf::from("test.ogg");
     let metadata = TrackMetadata {

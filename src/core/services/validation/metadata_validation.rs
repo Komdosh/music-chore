@@ -1,6 +1,6 @@
 //! Metadata schema validation module
 
-use crate::domain::models::{Track, TrackMetadata, MetadataValue};
+use crate::core::domain::models::{Track, TrackMetadata};
 use std::path::Path;
 
 /// Errors that can occur during metadata validation
@@ -125,8 +125,7 @@ pub fn validate_metadata_on_read(path: &Path, metadata: &TrackMetadata) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{MetadataValue, MetadataSource, TrackMetadata};
-    use std::path::PathBuf;
+    use crate::core::domain::models::MetadataValue;
     use tempfile::TempDir;
 
     #[test]

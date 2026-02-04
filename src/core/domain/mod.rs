@@ -5,7 +5,7 @@ pub mod schema_version;
 pub mod traits;
 
 // Re-export commonly used types
-pub use crate::services::library::build_library_hierarchy;
+pub use crate::core::services::library::build_library_hierarchy;
 pub use models::{
     AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, OperationResult, Track,
     TrackMetadata, TrackNode,

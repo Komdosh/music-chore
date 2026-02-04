@@ -1,8 +1,8 @@
 //! Enhanced directory scanner with improved error handling and edge cases.
 
-use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
-use crate::services::formats;
-use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use crate::core::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
+use crate::adapters::audio_formats as formats;
+use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 use glob::Pattern;
 use log::{debug, error, warn};
 use serde_json::to_string_pretty;

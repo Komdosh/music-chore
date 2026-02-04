@@ -1,4 +1,4 @@
-use crate::services::formats::{read_metadata, write_metadata};
+use crate::adapters::audio_formats::{read_metadata, write_metadata};
 use std::fmt::Write;
 use std::path::Path;
 
@@ -21,7 +21,7 @@ pub fn write_metadata_by_path(
         return Err(format!("Error: File does not exist: {}", file.display()));
     }
 
-    if !crate::services::formats::is_format_supported(file) {
+    if !crate::adapters::audio_formats::is_format_supported(file) {
         return Err(format!(
             "Error: Unsupported file format: {}",
             file.display()
@@ -84,7 +84,7 @@ fn apply_metadata_update(
     key: &str,
     value: &str,
 ) -> Result<(), String> {
-    use crate::domain::models::MetadataValue;
+    use crate::core::domain::models::MetadataValue;
 
     match key.to_lowercase().as_str() {
         "title" => {

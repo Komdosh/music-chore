@@ -1,11 +1,10 @@
-use crate::domain::with_schema_version;
-use crate::services::formats::read_metadata;
-use crate::services::scanner::scan_dir;
+use crate::core::domain::with_schema_version;
+use crate::adapters::audio_formats::read_metadata;
+use crate::core::services::scanner::scan_dir;
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
 pub mod metadata_validation;
-use crate::services::validation::metadata_validation::{validate_track_metadata, ValidationError as MetadataValidationError};
 
 #[derive(Debug, serde::Serialize)]
 pub struct ValidationResult {
@@ -139,76 +138,123 @@ pub fn validate_tracks(tracks: Vec<crate::Track>) -> ValidationResult {
         let mut has_error = false;
         let mut has_warning = false;
 
-        // Use the new metadata validation
-        match validate_track_metadata(track) {
-            Ok(()) => {
-                // If basic validation passes, check for recommended fields as warnings
-                if track.metadata.track_number.is_none() {
-                    warnings.push(ValidationWarning {
-                        file_path: file_path.clone(),
-                        field: "track_number".to_string(),
-                        message: "Missing recommended field: track_number".to_string(),
-                    });
-                    has_warning = true;
-                }
+        // Check for required fields: title, artist, album
+        if track.metadata.title.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "title".to_string(),
+                message: "Missing required field: title".to_string(),
+            });
+            has_error = true;
+        }
 
-                if track.metadata.year.is_none() {
-                    warnings.push(ValidationWarning {
-                        file_path: file_path.clone(),
-                        field: "year".to_string(),
-                        message: "Missing recommended field: year".to_string(),
-                    });
-                    has_warning = true;
-                }
+        if track.metadata.artist.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "artist".to_string(),
+                message: "Missing required field: artist".to_string(),
+            });
+            has_error = true;
+        }
 
-                // Check for reasonable year ranges
-                if let Some(ref year) = track.metadata.year {
-                    if year.value < 1900 || year.value > 2100 {
-                        warnings.push(ValidationWarning {
-                            file_path: file_path.clone(),
-                            field: "year".to_string(),
-                            message: format!("Year {} seems unusual (expected 1900-2100)", year.value),
-                        });
-                        has_warning = true;
-                    }
-                }
+        if track.metadata.album.is_none() {
+            errors.push(ValidationError {
+                file_path: file_path.clone(),
+                field: "album".to_string(),
+                message: "Missing required field: album".to_string(),
+            });
+            has_error = true;
+        }
 
-                // Check for reasonable track numbers
-                if let Some(ref track_number) = track.metadata.track_number {
-                    if track_number.value == 0 || track_number.value > 99 {
-                        warnings.push(ValidationWarning {
-                            file_path: file_path.clone(),
-                            field: "track_number".to_string(),
-                            message: format!(
-                                "Track number {} seems unusual (expected 1-99)",
-                                track_number.value
-                            ),
-                        });
-                        has_warning = true;
-                    }
-                }
-
-                // Check for very long titles
-                if let Some(ref title) = track.metadata.title {
-                    if title.value.len() > 200 {
-                        warnings.push(ValidationWarning {
-                            file_path: file_path.clone(),
-                            field: "title".to_string(),
-                            message: format!("Title is very long ({} characters)", title.value.len()),
-                        });
-                        has_warning = true;
-                    }
-                }
-            }
-            Err(validation_error) => {
-                // Convert the metadata validation error to our format
-                let error_msg = format!("{}", validation_error);
+        // Check for empty or whitespace-only fields
+        if let Some(ref title) = track.metadata.title {
+            if title.value.trim().is_empty() {
                 errors.push(ValidationError {
                     file_path: file_path.clone(),
-                    field: "metadata".to_string(), // Generic field for schema validation errors
-                    message: error_msg,
+                    field: "title".to_string(),
+                    message: "Title field is empty".to_string(),
                 });
                 has_error = true;
+            }
+        }
+
+        if let Some(ref artist) = track.metadata.artist {
+            if artist.value.trim().is_empty() {
+                errors.push(ValidationError {
+                    file_path: file_path.clone(),
+                    field: "artist".to_string(),
+                    message: "Artist field is empty".to_string(),
+                });
+                has_error = true;
+            }
+        }
+
+        if let Some(ref album) = track.metadata.album {
+            if album.value.trim().is_empty() {
+                errors.push(ValidationError {
+                    file_path: file_path.clone(),
+                    field: "album".to_string(),
+                    message: "Album field is empty".to_string(),
+                });
+                has_error = true;
+            }
+        }
+
+        // Warnings for recommended fields
+        if track.metadata.track_number.is_none() {
+            warnings.push(ValidationWarning {
+                file_path: file_path.clone(),
+                field: "track_number".to_string(),
+                message: "Missing recommended field: track_number".to_string(),
+            });
+            has_warning = true;
+        }
+
+        if track.metadata.year.is_none() {
+            warnings.push(ValidationWarning {
+                file_path: file_path.clone(),
+                field: "year".to_string(),
+                message: "Missing recommended field: year".to_string(),
+            });
+            has_warning = true;
+        }
+
+        // Check for reasonable year ranges
+        if let Some(ref year) = track.metadata.year {
+            if year.value < 1900 || year.value > 2100 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "year".to_string(),
+                    message: format!("Year {} seems unusual (expected 1900-2100)", year.value),
+                });
+                has_warning = true;
+            }
+        }
+
+        // Check for reasonable track numbers
+        if let Some(ref track_number) = track.metadata.track_number {
+            if track_number.value == 0 || track_number.value > 99 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "track_number".to_string(),
+                    message: format!(
+                        "Track number {} seems unusual (expected 1-99)",
+                        track_number.value
+                    ),
+                });
+                has_warning = true;
+            }
+        }
+
+        // Check for very long titles
+        if let Some(ref title) = track.metadata.title {
+            if title.value.len() > 200 {
+                warnings.push(ValidationWarning {
+                    file_path: file_path.clone(),
+                    field: "title".to_string(),
+                    message: format!("Title is very long ({} characters)", title.value.len()),
+                });
+                has_warning = true;
             }
         }
 

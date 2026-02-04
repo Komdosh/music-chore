@@ -1,4 +1,4 @@
-use music_chore::services::inference::infer_year_from_path;
+use music_chore::core::services::inference::infer_year_from_path;
 use std::path::PathBuf;
 
 #[test]

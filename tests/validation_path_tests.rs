@@ -1,4 +1,4 @@
-use music_chore::services::validation::validate_path;
+use music_chore::core::services::validation::validate_path;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -96,7 +96,7 @@ fn test_validate_path_with_errors() {
     .unwrap();
 
     // First read the file to see what metadata it has
-    use music_chore::services::formats::read_metadata;
+    use music_chore::adapters::audio_formats::read_metadata;
     let mut track = read_metadata(&source_path.join("artist/album/track1.flac")).unwrap();
 
     // Clear the title to create an error
@@ -107,7 +107,7 @@ fn test_validate_path_with_errors() {
     });
 
     // Write it back (this might fail, but that's okay for this test)
-    let _ = music_chore::services::formats::write_metadata(
+    let _ = music_chore::adapters::audio_formats::write_metadata(
         &source_path.join("artist/album/track1.flac"),
         &track.metadata,
     );

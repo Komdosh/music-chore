@@ -1,8 +1,9 @@
 //! Text normalization services.
 
-use crate::domain::models::{OperationResult, Track};
-use crate::services::formats;
+use crate::core::domain::models::{OperationResult, Track};
+use crate::adapters::audio_formats as formats;
 use std::path::{Path, PathBuf};
+use crate::MetadataValue;
 
 pub const STANDARD_GENRES: &[&str] = &[
     "Acoustic",
@@ -254,7 +255,7 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        crate::services::scanner::scan_dir(path)
+        crate::core::services::scanner::scan_dir(path)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -279,7 +280,7 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
                     } else {
                         let mut updated_metadata = track.metadata.clone();
                         updated_metadata.genre = Some(
-                            crate::domain::models::MetadataValue::user_set(new_genre.clone()),
+                            MetadataValue::user_set(new_genre.clone()),
                         );
 
                         match formats::write_metadata(&track.file_path, &updated_metadata) {
@@ -418,7 +419,7 @@ fn normalize_track_titles_with_options(
         results.push(normalize_single_track(track, dry_run));
     } else if path.is_dir() {
         // Directory - scan for supported audio files
-        let tracks = crate::services::scanner::scan_dir(path);
+        let tracks = crate::core::services::scanner::scan_dir(path);
         for track in tracks {
             results.push(normalize_single_track(track, dry_run));
         }
@@ -459,7 +460,7 @@ fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
     } else {
         // Actually update the metadata
         let mut updated_metadata = track.metadata.clone();
-        updated_metadata.title = Some(crate::domain::models::MetadataValue::user_set(
+        updated_metadata.title = Some(crate::core::domain::models::MetadataValue::user_set(
             normalized_title,
         ));
 

@@ -10,9 +10,9 @@ use lofty::{
 
 use std::path::Path;
 
-use crate::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
-use crate::domain::traits::{AudioFile, AudioFileError};
-use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
+use crate::core::domain::traits::{AudioFile, AudioFileError};
+use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 
 /// DSF format handler
 pub struct DsfHandler;

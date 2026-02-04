@@ -1,7 +1,7 @@
 //! Cue file generation and parsing services.
 
-use crate::domain::models::{AlbumNode, MetadataValue, TrackNode};
-use crate::services::normalization::to_title_case;
+use crate::core::domain::models::{AlbumNode, MetadataValue, TrackNode};
+use crate::core::services::normalization::to_title_case;
 use std::path::{Path, PathBuf};
 
 fn extract_track_artist(track: &TrackNode) -> Option<&String> {
@@ -34,11 +34,11 @@ fn get_track_album_artist(track: &TrackNode) -> Option<&String> {
 }
 
 fn confidence_is_embedded(mv: &MetadataValue<String>) -> bool {
-    matches!(mv.source, crate::domain::models::MetadataSource::Embedded)
+    matches!(mv.source, crate::core::domain::models::MetadataSource::Embedded)
 }
 
 fn year_confidence_is_embedded(mv: &MetadataValue<u32>) -> bool {
-    matches!(mv.source, crate::domain::models::MetadataSource::Embedded)
+    matches!(mv.source, crate::core::domain::models::MetadataSource::Embedded)
 }
 
 fn get_highest_confidence_value(
@@ -250,8 +250,8 @@ pub fn write_cue_file(album: &AlbumNode, output_path: &Path) -> Result<(), std::
     std::fs::write(output_path, cue_content)
 }
 
-use crate::services::formats::read_metadata;
-use crate::services::scanner::scan_dir_immediate;
+use crate::adapters::audio_formats::read_metadata;
+use crate::core::services::scanner::scan_dir_immediate;
 
 pub struct CueGenerationResult {
     pub cue_content: String,
@@ -496,8 +496,8 @@ pub struct CueValidationResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::{AlbumNode, MetadataValue, TrackMetadata, TrackNode};
     use std::path::PathBuf;
+    use crate::TrackMetadata;
 
     fn create_test_track(
         title: &str,

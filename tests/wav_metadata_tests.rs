@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod wav_metadata_tests {
-    use music_chore::services::formats::read_metadata;
+    use music_chore::adapters::audio_formats::read_metadata;
     use std::path::Path;
 
     #[test]
@@ -62,13 +62,13 @@ mod wav_metadata_tests {
                 // If metadata exists, it should come from embedded or inferred source
                 if let Some(ref artist) = metadata.artist {
                     match artist.source {
-                        music_chore::domain::models::MetadataSource::Embedded => {
+                        music_chore::core::domain::models::MetadataSource::Embedded => {
                             println!("Found embedded artist: {}", artist.value);
                         }
-                        music_chore::domain::models::MetadataSource::FolderInferred => {
+                        music_chore::core::domain::models::MetadataSource::FolderInferred => {
                             assert_eq!(artist.value, "The Beatles");
                         }
-                        music_chore::domain::models::MetadataSource::UserEdited => {
+                        music_chore::core::domain::models::MetadataSource::UserEdited => {
                             // This shouldn't happen in tests, but handle it
                             println!("Found user-edited artist: {}", artist.value);
                         }
@@ -77,13 +77,13 @@ mod wav_metadata_tests {
 
                 if let Some(ref album) = metadata.album {
                     match album.source {
-                        music_chore::domain::models::MetadataSource::Embedded => {
+                        music_chore::core::domain::models::MetadataSource::Embedded => {
                             println!("Found embedded album: {}", album.value);
                         }
-                        music_chore::domain::models::MetadataSource::FolderInferred => {
+                        music_chore::core::domain::models::MetadataSource::FolderInferred => {
                             assert_eq!(album.value, "Abbey Road");
                         }
-                        music_chore::domain::models::MetadataSource::UserEdited => {
+                        music_chore::core::domain::models::MetadataSource::UserEdited => {
                             // This shouldn't happen in tests, but handle it
                             println!("Found user-edited album: {}", album.value);
                         }
@@ -127,8 +127,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_handler_supported_extensions() {
-        use music_chore::domain::traits::AudioFile;
-        use music_chore::services::formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
+        use music_chore::adapters::audio_formats::wav::WavHandler;
 
         let handler = WavHandler::new();
         let extensions = handler.supported_extensions();
@@ -139,8 +139,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_handler_can_handle() {
-        use music_chore::domain::traits::AudioFile;
-        use music_chore::services::formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
+        use music_chore::adapters::audio_formats::wav::WavHandler;
         use std::path::PathBuf;
 
         let handler = WavHandler::new();
@@ -159,8 +159,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_read_basic_info() {
-        use music_chore::domain::traits::AudioFile;
-        use music_chore::services::formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
+        use music_chore::adapters::audio_formats::wav::WavHandler;
 
         let handler = WavHandler::new();
         let fixture_path = Path::new("tests/fixtures/wav/simple/track1.wav");

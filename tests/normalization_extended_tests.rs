@@ -1,4 +1,4 @@
-use music_chore::services::normalization::normalize;
+use music_chore::core::services::normalization::normalize;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -225,7 +225,7 @@ fn test_normalize_preserves_metadata() {
     fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
 
     // Read original metadata
-    use music_chore::services::formats::read_metadata;
+    use music_chore::adapters::audio_formats::read_metadata;
     let original_track = read_metadata(&test_file).unwrap();
     let original_title = original_track
         .metadata

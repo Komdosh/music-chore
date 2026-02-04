@@ -1,6 +1,6 @@
 //! Library hierarchy building from track collections.
 
-use crate::domain::models::{AlbumNode, ArtistNode, Library, Track, TrackNode};
+use crate::core::domain::models::{AlbumNode, ArtistNode, Library, Track, TrackNode};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

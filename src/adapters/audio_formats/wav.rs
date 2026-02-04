@@ -1,4 +1,4 @@
-//! WavPack format implementation of the AudioFile trait.
+//! WAV format implementation of the AudioFile trait.
 
 use lofty::{
     config::WriteOptions,
@@ -10,34 +10,34 @@ use lofty::{
 
 use std::path::Path;
 
-use crate::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
-use crate::domain::traits::{AudioFile, AudioFileError};
-use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use crate::core::domain::models::{MetadataValue, Track, TrackMetadata};
+use crate::core::domain::traits::{AudioFile, AudioFileError};
+use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 
-/// WavPack format handler
-pub struct WavPackHandler;
+/// WAV format handler
+pub struct WavHandler;
 
-impl WavPackHandler {
-    /// Create a new WavPack handler
+impl WavHandler {
+    /// Create a new WAV handler
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for WavPackHandler {
+impl Default for WavHandler {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AudioFile for WavPackHandler {
+impl AudioFile for WavHandler {
     fn can_handle(&self, path: &Path) -> bool {
         path.extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("wv"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("wav"))
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["wv"]
+        vec!["wav"]
     }
 
     fn read_metadata(&self, path: &Path) -> Result<Track, AudioFileError> {
@@ -47,7 +47,7 @@ impl AudioFile for WavPackHandler {
 
         // Use lofty to read the file
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
 
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
@@ -60,14 +60,14 @@ impl AudioFile for WavPackHandler {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        // Use lofty to write metadata to WavPack file
+        // Use lofty to write metadata to WAV file
         let mut tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
 
         // Get or create the primary tag
-        let tag = tagged_file.primary_tag_mut().ok_or_else(|| {
-            AudioFileError::WriteError("WavPack file has no primary tag".to_string())
-        })?;
+        let tag = tagged_file
+            .primary_tag_mut()
+            .ok_or_else(|| AudioFileError::WriteError("WAV file has no primary tag".to_string()))?;
 
         // Helper function to set a tag item
         let mut set_tag = |key: ItemKey, value: &str| {
@@ -107,11 +107,11 @@ impl AudioFile for WavPackHandler {
             set_tag(ItemKey::Genre, &genre.value);
         }
 
-        // Save the changes to disk with default write options
+        // Save changes to disk with default write options
         let write_options = WriteOptions::default();
         tagged_file
             .save_to_path(path, write_options)
-            .map_err(|e| AudioFileError::WriteError(format!("Failed to save WavPack file: {}", e)))?;
+            .map_err(|e| AudioFileError::WriteError(format!("Failed to save WAV file: {}", e)))?;
 
         Ok(())
     }
@@ -122,13 +122,13 @@ impl AudioFile for WavPackHandler {
         }
 
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WAV file: {}", e)))?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }
 }
 
-impl WavPackHandler {
+impl WavHandler {
     /// Extract metadata from lofty TaggedFile and convert to our TrackMetadata
     fn extract_metadata_from_tags(&self, tagged_file: &TaggedFile, path: &Path) -> TrackMetadata {
         let mut title = None;
@@ -140,7 +140,7 @@ impl WavPackHandler {
         let mut year = None;
         let mut genre = None;
 
-        // Get the primary tag
+        // Get the primary tag (usually INFO chunks for WAV)
         if let Some(tag) = tagged_file.primary_tag() {
             for tag_item in tag.items() {
                 // Helper function to convert ItemValue to string
@@ -181,97 +181,66 @@ impl WavPackHandler {
                     ItemKey::Genre => {
                         genre = Some(MetadataValue::embedded(item_value_str));
                     }
-                    ItemKey::RecordingDate => {
-                        let clean_value = item_value_str.trim();
-                        if let Ok(year_val) = clean_value.parse::<u32>() {
-                            year = Some(MetadataValue::embedded(year_val));
-                        }
-                    }
-                    _ => {} // Ignore other tags for now
+                    _ => {}
                 }
             }
         }
 
-        // Get duration from file properties
-        let properties = tagged_file.properties();
-        let duration = Some(MetadataValue::embedded(properties.duration().as_secs_f64()));
+        // Fallback inference for missing metadata
+        if artist.is_none()
+            && let Some(inferred_artist) = infer_artist_from_path(path)
+        {
+            artist = Some(MetadataValue {
+                value: inferred_artist,
+                source: crate::core::domain::models::MetadataSource::FolderInferred,
+                confidence: 0.5,
+            });
+        }
 
-        // Apply folder inference as fallback when embedded metadata is missing
-        let inferred_artist = if artist.is_none() {
-            infer_artist_from_path(path)
-                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE))
-        } else {
-            artist
-        };
+        if album.is_none()
+            && let Some(inferred_album) = infer_album_from_path(path)
+        {
+            album = Some(MetadataValue {
+                value: inferred_album,
+                source: crate::core::domain::models::MetadataSource::FolderInferred,
+                confidence: 0.5,
+            });
+        }
 
-        let inferred_album = if album.is_none() {
-            infer_album_from_path(path)
-                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
-        } else {
-            album
-        };
+        // Extract duration from file properties
+        let duration = tagged_file.properties().duration().as_secs_f64();
 
         TrackMetadata {
             title,
-            artist: inferred_artist,
-            album: inferred_album,
+            artist,
+            album,
             album_artist,
             track_number,
             disc_number,
             year,
             genre,
-            duration,
-            format: "wv".to_string(),
+            duration: Some(MetadataValue::embedded(duration)),
+            format: "wav".to_string(),
             path: path.to_path_buf(),
         }
     }
 
-    /// Extract basic metadata (minimal parsing for performance)
+    /// Extract basic metadata (only duration and format info)
     fn extract_basic_metadata(&self, tagged_file: &TaggedFile, path: &Path) -> TrackMetadata {
-        // For basic info, just get format, duration, and use folder inference
-        let properties = tagged_file.properties();
-        let duration = Some(MetadataValue::embedded(properties.duration().as_secs_f64()));
-
-        let inferred_artist = infer_artist_from_path(path)
-            .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-        let inferred_album = infer_album_from_path(path)
-            .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+        let duration = tagged_file.properties().duration().as_secs_f64();
 
         TrackMetadata {
             title: None,
-            artist: inferred_artist,
-            album: inferred_album,
+            artist: None,
+            album: None,
             album_artist: None,
             track_number: None,
             disc_number: None,
             year: None,
             genre: None,
-            duration,
-            format: "wv".to_string(),
+            duration: Some(MetadataValue::embedded(duration)),
+            format: "wav".to_string(),
             path: path.to_path_buf(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_wavpack_handler_supported_extensions() {
-        let handler = WavPackHandler::new();
-        let extensions = handler.supported_extensions();
-        assert_eq!(extensions, vec!["wv"]);
-    }
-
-    #[test]
-    fn test_wavpack_handler_can_handle() {
-        let handler = WavPackHandler::new();
-
-        assert!(handler.can_handle(&PathBuf::from("test.wv")));
-        assert!(handler.can_handle(&PathBuf::from("test.WV")));
-        assert!(!handler.can_handle(&PathBuf::from("test.flac")));
-        assert!(!handler.can_handle(&PathBuf::from("test.mp3")));
     }
 }
