@@ -2,7 +2,7 @@
 # Status: passes (✅) or not yet implemented (🔜)
 
 features:
-  # === COMPLETED (17 features) ===
+  # === COMPLETED (28 features) ===
   - id: 1
     desc: Scan directory for music files
     cmd: musicctl scan <path>
@@ -79,20 +79,6 @@ features:
     desc: Support WAV metadata reading
     cmd: musicctl read
     passes: true
-  - id: 28
-    desc: Support recursive depth limit
-    cmd: musicctl scan --max-depth N
-    passes: true
-  - id: 30
-    desc: Support --help and --version flags
-    cmd: musicctl --help | --version
-    passes: true
-
-  # === NOT YET IMPLEMENTED (9 features) ===
-  - id: 20
-    desc: Support DSF metadata reading
-    cmd: musicctl read
-    passes: false
   - id: 21
     desc: Normalize music genres to standard categories
     cmd: musicctl normalize --genres
@@ -122,6 +108,20 @@ features:
     desc: Handle empty track files
     cmd: musicctl scan
     passes: true
+  - id: 28
+    desc: Support recursive depth limit
+    cmd: musicctl scan --max-depth N
+    passes: true
+  - id: 30
+    desc: Support --help and --version flags
+    cmd: musicctl --help | --version
+    passes: true
+
+  # === NOT YET IMPLEMENTED (5 features) ===
+  - id: 20
+    desc: Support DSF metadata reading
+    cmd: musicctl read
+    passes: false
   - id: 29
     desc: Handle symlinks to music files
     cmd: musicctl scan
