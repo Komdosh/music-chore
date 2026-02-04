@@ -35,6 +35,7 @@ The product is provided as is, without warranties of any kind. Use at your own r
 - 🌳 **Displays beautiful tree views** of your library hierarchy
 - 🔄 **Detects duplicates** using SHA256 checksums across your entire library
 - 📊 **Outputs structured data** perfect for AI agents via MCP
+- 📝 **Generates and parses CUE files** for album disc images
 
 ### 🎵 Supported Formats
 
@@ -112,6 +113,14 @@ musicctl normalize /path/to/music --dry-run
 
 # Find duplicate tracks by checksum
 musicctl duplicates /path/to/music
+
+# Generate CUE file for an album
+musicctl cue /path/to/album --dry-run
+musicctl cue /path/to/album --force
+
+# Parse and display CUE file contents
+musicctl cue-parse /path/to/album.cue
+musicctl cue-parse /path/to/album.cue --json
 ```
 
 ---
@@ -410,6 +419,97 @@ Duplicate Group 1 (3 files):
 - **Quality Control**: Ensure only the best quality versions remain
 - **Migration Planning**: Avoid importing duplicates when consolidating libraries
 
+### 💿 `cue` - Generate CUE Files
+
+```bash
+# Generate CUE file for an album (dry run - preview only)
+musicctl cue /path/to/album --dry-run
+
+# Generate and write CUE file
+musicctl cue /path/to/album
+
+# Overwrite existing CUE file
+musicctl cue /path/to/album --force
+
+# Specify output path
+musicctl cue /path/to/album --output /path/to/output.cue
+```
+
+**CUE Generation Features:**
+- Extracts metadata from FLAC, MP3, and WAV files
+- Generates standard CUE sheets compatible with most audio players
+- Supports multiple files per album (one FILE entry per track)
+- Includes genre and year from track metadata
+- Normalizes text to title case
+
+**Output Example:**
+```
+PERFORMER "Kai Engel"
+TITLE "Meanings"
+REM GENRE New Age
+REM DATE 2025
+FILE "01. A New Journey Begins.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "A New Journey Begins"
+    PERFORMER "Kai Engel"
+    INDEX 01 00:00:00
+FILE "02. Time Goes On.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Time Goes On"
+    PERFORMER "Kai Engel"
+    INDEX 01 00:00:00
+```
+
+### 📖 `cue-parse` - Parse CUE Files
+
+```bash
+# Parse and display CUE file contents (human-readable)
+musicctl cue-parse /path/to/album.cue
+
+# Parse and output JSON for programmatic use
+musicctl cue-parse /path/to/album.cue --json
+```
+
+**CUE Parsing Features:**
+- Parses album-level metadata (performer, title, files)
+- Parses track-level metadata (number, title, performer, index)
+- Handles multi-file CUE sheets correctly
+- JSON output for automation and AI agents
+
+**Human-Readable Output:**
+```
+Cue File: /path/to/album.cue
+  Performer: Kai Engel
+  Title: Meanings
+  Files:
+    - 01. A New Journey Begins.flac
+    - 02. Time Goes On.flac
+  Tracks: 2
+    Track 01: A New Journey Begins [01. A New Journey Begins.flac]
+    Track 02: Time Goes On [02. Time Goes On.flac]
+```
+
+**JSON Output:**
+```json
+{
+  "performer": "Kai Engel",
+  "title": "Meanings",
+  "files": [
+    "01. A New Journey Begins.flac",
+    "02. Time Goes On.flac"
+  ],
+  "tracks": [
+    {
+      "number": 1,
+      "title": "A New Journey Begins",
+      "performer": "Kai Engel",
+      "index": "00:00:00",
+      "file": "01. A New Journey Begins.flac"
+    }
+  ]
+}
+```
+
 ### 📤 `emit` - Export Structured Metadata
 
 ```bash
@@ -529,7 +629,11 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 | `get_library_tree` | Get hierarchical library view | `path` (required), `json_output` (optional) | "Show me my library structure" |
 | `read_file_metadata` | Read metadata from individual files | `file_path` (required) | "Extract full metadata from this track" |
 | `normalize_titles` | Normalize track titles to title case | `path` (required), `dry_run` (optional) | "Fix messy capitalization in my tracks" |
-| `emit_library_metadata` | Get complete structured library data | `path` (required), `format` (optional) | "Export my library for analysis" |
+| `emit_library_metadata` | Get complete structured library data | `path` (required), `json_output` (optional) | "Export my library for analysis" |
+| `validate_library` | Validate metadata completeness | `path` (required), `json_output` (optional) | "Check my library for issues" |
+| `find_duplicates` | Find duplicate tracks by checksum | `path` (required), `json_output` (optional) | "Find duplicate files in my library" |
+| `generate_cue_file` | Generate CUE file for an album | `path` (required), `output` (optional), `dry_run` (optional), `force` (optional) | "Create CUE sheet for this album" |
+| `parse_cue_file` | Parse and read CUE file contents | `path` (required) | "Read CUE file and extract metadata" |
 
 ### 🧪 Example AI Workflows
 
