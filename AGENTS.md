@@ -161,7 +161,7 @@ Architecture uses traits for format extensibility - adding new formats requires 
 - Use `schemars` for JSON schema generation
 - Handle JSON serialization/deserialization errors gracefully
 - Provide clear error responses for MCP operations
-- MCP tools: scan_directory, read_file_metadata, get_library_tree, emit_library_metadata, normalize_titles, normalize_genres, validate_library, find_duplicates, generate_cue_file, parse_cue_file, validate_cue_file
+- MCP tools: scan_directory, read_file_metadata, get_library_tree, emit_library_metadata, normalize_titles, normalize_genres, validate_library, find_duplicates, cue_file
 
 ## Design Principles
 

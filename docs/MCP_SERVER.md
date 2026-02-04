@@ -6,7 +6,7 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 10 core tools exposed and working
+- ✅ All 8 core tools exposed and working
 - ✅ Proper initialization and shutdown handling
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
@@ -23,9 +23,7 @@ The MCP server allows AI agents to:
 - Find duplicate tracks by checksum
 - Emit structured library metadata for analysis
 - Validate library metadata quality
-- Generate CUE files for albums
-- Parse existing CUE files
-- Validate CUE files against audio files
+- Generate, parse, and validate CUE files
 
 ## Available Tools
 
@@ -344,59 +342,45 @@ Find duplicate tracks by comparing SHA256 checksums of audio files.
 }
 ```
 
-### 8. `generate_cue_file`
+### 8. `cue_file`
 
-Generate a CUE sheet file for an album directory.
+Unified tool for generating, parsing, and validating CUE files.
 
 **Parameters:**
-- `path` (string, required): Path to the album directory
-- `output` (string, optional): Output path for the .cue file (defaults to album directory)
-- `dry_run` (boolean, optional): Preview without writing. Default: false
-- `force` (boolean, optional): Overwrite existing file. Default: false
+- `path` (string, required): Path to album directory, .cue file, or audio directory depending on operation
+- `operation` (string, required): Operation type - "generate", "parse", or "validate"
+- `output` (string, optional): Output path for CUE file (generate only)
+- `dry_run` (boolean, optional): Preview without writing (generate only). Default: false
+- `force` (boolean, optional): Overwrite existing file (generate only). Default: false
+- `audio_dir` (string, optional): Directory containing audio files (validate only)
+- `json_output` (boolean, optional): Return results as JSON (parse and validate only). Default: false
 
-**Returns:**
-- If `dry_run=true`: Shows what would be written and the output path
-- If `dry_run=false`: Confirmation of file written with path
-
-**Example:**
+**Generate Example:**
 ```json
 {
-  "name": "generate_cue_file",
+  "name": "cue_file",
   "arguments": {
     "path": "/Users/music/FLAC/Album",
+    "operation": "generate",
     "dry_run": true,
     "force": false
   }
 }
 ```
 
-### 9. `parse_cue_file`
-
-Parse and read contents of a CUE file.
-
-**Parameters:**
-- `path` (string, required): Path to the .cue file
-
-**Returns:**
-JSON object with parsed CUE file contents:
-- `performer`: Album performer/artist
-- `title`: Album title
-- `genre`: Album genre (from REM GENRE)
-- `date`: Album date (from REM DATE)
-- `files`: Array of audio file names
-- `tracks`: Array of track objects with number, title, performer, index, and file
-
-**Example:**
+**Parse Example:**
 ```json
 {
-  "name": "parse_cue_file",
+  "name": "cue_file",
   "arguments": {
-    "path": "/Users/music/Album.cue"
+    "path": "/Users/music/Album.cue",
+    "operation": "parse",
+    "json_output": true
   }
 }
 ```
 
-**Response Example:**
+**Parse Response Example:**
 ```json
 {
   "performer": "Kai Engel",
@@ -416,48 +400,32 @@ JSON object with parsed CUE file contents:
 }
 ```
 
-### 9. `validate_cue_file`
-
-Validate a CUE file against its referenced audio files.
-
-**Parameters:**
-- `path` (string, required): Path to the .cue file
-- `audio_dir` (string, optional): Directory containing audio files (defaults to CUE file directory)
-- `json_output` (boolean, optional): Return results as JSON. Default: false
-
-**Returns:**
-- If `json_output=false`: Human-readable validation result
-- If `json_output=true`: JSON object with validation results:
-  - `is_valid`: boolean indicating if CUE file is valid
-  - `parsing_error`: boolean indicating if CUE file couldn't be parsed
-  - `file_missing`: boolean indicating if referenced files are missing
-  - `track_count_mismatch`: boolean indicating if track counts don't match
-
-**Example:**
+**Validate Example:**
 ```json
 {
-  "name": "validate_cue_file",
+  "name": "cue_file",
   "arguments": {
     "path": "/Users/music/Album.cue",
+    "operation": "validate",
+    "audio_dir": "/Users/music",
     "json_output": true
   }
 }
 ```
 
-**Response Example (json_output=false):**
+**Validate Response Example (valid):**
 ```
 ✓ CUE file is valid
   All referenced files exist and track count matches.
 ```
 
-**Response Example (validation failed):**
+**Validate Response Example (invalid):**
 ```
 ✗ CUE file validation failed:
   - Referenced audio file(s) missing
-  - Track count mismatch between CUE and audio files
 ```
 
-**Response Example (json_output=true):**
+**Validate Response Example (json_output=true):**
 ```json
 {
   "is_valid": false,

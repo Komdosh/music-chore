@@ -502,23 +502,16 @@ FILE "02. Time Goes On.flac" WAVE
     INDEX 01 00:00:00
 ```
 
-### 📖 `cue-parse` - Parse CUE Files
-
+**Parse Example:**
 ```bash
-# Parse and display CUE file contents (human-readable)
-musicctl cue-parse /path/to/album.cue
+# Parse CUE file (human-readable)
+musicctl cue --parse /path/to/album.cue
 
-# Parse and output JSON for programmatic use
-musicctl cue-parse /path/to/album.cue --json
+# Parse and output JSON
+musicctl cue --parse /path/to/album.cue --json
 ```
 
-**CUE Parsing Features:**
-- Parses album-level metadata (performer, title, files)
-- Parses track-level metadata (number, title, performer, index)
-- Handles multi-file CUE sheets correctly
-- JSON output for automation and AI agents
-
-**Human-Readable Output:**
+**Parse Output (human-readable):**
 ```
 Cue File: /path/to/album.cue
   Performer: Kai Engel
@@ -531,69 +524,25 @@ Cue File: /path/to/album.cue
     Track 02: Time Goes On [02. Time Goes On.flac]
 ```
 
-**JSON Output:**
-```json
-{
-  "performer": "Kai Engel",
-  "title": "Meanings",
-  "genre": "Ambient",
-  "date": "2024",
-  "files": [
-    "01. A New Journey Begins.flac",
-    "02. Time Goes On.flac"
-  ],
-  "tracks": [
-    {
-      "number": 1,
-      "title": "A New Journey Begins",
-      "performer": "Kai Engel",
-      "index": "00:00:00",
-      "file": "01. A New Journey Begins.flac"
-    }
-  ]
-}
-```
-
-### 🔍 `cue-validate` - Validate CUE Files
-
+**Validate Example:**
 ```bash
-# Validate CUE file against audio files in same directory
-musicctl cue-validate /path/to/album.cue
+# Validate CUE file
+musicctl cue --validate /path/to/album.cue
 
 # Validate with custom audio directory
-musicctl cue-validate /path/to/album.cue --audio-dir /path/to/audio
-
-# JSON output for programmatic use
-musicctl cue-validate /path/to/album.cue --json
+musicctl cue --validate /path/to/album.cue --audio-dir /path/to/audio
 ```
 
-**CUE Validation Features:**
-- Checks that referenced audio files exist
-- Validates track count consistency
-- Supports custom audio directory
-- Human-readable or JSON output
-
-**Human-Readable Output:**
+**Validate Output (valid):**
 ```
 ✓ CUE file is valid
   All referenced files exist and track count matches.
 ```
 
-**Validation Failed Output:**
+**Validate Output (invalid):**
 ```
 ✗ CUE file validation failed:
   - Referenced audio file(s) missing
-  - Track count mismatch between CUE and audio files
-```
-
-**JSON Output:**
-```json
-{
-  "is_valid": false,
-  "parsing_error": false,
-  "file_missing": true,
-  "track_count_mismatch": false
-}
 ```
 
 ### 📤 `emit` - Export Structured Metadata
