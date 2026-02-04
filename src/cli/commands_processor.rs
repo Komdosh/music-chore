@@ -54,19 +54,14 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             output,
             dry_run,
             force,
-        } => handle_cue(path, output, dry_run, force),
-        Commands::CueParse { path, json } => {
-            handle_cue_parse(path, json);
-            Ok(())
-        }
-        Commands::CueValidate {
-            path,
             audio_dir,
             json,
-        } => {
-            handle_cue_validate(path, audio_dir, json);
-            Ok(())
-        }
+            generate,
+            parse,
+            validate,
+        } => handle_cue(
+            path, output, dry_run, force, audio_dir, json, generate, parse, validate,
+        ),
         Commands::Validate { path, json } => {
             handle_validate(path, json);
             Ok(())
@@ -151,6 +146,40 @@ fn handle_validate(path: PathBuf, json: bool) {
 }
 
 fn handle_cue(
+    path: PathBuf,
+    output: Option<PathBuf>,
+    dry_run: bool,
+    force: bool,
+    audio_dir: Option<PathBuf>,
+    json: bool,
+    generate: bool,
+    parse: bool,
+    validate: bool,
+) -> Result<(), i32> {
+    let operation_count = generate as u8 + parse as u8 + validate as u8;
+
+    if operation_count == 0 {
+        eprintln!("Error: Must specify --generate, --parse, or --validate");
+        return Err(1);
+    }
+
+    if operation_count > 1 {
+        eprintln!("Error: Can only specify one of --generate, --parse, or --validate");
+        return Err(1);
+    }
+
+    if generate {
+        handle_cue_generate(path, output, dry_run, force)?;
+    } else if parse {
+        handle_cue_parse(path, json);
+    } else if validate {
+        handle_cue_validate(path, audio_dir, json);
+    }
+
+    Ok(())
+}
+
+fn handle_cue_generate(
     path: PathBuf,
     output: Option<PathBuf>,
     dry_run: bool,

@@ -154,7 +154,7 @@ Architecture uses traits for format extensibility - adding new formats requires 
 - Structure commands as separate modules
 - Provide helpful error messages for invalid input
 - Support both human-readable and JSON output where appropriate
-- Commands: scan, tree, read, write, normalize, normalize-genres, emit, validate, duplicates, cue, cue-parse, cue-validate
+- Commands: scan, tree, read, write, normalize, normalize-genres, emit, validate, duplicates, cue
 
 ### MCP Integration
 - Follow MCP schema patterns for parameter structs
