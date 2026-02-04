@@ -331,6 +331,7 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
     let content = std::fs::read_to_string(cue_path)?;
     let mut cue_file = CueFile::default();
     let mut current_track: Option<CueTrack> = None;
+    let mut current_file: Option<String> = None;
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -346,14 +347,17 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
             }
         } else if trimmed.starts_with("FILE") {
             if let Some(value) = extract_quoted_value(trimmed) {
-                cue_file.file = Some(value);
+                current_file = Some(value.clone());
+                cue_file.files.push(value);
             }
         } else if trimmed.starts_with("TRACK") && is_track_level {
             if let Some(track) = parse_track_line(trimmed) {
                 if let Some(prev_track) = current_track.take() {
                     cue_file.tracks.push(prev_track);
                 }
-                current_track = Some(track);
+                let mut new_track = track;
+                new_track.file = current_file.clone();
+                current_track = Some(new_track);
             }
         } else if trimmed.starts_with("TITLE") && is_track_level && current_track.is_some() {
             if let Some(value) = extract_quoted_value(trimmed) {
@@ -418,7 +422,7 @@ fn parse_track_line(line: &str) -> Option<CueTrack> {
 pub struct CueFile {
     pub performer: Option<String>,
     pub title: Option<String>,
-    pub file: Option<String>,
+    pub files: Vec<String>,
     pub tracks: Vec<CueTrack>,
 }
 
@@ -429,6 +433,7 @@ pub struct CueTrack {
     pub title: Option<String>,
     pub performer: Option<String>,
     pub index: Option<String>,
+    pub file: Option<String>,
 }
 
 /// Validates the consistency of a .cue file with its associated audio files.
@@ -438,7 +443,7 @@ pub fn validate_cue_consistency(cue_path: &Path, audio_files: &[&Path]) -> CueVa
     if let Ok(cue_file) = parse_cue_file(cue_path) {
         result.is_valid = true;
 
-        if let Some(file_name) = &cue_file.file {
+        for file_name in &cue_file.files {
             let file_found = audio_files.iter().any(|&path| {
                 path.file_name()
                     .and_then(|name| name.to_str())
@@ -875,13 +880,15 @@ FILE "test.flac" WAVE
 
         assert_eq!(result.performer, Some("Test Artist".to_string()), "Album performer should be 'Test Artist'");
         assert_eq!(result.title, Some("Test Album".to_string()), "Album title should be 'Test Album'");
-        assert_eq!(result.file, Some("test.flac".to_string()));
+        assert_eq!(result.files, vec!["test.flac".to_string()]);
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
         assert_eq!(result.tracks[0].title, Some("Track One".to_string()));
         assert_eq!(result.tracks[0].performer, Some("Track Artist".to_string()));
+        assert_eq!(result.tracks[0].file, Some("test.flac".to_string()));
         assert_eq!(result.tracks[1].number, 2);
         assert_eq!(result.tracks[1].title, Some("Track Two".to_string()));
+        assert_eq!(result.tracks[1].file, Some("test.flac".to_string()));
     }
 
     #[test]
@@ -902,6 +909,7 @@ FILE "tracks.flac" WAVE
 
         assert_eq!(result.performer, Some("Artist".to_string()));
         assert_eq!(result.title, Some("Album".to_string()));
+        assert_eq!(result.files, vec!["tracks.flac".to_string()]);
         assert_eq!(result.tracks.len(), 1);
     }
 
@@ -926,9 +934,12 @@ FILE "disc2.flac" WAVE
         let result = parse_cue_file(&cue_path).unwrap();
 
         assert_eq!(result.performer, Some("Various Artists".to_string()));
+        assert_eq!(result.files, vec!["disc1.flac".to_string(), "disc2.flac".to_string()]);
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
+        assert_eq!(result.tracks[0].file, Some("disc1.flac".to_string()));
         assert_eq!(result.tracks[1].number, 2);
+        assert_eq!(result.tracks[1].file, Some("disc2.flac".to_string()));
     }
 
     #[test]
@@ -946,8 +957,9 @@ FILE "disc2.flac" WAVE
 
         assert!(result.performer.is_none());
         assert!(result.title.is_none());
-        assert_eq!(result.file, Some("audio.flac".to_string()));
+        assert_eq!(result.files, vec!["audio.flac".to_string()]);
         assert_eq!(result.tracks.len(), 1);
+        assert_eq!(result.tracks[0].file, Some("audio.flac".to_string()));
     }
 
     #[test]
@@ -965,8 +977,9 @@ TITLE "Album"
 
         let result = parse_cue_file(&cue_path).unwrap();
 
-        assert!(result.file.is_none());
+        assert!(result.files.is_empty());
         assert_eq!(result.tracks.len(), 1);
+        assert!(result.tracks[0].file.is_none());
     }
 
     #[test]

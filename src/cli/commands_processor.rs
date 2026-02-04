@@ -193,15 +193,24 @@ fn handle_cue_parse(path: PathBuf, json: bool) {
                 if let Some(title) = &cue_file.title {
                     println!("  Title: {}", title);
                 }
-                if let Some(file) = &cue_file.file {
-                    println!("  File: {}", file);
+                if !cue_file.files.is_empty() {
+                    println!("  Files:");
+                    for file in &cue_file.files {
+                        println!("    - {}", file);
+                    }
                 }
                 println!("  Tracks: {}", cue_file.tracks.len());
                 for track in &cue_file.tracks {
+                    let file_info = track
+                        .file
+                        .as_ref()
+                        .map(|f| format!(" [{}]", f))
+                        .unwrap_or_default();
                     println!(
-                        "    Track {:02}: {}",
+                        "    Track {:02}: {}{}",
                         track.number,
-                        track.title.as_deref().unwrap_or("(no title)")
+                        track.title.as_deref().unwrap_or("(no title)"),
+                        file_info
                     );
                 }
             }
