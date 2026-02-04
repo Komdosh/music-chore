@@ -330,26 +330,48 @@ pub fn generate_cue_for_path(
 pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
     let content = std::fs::read_to_string(cue_path)?;
     let mut cue_file = CueFile::default();
+    let mut current_track: Option<CueTrack> = None;
 
     for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with("PERFORMER") {
-            if let Some(value) = extract_quoted_value(line) {
+        let trimmed = line.trim();
+        let is_track_level = line.starts_with("  ");
+
+        if trimmed.starts_with("PERFORMER") && !is_track_level {
+            if let Some(value) = extract_quoted_value(trimmed) {
                 cue_file.performer = Some(value);
             }
-        } else if line.starts_with("TITLE") && !line.starts_with("  TITLE") {
-            if let Some(value) = extract_quoted_value(line) {
+        } else if trimmed.starts_with("TITLE") && !is_track_level {
+            if let Some(value) = extract_quoted_value(trimmed) {
                 cue_file.title = Some(value);
             }
-        } else if line.starts_with("FILE") {
-            if let Some(value) = extract_quoted_value(line) {
+        } else if trimmed.starts_with("FILE") {
+            if let Some(value) = extract_quoted_value(trimmed) {
                 cue_file.file = Some(value);
             }
-        } else if line.starts_with("  TRACK") {
-            if let Some(track) = parse_track_line(line) {
-                cue_file.tracks.push(track);
+        } else if trimmed.starts_with("TRACK") && is_track_level {
+            if let Some(track) = parse_track_line(trimmed) {
+                if let Some(prev_track) = current_track.take() {
+                    cue_file.tracks.push(prev_track);
+                }
+                current_track = Some(track);
+            }
+        } else if trimmed.starts_with("TITLE") && is_track_level && current_track.is_some() {
+            if let Some(value) = extract_quoted_value(trimmed) {
+                current_track.as_mut().unwrap().title = Some(value);
+            }
+        } else if trimmed.starts_with("PERFORMER") && is_track_level && current_track.is_some() {
+            if let Some(value) = extract_quoted_value(trimmed) {
+                current_track.as_mut().unwrap().performer = Some(value);
+            }
+        } else if trimmed.starts_with("INDEX") && is_track_level && current_track.is_some() {
+            if let Some(value) = extract_quoted_value(trimmed) {
+                current_track.as_mut().unwrap().index = Some(value);
             }
         }
+    }
+
+    if let Some(track) = current_track {
+        cue_file.tracks.push(track);
     }
 
     Ok(cue_file)
@@ -376,7 +398,7 @@ fn extract_quoted_value(line: &str) -> Option<String> {
 
 fn parse_track_line(line: &str) -> Option<CueTrack> {
     let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() < 4 {
+    if parts.len() < 3 {
         return None;
     }
 
@@ -392,7 +414,7 @@ fn parse_track_line(line: &str) -> Option<CueTrack> {
 }
 
 /// Represents a parsed .cue file.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CueFile {
     pub performer: Option<String>,
     pub title: Option<String>,
@@ -401,7 +423,7 @@ pub struct CueFile {
 }
 
 /// Represents a track in a .cue file.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CueTrack {
     pub number: u32,
     pub title: Option<String>,
@@ -829,5 +851,127 @@ mod tests {
     fn test_extract_quoted_value_no_quotes() {
         let result = extract_quoted_value("TITLE Hello World");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_cue_file_basic() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"PERFORMER "Test Artist"
+TITLE "Test Album"
+FILE "test.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER "Track Artist"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Track Two"
+    INDEX 01 00:03:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.performer, Some("Test Artist".to_string()), "Album performer should be 'Test Artist'");
+        assert_eq!(result.title, Some("Test Album".to_string()), "Album title should be 'Test Album'");
+        assert_eq!(result.file, Some("test.flac".to_string()));
+        assert_eq!(result.tracks.len(), 2);
+        assert_eq!(result.tracks[0].number, 1);
+        assert_eq!(result.tracks[0].title, Some("Track One".to_string()));
+        assert_eq!(result.tracks[0].performer, Some("Track Artist".to_string()));
+        assert_eq!(result.tracks[1].number, 2);
+        assert_eq!(result.tracks[1].title, Some("Track Two".to_string()));
+    }
+
+    #[test]
+    fn test_parse_cue_file_minimal() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("minimal.cue");
+
+        let cue_content = r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "tracks.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "First Track"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.performer, Some("Artist".to_string()));
+        assert_eq!(result.title, Some("Album".to_string()));
+        assert_eq!(result.tracks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_cue_file_multiple_files() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("multi.cue");
+
+        let cue_content = r#"PERFORMER "Various Artists"
+TITLE "Compilation"
+FILE "disc1.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track 1"
+    INDEX 01 00:00:00
+FILE "disc2.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Track 2"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.performer, Some("Various Artists".to_string()));
+        assert_eq!(result.tracks.len(), 2);
+        assert_eq!(result.tracks[0].number, 1);
+        assert_eq!(result.tracks[1].number, 2);
+    }
+
+    #[test]
+    fn test_parse_cue_file_empty_fields() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("empty.cue");
+
+        let cue_content = r#"FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert!(result.performer.is_none());
+        assert!(result.title.is_none());
+        assert_eq!(result.file, Some("audio.flac".to_string()));
+        assert_eq!(result.tracks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_cue_file_missing_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("nofile.cue");
+
+        let cue_content = r#"PERFORMER "Artist"
+TITLE "Album"
+  TRACK 01 AUDIO
+    TITLE "Track"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert!(result.file.is_none());
+        assert_eq!(result.tracks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_cue_file_nonexistent() {
+        let result = parse_cue_file(&PathBuf::from("/nonexistent/test.cue"));
+        assert!(result.is_err());
     }
 }

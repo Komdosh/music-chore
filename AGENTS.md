@@ -154,14 +154,14 @@ Architecture uses traits for format extensibility - adding new formats requires 
 - Structure commands as separate modules
 - Provide helpful error messages for invalid input
 - Support both human-readable and JSON output where appropriate
-- Commands: scan, tree, read, write, normalize, emit, validate, duplicates
+- Commands: scan, tree, read, write, normalize, emit, validate, duplicates, cue, cue-parse
 
 ### MCP Integration
 - Follow MCP schema patterns for parameter structs
 - Use `schemars` for JSON schema generation
 - Handle JSON serialization/deserialization errors gracefully
 - Provide clear error responses for MCP operations
-- MCP tools: scan_directory, read_file_metadata, get_library_tree, emit_library_metadata, normalize_titles, validate_library, find_duplicates
+- MCP tools: scan_directory, read_file_metadata, get_library_tree, emit_library_metadata, normalize_titles, validate_library, find_duplicates, generate_cue_file, parse_cue_file
 
 ## Design Principles
 
@@ -279,13 +279,14 @@ Therefore:
 ✅ Title normalization
 ✅ Duplicate detection by checksum
 ✅ Validation of metadata completeness
+✅ .cue file generation from track metadata
 
 **v2 - Future Enhancements**
 
 * Additional audio format support (DSF, OGG, M4A)
-* .cue file generation from track metadata
 * Batch metadata operations
 * Genre normalization
+* CUE file validation
 
 ---
 

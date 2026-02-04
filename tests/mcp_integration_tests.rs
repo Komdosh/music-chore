@@ -92,7 +92,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 8);
+    assert_eq!(tools.len(), 9);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -104,6 +104,7 @@ async fn test_tools_list() -> Result<()> {
         "validate_library",
         "find_duplicates",
         "generate_cue_file",
+        "parse_cue_file",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
