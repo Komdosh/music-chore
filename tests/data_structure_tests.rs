@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 #[cfg(test)]
 mod tests {
-    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
     use super::*;
+    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
 
     fn create_test_metadata_value<T: Clone>(
         value: T,

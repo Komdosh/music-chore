@@ -1,12 +1,12 @@
-use music_chore::{build_library_hierarchy, MetadataSource, MetadataValue, Track, TrackMetadata};
+use music_chore::{MetadataSource, MetadataValue, Track, TrackMetadata, build_library_hierarchy};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[cfg(test)]
 mod tests {
-    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
     use super::*;
+    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
     use music_chore::services::scanner::scan_dir;
 
     #[test]

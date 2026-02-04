@@ -1,7 +1,7 @@
+use music_chore::services::formats::read_metadata;
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
-use music_chore::services::formats::read_metadata;
 
 #[test]
 fn test_write_dry_run_prevents_file_writes() {

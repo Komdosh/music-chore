@@ -8,10 +8,8 @@ pub mod services;
 
 // Re-export commonly used types and functions for backwards compatibility
 pub use domain::{
-    build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue,
-    OperationResult, Track, TrackMetadata, TrackNode,
+    AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, OperationResult, Track,
+    TrackMetadata, TrackNode, build_library_hierarchy,
 };
 
-pub use services::{
-    infer_album_from_path, infer_artist_from_path, normalization::to_title_case,
-};
+pub use services::{infer_album_from_path, infer_artist_from_path, normalization::to_title_case};

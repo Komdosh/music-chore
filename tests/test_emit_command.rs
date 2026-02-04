@@ -4,10 +4,7 @@ use tempfile::TempDir;
 #[test]
 fn test_emit_command_basic() {
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-            "emit",
-            "tests/fixtures/flac/simple",
-        ])
+        .args(&["emit", "tests/fixtures/flac/simple"])
         .output()
         .expect("Failed to run emit command");
 
@@ -28,11 +25,7 @@ fn test_emit_command_basic() {
 #[test]
 fn test_emit_command_json() {
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-            "emit",
-            "tests/fixtures/flac/simple",
-            "--json",
-        ])
+        .args(&["emit", "tests/fixtures/flac/simple", "--json"])
         .output()
         .expect("Failed to run emit command with JSON");
 
@@ -59,10 +52,7 @@ fn test_emit_command_json() {
 #[test]
 fn test_emit_command_nested_structure() {
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-            "emit",
-            "tests/fixtures/flac/nested",
-        ])
+        .args(&["emit", "tests/fixtures/flac/nested"])
         .output()
         .expect("Failed to run emit command on nested structure");
 
@@ -71,17 +61,15 @@ fn test_emit_command_nested_structure() {
 
     // Should find The Beatles artist
     assert!(stderr.contains("Failed to read metadata"));
-    assert!(stderr.contains("Invalid file: Failed to read FLAC file: Invalid argument (os error 22)"));
+    assert!(
+        stderr.contains("Invalid file: Failed to read FLAC file: Invalid argument (os error 22)")
+    );
 }
 
 #[test]
 fn test_emit_command_nested_json() {
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-            "emit",
-            "tests/fixtures/flac/nested",
-            "--json",
-        ])
+        .args(&["emit", "tests/fixtures/flac/nested", "--json"])
         .output()
         .expect("Failed to run emit command on nested structure with JSON");
 
@@ -112,11 +100,7 @@ fn test_emit_command_empty_directory() {
     let empty_path = temp_dir.path();
 
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-
-            "emit",
-            empty_path.to_str().unwrap(),
-        ])
+        .args(&["emit", empty_path.to_str().unwrap()])
         .output()
         .expect("Failed to run emit command on empty directory");
 
@@ -133,11 +117,7 @@ fn test_emit_command_empty_directory() {
 #[test]
 fn test_emit_command_nonexistent_directory() {
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
-        .args(&[
-
-            "emit",
-            "/nonexistent/path",
-        ])
+        .args(&["emit", "/nonexistent/path"])
         .output()
         .expect("Failed to run emit command");
 

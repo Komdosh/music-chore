@@ -30,10 +30,12 @@ fn test_scan_dir_warns_on_unsupported_format() {
     let tracks = scan_dir(source_path);
 
     assert_eq!(tracks.len(), 1);
-    assert!(tracks[0]
-        .file_path
-        .to_string_lossy()
-        .contains("track1.flac"));
+    assert!(
+        tracks[0]
+            .file_path
+            .to_string_lossy()
+            .contains("track1.flac")
+    );
 }
 
 #[test]

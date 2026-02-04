@@ -848,7 +848,8 @@ mod tests {
             Some(2020),
             Some("ROCK"),
         )];
-        let album = create_test_album_with_genre("UPPERCASE ALBUM", Some(2020), Some("ROCK"), tracks);
+        let album =
+            create_test_album_with_genre("UPPERCASE ALBUM", Some(2020), Some("ROCK"), tracks);
 
         let content = generate_cue_content(&album);
 
@@ -894,9 +895,20 @@ FILE "test.flac" WAVE
 
         let result = parse_cue_file(&cue_path).unwrap();
 
-        assert_eq!(result.performer, Some("Test Artist".to_string()), "Album performer should be 'Test Artist'");
-        assert_eq!(result.title, Some("Test Album".to_string()), "Album title should be 'Test Album'");
-        assert!(result.genre.is_none(), "Genre should be None for basic test");
+        assert_eq!(
+            result.performer,
+            Some("Test Artist".to_string()),
+            "Album performer should be 'Test Artist'"
+        );
+        assert_eq!(
+            result.title,
+            Some("Test Album".to_string()),
+            "Album title should be 'Test Album'"
+        );
+        assert!(
+            result.genre.is_none(),
+            "Genre should be None for basic test"
+        );
         assert!(result.date.is_none(), "Date should be None for basic test");
         assert_eq!(result.files, vec!["test.flac".to_string()]);
         assert_eq!(result.tracks.len(), 2);
@@ -952,7 +964,10 @@ FILE "disc2.flac" WAVE
         let result = parse_cue_file(&cue_path).unwrap();
 
         assert_eq!(result.performer, Some("Various Artists".to_string()));
-        assert_eq!(result.files, vec!["disc1.flac".to_string(), "disc2.flac".to_string()]);
+        assert_eq!(
+            result.files,
+            vec!["disc1.flac".to_string(), "disc2.flac".to_string()]
+        );
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
         assert_eq!(result.tracks[0].file, Some("disc1.flac".to_string()));
@@ -1013,7 +1028,9 @@ TITLE "Album"
         let audio_path1 = temp_dir.path().join("track1.flac");
         let audio_path2 = temp_dir.path().join("track2.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -1023,7 +1040,9 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio_path1, b"dummy audio").unwrap();
         std::fs::write(&audio_path2, b"dummy audio").unwrap();
 
@@ -1042,13 +1061,17 @@ FILE "track2.flac" WAVE
         let cue_path = temp_dir.path().join("test.cue");
         let audio_path = temp_dir.path().join("existing.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "missing.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio_path, b"dummy audio").unwrap();
 
         let audio_files: Vec<&Path> = vec![audio_path.as_path()];
@@ -1066,7 +1089,9 @@ FILE "missing.flac" WAVE
         let audio_path2 = temp_dir.path().join("track2.flac");
         let audio_path3 = temp_dir.path().join("track3.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -1076,12 +1101,18 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio_path1, b"dummy audio").unwrap();
         std::fs::write(&audio_path2, b"dummy audio").unwrap();
         std::fs::write(&audio_path3, b"dummy audio").unwrap();
 
-        let audio_files: Vec<&Path> = vec![audio_path1.as_path(), audio_path2.as_path(), audio_path3.as_path()];
+        let audio_files: Vec<&Path> = vec![
+            audio_path1.as_path(),
+            audio_path2.as_path(),
+            audio_path3.as_path(),
+        ];
         let result = validate_cue_consistency(&cue_path, &audio_files);
 
         assert!(!result.is_valid);

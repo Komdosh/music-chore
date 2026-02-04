@@ -77,10 +77,7 @@ fn test_validate_path_nonexistent_directory() {
     // Check that it's some kind of error about directory not existing
     let error_msg = result.unwrap_err();
     println!("Error message: {}", error_msg);
-    assert!(
-        error_msg.contains("\"valid\": true")
-            || error_msg.contains("\"valid_files\": 0")
-    );
+    assert!(error_msg.contains("\"valid\": true") || error_msg.contains("\"valid_files\": 0"));
 }
 
 #[test]

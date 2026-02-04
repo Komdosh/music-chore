@@ -1,6 +1,6 @@
 //! Format-agnostic directory scanner for music files.
 
-use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
+use crate::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
 use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
 use log::{debug, warn};
@@ -436,10 +436,12 @@ mod tests {
         let base = PathBuf::from("tests/fixtures/inference");
         let tracks = scan_dir_with_depth(&base, Some(1));
         assert_eq!(tracks.len(), 1);
-        assert!(tracks[0]
-            .file_path
-            .to_string_lossy()
-            .contains("root/track.flac"));
+        assert!(
+            tracks[0]
+                .file_path
+                .to_string_lossy()
+                .contains("root/track.flac")
+        );
     }
 
     #[test]

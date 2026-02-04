@@ -3,8 +3,8 @@
 mod tests {
     use music_chore::services::scanner::scan_dir;
     use music_chore::{
-        build_library_hierarchy, AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue,
-        TrackNode,
+        AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, TrackNode,
+        build_library_hierarchy,
     };
     use std::fs;
     use std::path::PathBuf;

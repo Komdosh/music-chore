@@ -1,4 +1,4 @@
-use music_chore::{build_library_hierarchy, MetadataSource, MetadataValue, Track, TrackMetadata};
+use music_chore::{MetadataSource, MetadataValue, Track, TrackMetadata, build_library_hierarchy};
 use std::path::PathBuf;
 
 #[cfg(test)]

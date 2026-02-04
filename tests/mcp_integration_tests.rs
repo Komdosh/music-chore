@@ -2,14 +2,14 @@
 //! DRY helpers, shared setup, and consistent assertions
 
 use anyhow::Result;
+use rmcp::ServiceError::McpError;
 use rmcp::model::JsonObject;
 use rmcp::service::RunningService;
-use rmcp::ServiceError::McpError;
 use rmcp::{
-    model::{CallToolRequestParams, ErrorCode}, object, transport::TokioChildProcess,
-    RmcpError,
-    RoleClient,
-    ServiceExt,
+    RmcpError, RoleClient, ServiceExt,
+    model::{CallToolRequestParams, ErrorCode},
+    object,
+    transport::TokioChildProcess,
 };
 use std::borrow::Cow;
 use tokio::process::Command;
@@ -199,7 +199,11 @@ async fn test_normalize_titles() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
-    assert!(text.is_empty(), "Expected empty output for directory with no audio files, got: {}", text);
+    assert!(
+        text.is_empty(),
+        "Expected empty output for directory with no audio files, got: {}",
+        text
+    );
 
     shutdown(client).await
 }
@@ -213,7 +217,9 @@ async fn test_cue_file_validate_valid() -> Result<()> {
     let audio_path1 = temp_dir.path().join("track1.flac");
     let audio_path2 = temp_dir.path().join("track2.flac");
 
-    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+    std::fs::write(
+        &cue_path,
+        r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -223,7 +229,8 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#)?;
+"#,
+    )?;
     std::fs::write(&audio_path1, b"dummy audio")?;
     std::fs::write(&audio_path2, b"dummy audio")?;
 
@@ -245,7 +252,10 @@ FILE "track2.flac" WAVE
     assert_eq!(json.get("is_valid").unwrap().as_bool().unwrap(), true);
     assert_eq!(json.get("parsing_error").unwrap().as_bool().unwrap(), false);
     assert_eq!(json.get("file_missing").unwrap().as_bool().unwrap(), false);
-    assert_eq!(json.get("track_count_mismatch").unwrap().as_bool().unwrap(), false);
+    assert_eq!(
+        json.get("track_count_mismatch").unwrap().as_bool().unwrap(),
+        false
+    );
 
     shutdown(client).await
 }
@@ -258,13 +268,16 @@ async fn test_cue_file_validate_missing_file() -> Result<()> {
     let cue_path = temp_dir.path().join("test.cue");
     let audio_path = temp_dir.path().join("existing.flac");
 
-    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+    std::fs::write(
+        &cue_path,
+        r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "missing.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track"
     INDEX 01 00:00:00
-"#)?;
+"#,
+    )?;
     std::fs::write(&audio_path, b"dummy audio")?;
 
     let result = call_tool(
@@ -297,7 +310,9 @@ async fn test_cue_file_validate_track_mismatch() -> Result<()> {
     let audio_path2 = temp_dir.path().join("track2.flac");
     let audio_path3 = temp_dir.path().join("track3.flac");
 
-    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+    std::fs::write(
+        &cue_path,
+        r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -307,7 +322,8 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#)?;
+"#,
+    )?;
     std::fs::write(&audio_path1, b"dummy audio")?;
     std::fs::write(&audio_path2, b"dummy audio")?;
     std::fs::write(&audio_path3, b"dummy audio")?;
@@ -387,13 +403,16 @@ async fn test_cue_file_validate_with_custom_audio_dir() -> Result<()> {
     let cue_path = temp_dir.path().join("test.cue");
     let audio_path = audio_dir.join("track.flac");
 
-    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+    std::fs::write(
+        &cue_path,
+        r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track"
     INDEX 01 00:00:00
-"#)?;
+"#,
+    )?;
     std::fs::write(&audio_path, b"dummy audio")?;
 
     let result = call_tool(
@@ -441,7 +460,7 @@ async fn test_emit_library_metadata_text() -> Result<()> {
         "ARTIST: flac",
         "ALBUM: simple",
         "TRACK: \"Test Song\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track1.flac",
-        "TRACK: \"[Unknown Title]\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track2.flac"
+        "TRACK: \"[Unknown Title]\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track2.flac",
     ] {
         assert!(text.contains(expected));
     }
@@ -826,7 +845,10 @@ async fn test_cue_file_parse() -> Result<()> {
     let json_text = text_content(&result);
     let json: serde_json::Value = serde_json::from_str(&json_text)?;
 
-    assert_eq!(json.get("performer").unwrap().as_str().unwrap(), "Test Artist");
+    assert_eq!(
+        json.get("performer").unwrap().as_str().unwrap(),
+        "Test Artist"
+    );
     assert_eq!(json.get("title").unwrap().as_str().unwrap(), "Test Album");
 
     let files = json.get("files").unwrap().as_array().unwrap();
@@ -837,9 +859,15 @@ async fn test_cue_file_parse() -> Result<()> {
     let tracks = json.get("tracks").unwrap().as_array().unwrap();
     assert_eq!(tracks.len(), 2);
     assert_eq!(tracks[0].get("number").unwrap().as_u64().unwrap(), 1);
-    assert_eq!(tracks[0].get("title").unwrap().as_str().unwrap(), "First Track");
+    assert_eq!(
+        tracks[0].get("title").unwrap().as_str().unwrap(),
+        "First Track"
+    );
     assert_eq!(tracks[1].get("number").unwrap().as_u64().unwrap(), 2);
-    assert_eq!(tracks[1].get("title").unwrap().as_str().unwrap(), "Second Track");
+    assert_eq!(
+        tracks[1].get("title").unwrap().as_str().unwrap(),
+        "Second Track"
+    );
 
     shutdown(client).await
 }

@@ -1,5 +1,6 @@
+use crate::domain::with_schema_version;
 use crate::services::scanner::{scan_dir, scan_dir_with_metadata};
-use crate::{build_library_hierarchy, Library, MetadataSource, Track, TrackNode};
+use crate::{Library, MetadataSource, Track, TrackNode, build_library_hierarchy};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -312,16 +313,17 @@ pub fn emit_structured_output(library: &Library) -> String {
 pub fn emit_by_path(path: &Path, json: bool) -> Result<String, String> {
     log::info!("emit_by_path called with path: {}", path.display());
 
-    let tracks = match scan_dir_with_metadata(path){
+    let tracks = match scan_dir_with_metadata(path) {
         Ok(tracks) => tracks,
-        Err(e) => return Err(format!("Failed to scan directory: {}", e))
+        Err(e) => return Err(format!("Failed to scan directory: {}", e)),
     };
     log::info!("Found {} tracks", tracks.len());
 
     let library = build_library_hierarchy(tracks);
 
     if json {
-        match to_string_pretty(&library) {
+        let wrapper = with_schema_version(&library);
+        match to_string_pretty(&wrapper) {
             Ok(s) => Ok(s),
             Err(e) => Err(format!("Error serializing to JSON: {}", e)),
         }

@@ -19,9 +19,11 @@ fn test_write_metadata_requires_apply_or_dry_run() {
         false,
     );
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .contains("Must specify either --apply or --dry-run"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("Must specify either --apply or --dry-run")
+    );
 }
 
 #[test]
@@ -34,9 +36,11 @@ fn test_write_metadata_prevents_both_flags() {
     let result =
         write_metadata_by_path(&test_file, vec!["title=New Title".to_string()], true, true);
     assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .contains("Cannot use both --apply and --dry-run"));
+    assert!(
+        result
+            .unwrap_err()
+            .contains("Cannot use both --apply and --dry-run")
+    );
 }
 
 #[test]

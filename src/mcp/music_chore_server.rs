@@ -1,31 +1,34 @@
-use log;
-use rmcp::{
-    handler::server::{tool::ToolRouter, wrapper::Parameters, ServerHandler},
-    model::{
-        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
-    },
-    tool,
-    tool_handler, tool_router, ErrorData as McpError,
-};
-use std::path::{Path, PathBuf};
 use crate::cli::commands::validate_path;
 use crate::mcp::params::{
-    CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeTitlesParams,
-    ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
+    CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
+    NormalizeTitlesParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::cue::{generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
+use crate::services::cue::{
+    CueGenerationError, CueValidationResult, generate_cue_for_path, parse_cue_file,
+    validate_cue_consistency,
+};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
-use crate::services::{formats::read_metadata, normalization::normalize, scanner::scan_dir};
 use crate::services::scanner::scan_tracks;
+use crate::services::{formats::read_metadata, normalization::normalize, scanner::scan_dir};
+use log;
+use rmcp::{
+    ErrorData as McpError,
+    handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+    },
+    tool, tool_handler, tool_router,
+};
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct MusicChoreServer {
     tool_router: ToolRouter<Self>,
 }
 
- impl Default for MusicChoreServer {
+impl Default for MusicChoreServer {
     fn default() -> Self {
         Self {
             tool_router: Self::tool_router(),
@@ -34,7 +37,7 @@ pub struct MusicChoreServer {
 }
 
 #[tool_router]
- impl MusicChoreServer {
+impl MusicChoreServer {
     pub fn new() -> Self {
         Self::default()
     }
@@ -47,9 +50,9 @@ pub struct MusicChoreServer {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
 
-        match scan_tracks(path, json_output){
+        match scan_tracks(path, json_output) {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
-            Err(error) => Ok(CallToolResult::error(vec![Content::text(error)]))
+            Err(error) => Ok(CallToolResult::error(vec![Content::text(error)])),
         }
     }
     #[tool(description = "Get hierarchical library tree view")]
@@ -166,10 +169,7 @@ pub struct MusicChoreServer {
     }
 
     #[tool(description = "Generate, parse, or validate .cue files")]
-    async fn cue_file(
-        &self,
-        params: Parameters<CueParams>,
-    ) -> Result<CallToolResult, McpError> {
+    async fn cue_file(&self, params: Parameters<CueParams>) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let operation = params.0.operation.to_lowercase();
         let dry_run = params.0.dry_run.unwrap_or(false);
@@ -177,7 +177,13 @@ pub struct MusicChoreServer {
         let audio_dir = params.0.audio_dir.map(PathBuf::from);
         let json_output = params.0.json_output.unwrap_or(false);
 
-        log::info!("cue_file called with path: {}, operation: {}, dry_run: {}, force: {}", path.display(), operation, dry_run, force);
+        log::info!(
+            "cue_file called with path: {}, operation: {}, dry_run: {}, force: {}",
+            path.display(),
+            operation,
+            dry_run,
+            force
+        );
 
         match operation.as_str() {
             "generate" => {
@@ -227,12 +233,15 @@ async fn handle_cue_generate(
             }
         }
         Err(CueGenerationError::NoMusicFiles) => Ok(CallToolResult::error(vec![Content::text(
-            "No music files found in directory (checked only immediate files, not subdirectories)".to_string(),
+            "No music files found in directory (checked only immediate files, not subdirectories)"
+                .to_string(),
         )])),
         Err(CueGenerationError::NoReadableFiles) => Ok(CallToolResult::error(vec![Content::text(
             "No readable music files found in directory".to_string(),
         )])),
-        Err(CueGenerationError::FileReadError(msg)) => Ok(CallToolResult::error(vec![Content::text(msg)])),
+        Err(CueGenerationError::FileReadError(msg)) => {
+            Ok(CallToolResult::error(vec![Content::text(msg)]))
+        }
     }
 }
 
@@ -288,17 +297,15 @@ async fn handle_cue_validate(
     json_output: bool,
 ) -> Result<CallToolResult, McpError> {
     let audio_directory = audio_dir.unwrap_or_else(|| {
-        path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf()
+        path.parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf()
     });
 
     let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_directory) {
         Ok(entries) => entries
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.file_type()
-                    .map(|ft| ft.is_file())
-                    .unwrap_or(false)
-            })
+            .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
             .filter(|e| {
                 !e.path()
                     .extension()

@@ -1,3 +1,4 @@
+use crate::domain::with_schema_version;
 use crate::services::scanner::scan_with_duplicates;
 use serde_json::to_string_pretty;
 use std::fmt::Write;
@@ -18,29 +19,31 @@ pub fn find_duplicates(path: &Path, json: bool) -> Result<String, String> {
     }
 
     if json {
-        return Ok(to_string_pretty(&duplicates)
-            .unwrap_or_else(|e| format!("Error serializing to JSON: {}", e)));
-    }
+        match to_string_pretty(&duplicates) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(format!("Error serializing to JSON: {}", e)),
+        }
+    } else {
+        let mut out = String::new();
 
-    let mut out = String::new();
+        writeln!(out, "Found {} duplicate groups:\n", duplicates.len()).unwrap();
 
-    writeln!(out, "Found {} duplicate groups:\n", duplicates.len()).unwrap();
+        for (i, duplicate_group) in duplicates.iter().enumerate() {
+            writeln!(
+                out,
+                "Duplicate Group {} ({} files):",
+                i + 1,
+                duplicate_group.len()
+            )
+            .unwrap();
 
-    for (i, duplicate_group) in duplicates.iter().enumerate() {
-        writeln!(
-            out,
-            "Duplicate Group {} ({} files):",
-            i + 1,
-            duplicate_group.len()
-        )
-        .unwrap();
+            for track in duplicate_group {
+                writeln!(out, "  {}", track.file_path.display()).unwrap();
+            }
 
-        for track in duplicate_group {
-            writeln!(out, "  {}", track.file_path.display()).unwrap();
+            writeln!(out).unwrap();
         }
 
-        writeln!(out).unwrap();
+        Ok(out)
     }
-
-    Ok(out)
 }

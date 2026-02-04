@@ -249,8 +249,10 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
     let mut out = String::new();
 
     let tracks = if path.is_file() {
-        vec![formats::read_metadata(path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?]
+        vec![
+            formats::read_metadata(path)
+                .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
+        ]
     } else if path.is_dir() {
         crate::services::scanner::scan_dir(path)
     } else {
@@ -435,7 +437,7 @@ fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
             return OperationResult::Error {
                 track,
                 error: "No title found".to_string(),
-            }
+            };
         }
     };
 

@@ -3,7 +3,6 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-
 #[test]
 fn test_scan_dir_with_metadata_empty_directory() {
     let temp_dir = TempDir::new().unwrap();
@@ -201,12 +200,12 @@ fn test_scan_dir_with_metadata_preserves_order() {
         "tests/fixtures/flac/simple/track1.flac",
         source_path.join("artist/album/a_track.flac"),
     )
-        .unwrap();
+    .unwrap();
     fs::copy(
         "tests/fixtures/flac/simple/track1.flac",
         source_path.join("artist/album/b_track.flac"),
     )
-        .unwrap();
+    .unwrap();
 
     let result = scan_dir_with_metadata(source_path);
     assert!(result.is_ok());

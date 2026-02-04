@@ -188,22 +188,24 @@ impl WavHandler {
 
         // Fallback inference for missing metadata
         if artist.is_none()
-            && let Some(inferred_artist) = infer_artist_from_path(path) {
-                artist = Some(MetadataValue {
-                    value: inferred_artist,
-                    source: crate::domain::models::MetadataSource::FolderInferred,
-                    confidence: 0.5,
-                });
-            }
+            && let Some(inferred_artist) = infer_artist_from_path(path)
+        {
+            artist = Some(MetadataValue {
+                value: inferred_artist,
+                source: crate::domain::models::MetadataSource::FolderInferred,
+                confidence: 0.5,
+            });
+        }
 
         if album.is_none()
-            && let Some(inferred_album) = infer_album_from_path(path) {
-                album = Some(MetadataValue {
-                    value: inferred_album,
-                    source: crate::domain::models::MetadataSource::FolderInferred,
-                    confidence: 0.5,
-                });
-            }
+            && let Some(inferred_album) = infer_album_from_path(path)
+        {
+            album = Some(MetadataValue {
+                value: inferred_album,
+                source: crate::domain::models::MetadataSource::FolderInferred,
+                confidence: 0.5,
+            });
+        }
 
         // Extract duration from file properties
         let duration = tagged_file.properties().duration().as_secs_f64();

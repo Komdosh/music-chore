@@ -1,3 +1,4 @@
+use crate::domain::with_schema_version;
 use crate::services::formats::read_metadata;
 use crate::services::scanner::scan_dir;
 use serde_json::to_string_pretty;
@@ -64,7 +65,8 @@ pub fn validate_path(path: &PathBuf, json: bool) -> Result<String, String> {
     let validation_results = validate_tracks(tracks_with_metadata);
 
     let result = if json {
-        to_string_pretty(&validation_results)
+        let wrapper = with_schema_version(&validation_results);
+        to_string_pretty(&wrapper)
             .unwrap_or_else(|e| format!("Error serializing validation results: {}", e))
     } else {
         build_validation_results(&validation_results)

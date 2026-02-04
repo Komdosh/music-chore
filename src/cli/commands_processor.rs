@@ -1,6 +1,7 @@
 use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
+use crate::domain::with_schema_version;
 use crate::services::apply_metadata::write_metadata_by_path;
 use crate::services::cue::{
     generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError,
@@ -107,7 +108,8 @@ pub fn handle_tree(path: PathBuf, json: bool) {
     if json {
         let tracks = scan_dir(&path);
         let library = build_library_hierarchy(tracks);
-        match to_string_pretty(&library) {
+        let wrapper = with_schema_version(&library);
+        match to_string_pretty(&wrapper) {
             Ok(s) => println!("{}", s),
             Err(e) => eprintln!("Error serializing to JSON: {}", e),
         }
@@ -118,10 +120,13 @@ pub fn handle_tree(path: PathBuf, json: bool) {
 
 pub fn handle_read(file: PathBuf) {
     match read_metadata(&file) {
-        Ok(track) => match to_string_pretty(&track) {
-            Ok(s) => println!("{}", s),
-            Err(e) => eprintln!("Error serializing track: {}", e),
-        },
+        Ok(track) => {
+            let wrapper = with_schema_version(&track);
+            match to_string_pretty(&wrapper) {
+                Ok(s) => println!("{}", s),
+                Err(e) => eprintln!("Error serializing track: {}", e),
+            }
+        }
         Err(e) => eprintln!("Error reading metadata: {}", e),
     }
 }
@@ -254,7 +259,8 @@ fn handle_cue_parse(path: PathBuf, json: bool) {
     match parse_cue_file(&path) {
         Ok(cue_file) => {
             if json {
-                match to_string_pretty(&cue_file) {
+                let wrapper = with_schema_version(&cue_file);
+                match to_string_pretty(&wrapper) {
                     Ok(s) => println!("{}", s),
                     Err(e) => eprintln!("Error serializing cue file: {}", e),
                 }
@@ -315,7 +321,8 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
     let result = validate_cue_consistency(&path, &audio_files_refs);
 
     if json {
-        match to_string_pretty(&result) {
+        let wrapper = with_schema_version(&result);
+        match to_string_pretty(&wrapper) {
             Ok(s) => println!("{}", s),
             Err(e) => eprintln!("Error serializing result: {}", e),
         }

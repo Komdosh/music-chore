@@ -109,11 +109,11 @@ features:
   - id: 24
     desc: Ensure deterministic scan order
     cmd: musicctl scan
-    passes: false
+    passes: true
   - id: 25
     desc: Expose schema version in output
     cmd: musicctl emit
-    passes: false
+    passes: true
   - id: 26
     desc: Handle missing album directories
     cmd: musicctl scan

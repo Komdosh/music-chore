@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use env_logger::Env;
-use music_chore::cli::{handle_command, Cli};
+use music_chore::cli::{Cli, handle_command};
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("warn")).init();
