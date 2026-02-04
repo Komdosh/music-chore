@@ -31,6 +31,9 @@ pub enum Commands {
         /// Maximum recursion depth (0 = immediate files only, 1 = one level deep, etc.).
         #[arg(long)]
         max_depth: Option<usize>,
+        /// Follow symbolic links.
+        #[arg(long)]
+        follow_symlinks: bool,
         /// Output JSON instead of a simple tree.
         #[arg(long)]
         json: bool,

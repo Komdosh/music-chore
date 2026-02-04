@@ -280,6 +280,79 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
     tracks
 }
 
+/// Scan directory with optional max depth limit and symlink handling.
+/// If follow_symlinks is true, symbolic links to files are followed.
+/// None = unlimited depth (full recursion)
+/// Some(0) = immediate files only (like ls)
+/// Some(1) = base dir + 1 level deep
+/// Some(2) = base dir + 2 levels deep, etc.
+pub fn scan_dir_with_depth_and_symlinks(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+) -> Vec<Track> {
+    let supported_extensions = formats::get_supported_extensions();
+
+    let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
+
+    if let Some(depth) = max_depth {
+        walkdir = walkdir.max_depth(depth + 1);
+    }
+
+    let mut tracks = Vec::new();
+
+    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        if path.is_file() {
+            if is_supported_audio_file(path, &supported_extensions) {
+                let inferred_artist = infer_artist_from_path(path)
+                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+
+                let inferred_album = infer_album_from_path(path)
+                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+                let format = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("unknown")
+                    .to_lowercase();
+
+                let metadata = TrackMetadata {
+                    title: None,
+                    artist: inferred_artist,
+                    album: inferred_album,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format,
+                    path: path.to_path_buf(),
+                };
+
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
+                warn!(
+                    "Unsupported audio format: {} (supported: {})",
+                    path.display(),
+                    supported_extensions.join(", ")
+                );
+            }
+        }
+    }
+
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        file_a.cmp(&file_b)
+    });
+
+    tracks
+}
+
 /// Check if a file is a supported audio file
 fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool {
     path.extension()
