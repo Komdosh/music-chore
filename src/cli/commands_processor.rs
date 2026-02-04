@@ -2,7 +2,7 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::{generate_cue_for_path, CueGenerationError};
+use crate::services::cue::{generate_cue_for_path, parse_cue_file, CueGenerationError};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
@@ -49,6 +49,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             dry_run,
             force,
         } => handle_cue(path, output, dry_run, force),
+        Commands::CueParse { path, json } => {
+            handle_cue_parse(path, json);
+            Ok(())
+        }
         Commands::Validate { path, json } => {
             handle_validate(path, json);
             Ok(())
@@ -170,5 +174,47 @@ fn handle_cue(
             eprintln!("{}", msg);
             Err(1)
         }
+    }
+}
+
+fn handle_cue_parse(path: PathBuf, json: bool) {
+    match parse_cue_file(&path) {
+        Ok(cue_file) => {
+            if json {
+                match to_string_pretty(&cue_file) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => eprintln!("Error serializing cue file: {}", e),
+                }
+            } else {
+                println!("Cue File: {}", path.display());
+                if let Some(performer) = &cue_file.performer {
+                    println!("  Performer: {}", performer);
+                }
+                if let Some(title) = &cue_file.title {
+                    println!("  Title: {}", title);
+                }
+                if !cue_file.files.is_empty() {
+                    println!("  Files:");
+                    for file in &cue_file.files {
+                        println!("    - {}", file);
+                    }
+                }
+                println!("  Tracks: {}", cue_file.tracks.len());
+                for track in &cue_file.tracks {
+                    let file_info = track
+                        .file
+                        .as_ref()
+                        .map(|f| format!(" [{}]", f))
+                        .unwrap_or_default();
+                    println!(
+                        "    Track {:02}: {}{}",
+                        track.number,
+                        track.title.as_deref().unwrap_or("(no title)"),
+                        file_info
+                    );
+                }
+            }
+        }
+        Err(e) => eprintln!("Error parsing cue file: {}", e),
     }
 }

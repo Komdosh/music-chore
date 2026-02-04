@@ -46,3 +46,8 @@ pub struct GenerateCueParams {
     pub(crate) dry_run: Option<bool>,
     pub(crate) force: Option<bool>,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ParseCueParams {
+    pub(crate) path: String,
+}

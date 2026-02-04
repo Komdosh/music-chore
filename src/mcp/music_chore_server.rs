@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use crate::cli::commands::validate_path;
 use crate::mcp::params::{
     EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
-    ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
+    ParseCueParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
-use crate::services::cue::{generate_cue_for_path, CueGenerationError};
+use crate::services::cue::{generate_cue_for_path, parse_cue_file, CueGenerationError};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
@@ -213,6 +213,29 @@ pub struct MusicChoreServer {
             Err(CueGenerationError::FileReadError(msg)) => {
                 Ok(CallToolResult::error(vec![Content::text(msg)]))
             }
+        }
+    }
+
+    #[tool(description = "Parse and read contents of a .cue file")]
+    async fn parse_cue_file(
+        &self,
+        params: Parameters<ParseCueParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+
+        log::info!("parse_cue_file called with path: {}", path.display());
+
+        match parse_cue_file(&path) {
+            Ok(cue_file) => {
+                let result = serde_json::to_string_pretty(&cue_file).map_err(|e| {
+                    McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+                })?;
+                Ok(CallToolResult::success(vec![Content::text(result)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Error parsing cue file: {}",
+                e
+            ))])),
         }
     }
 }

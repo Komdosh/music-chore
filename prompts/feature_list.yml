@@ -95,16 +95,16 @@ features:
     description: "Feature 14: Generate .cue file from album."
     steps:
       - "Step 1: Prepare album with multiple tracks"
-      - "Step 2: Run musicctl cuegen"
+      - "Step 2: Run musicctl cue"
       - "Step 3: Verify .cue file content"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 15: Parse existing .cue file."
     steps:
       - "Step 1: Prepare .cue file"
-      - "Step 2: Run musicctl cueparse"
+      - "Step 2: Run musicctl cue parse"
       - "Step 3: Verify parsed metadata"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 16: Validate .cue file consistency."
     steps:

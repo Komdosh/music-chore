@@ -67,16 +67,24 @@ pub enum Commands {
     },
     /// Generate .cue file for an album folder.
     Cue {
-        /// Path to the album directory.
+        /// Path to album directory.
         path: PathBuf,
-        /// Output path for the .cue file (defaults to album directory).
+        /// Output path for .cue file (defaults to album directory).
         output: Option<PathBuf>,
-        /// Show what would be written without actually writing the file.
+        /// Show what would be written without actually writing file.
         #[arg(long)]
         dry_run: bool,
         /// Overwrite existing .cue file.
         #[arg(long)]
         force: bool,
+    },
+    /// Parse and display contents of a .cue file.
+    CueParse {
+        /// Path to .cue file.
+        path: PathBuf,
+        /// Output JSON instead of human-readable format.
+        #[arg(long)]
+        json: bool,
     },
     /// Validate metadata completeness and consistency.
     Validate {
