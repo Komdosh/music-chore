@@ -589,6 +589,17 @@ pub fn scan_dir_with_options(
     follow_symlinks: bool,
     exclude_patterns: Vec<String>,
 ) -> Vec<Track> {
+    scan_dir_with_options_impl(base, max_depth, follow_symlinks, exclude_patterns, false)
+}
+
+/// Internal implementation of scan_dir_with_options that supports verbose output
+fn scan_dir_with_options_impl(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude_patterns: Vec<String>,
+    verbose: bool,
+) -> Vec<Track> {
     let supported_extensions = formats::get_supported_extensions();
 
     let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
@@ -598,6 +609,9 @@ pub fn scan_dir_with_options(
     }
 
     let mut tracks = Vec::new();
+    let mut processed_files = 0;
+    let mut supported_files = 0;
+    let mut unsupported_files = 0;
 
     for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -632,7 +646,15 @@ pub fn scan_dir_with_options(
         }
 
         if path.is_file() {
+            processed_files += 1;
+
+            if verbose && processed_files % 100 == 0 {
+                eprintln!("Processed {} files...", processed_files);
+            }
+
             if is_supported_audio_file(path, &supported_extensions) {
+                supported_files += 1;
+
                 // Check file validity
                 if let Err(e) = check_file_validity(path) {
                     error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
@@ -689,9 +711,15 @@ pub fn scan_dir_with_options(
                 let track = Track::new(path.to_path_buf(), metadata);
                 tracks.push(track);
             } else if has_audio_extension(path) {
+                unsupported_files += 1;
                 warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
             }
         }
+    }
+
+    if verbose {
+        eprintln!("Scan completed: {} processed, {} supported, {} unsupported",
+                 processed_files, supported_files, unsupported_files);
     }
 
     tracks.sort_by(|a, b| {
@@ -701,6 +729,18 @@ pub fn scan_dir_with_options(
     });
 
     tracks
+}
+
+/// Scan directory with full options including depth limit, symlink handling, exclude patterns, and verbose output.
+/// Supports glob patterns for exclusion (e.g., "*.tmp", "temp_*", "backup/*")
+pub fn scan_dir_with_options_verbose(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude_patterns: Vec<String>,
+    verbose: bool,
+) -> Vec<Track> {
+    scan_dir_with_options_impl(base, max_depth, follow_symlinks, exclude_patterns, verbose)
 }
 
 /// Check if a string matches a glob-like pattern.

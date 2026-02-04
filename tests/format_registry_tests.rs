@@ -11,11 +11,13 @@ fn test_registry_supported_extensions() {
     let registry = create_audio_registry();
     let extensions = registry.supported_extensions();
 
-    // Should support FLAC, MP3, and WAV
+    // Should support FLAC, MP3, WAV, DSF, and WavPack
     assert!(extensions.contains(&"flac".to_string()));
     assert!(extensions.contains(&"mp3".to_string()));
     assert!(extensions.contains(&"wav".to_string()));
-    assert_eq!(extensions.len(), 3);
+    assert!(extensions.contains(&"dsf".to_string()));
+    assert!(extensions.contains(&"wv".to_string()));
+    assert_eq!(extensions.len(), 5);
 }
 
 #[test]
@@ -27,6 +29,10 @@ fn test_is_format_supported() {
     assert!(is_format_supported(&PathBuf::from("test.MP3")));
     assert!(is_format_supported(&PathBuf::from("test.wav")));
     assert!(is_format_supported(&PathBuf::from("test.WAV")));
+    assert!(is_format_supported(&PathBuf::from("test.dsf")));
+    assert!(is_format_supported(&PathBuf::from("test.DSF")));
+    assert!(is_format_supported(&PathBuf::from("test.wv")));
+    assert!(is_format_supported(&PathBuf::from("test.WV")));
 
     // Unsupported formats
     assert!(!is_format_supported(&PathBuf::from("test.ogg")));
@@ -42,7 +48,9 @@ fn test_get_supported_extensions() {
     assert!(extensions.contains(&"flac".to_string()));
     assert!(extensions.contains(&"mp3".to_string()));
     assert!(extensions.contains(&"wav".to_string()));
-    assert_eq!(extensions.len(), 3);
+    assert!(extensions.contains(&"dsf".to_string()));
+    assert!(extensions.contains(&"wv".to_string()));
+    assert_eq!(extensions.len(), 5);
 }
 
 #[test]

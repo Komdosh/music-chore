@@ -40,6 +40,9 @@ pub enum Commands {
         /// Output JSON instead of a simple tree.
         #[arg(long)]
         json: bool,
+        /// Emit progress output during scanning.
+        #[arg(long)]
+        verbose: bool,
     },
     /// Show a human‑friendly tree view.
     Tree {
