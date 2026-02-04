@@ -517,3 +517,162 @@ fn test_binary_version() {
     assert!(stdout.starts_with("musicctl-mcp "));
     assert!(stdout.contains("0.2."));
 }
+
+/* -------------------------- CUE file tests ------------------------- */
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_generate_cue_file_dry_run() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let album_dir = temp_dir.path().join("Test Album");
+    std::fs::create_dir_all(&album_dir)?;
+
+    let track1 = album_dir.join("01. Track One.flac");
+    let track2 = album_dir.join("02. Track Two.flac");
+    std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
+    std::fs::copy("tests/fixtures/flac/simple/track2.flac", &track2)?;
+
+    let result = call_tool(
+        &client,
+        "generate_cue_file",
+        object!({
+            "path": album_dir.to_string_lossy(),
+            "dry_run": true,
+            "force": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Would write to:"));
+    assert!(text.contains(".cue"));
+    assert!(text.contains("PERFORMER"));
+    assert!(text.contains("TRACK 01"));
+    assert!(text.contains("TRACK 02"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_generate_cue_file_actual() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let album_dir = temp_dir.path().join("Actual Album");
+    std::fs::create_dir_all(&album_dir)?;
+
+    let track1 = album_dir.join("01. Track.flac");
+    std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
+
+    let result = call_tool(
+        &client,
+        "generate_cue_file",
+        object!({
+            "path": album_dir.to_string_lossy(),
+            "dry_run": false,
+            "force": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Cue file written to:"));
+
+    let cue_path = album_dir.join("Actual Album.cue");
+    assert!(cue_path.exists());
+
+    let cue_content = std::fs::read_to_string(&cue_path)?;
+    assert!(cue_content.contains("PERFORMER"));
+    assert!(cue_content.contains("TRACK 01 AUDIO"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_parse_cue_file() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "parse_cue_file",
+        object!({
+            "path": "tests/fixtures/cue/album.cue"
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let json_text = text_content(&result);
+    let json: serde_json::Value = serde_json::from_str(&json_text)?;
+
+    assert_eq!(json.get("performer").unwrap().as_str().unwrap(), "Test Artist");
+    assert_eq!(json.get("title").unwrap().as_str().unwrap(), "Test Album");
+
+    let files = json.get("files").unwrap().as_array().unwrap();
+    assert_eq!(files.len(), 2);
+    assert_eq!(files[0].as_str().unwrap(), "01. First Track.flac");
+    assert_eq!(files[1].as_str().unwrap(), "02. Second Track.flac");
+
+    let tracks = json.get("tracks").unwrap().as_array().unwrap();
+    assert_eq!(tracks.len(), 2);
+    assert_eq!(tracks[0].get("number").unwrap().as_u64().unwrap(), 1);
+    assert_eq!(tracks[0].get("title").unwrap().as_str().unwrap(), "First Track");
+    assert_eq!(tracks[1].get("number").unwrap().as_u64().unwrap(), 2);
+    assert_eq!(tracks[1].get("title").unwrap().as_str().unwrap(), "Second Track");
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_parse_cue_file_nonexistent() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "parse_cue_file",
+        object!({
+            "path": "/nonexistent/path/nonexistent.cue"
+        }),
+    )
+    .await?;
+
+    assert_err(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Error parsing cue file"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_generate_cue_file_no_files() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let empty_dir = temp_dir.path().join("Empty Album");
+    std::fs::create_dir_all(&empty_dir)?;
+
+    let result = call_tool(
+        &client,
+        "generate_cue_file",
+        object!({
+            "path": empty_dir.to_string_lossy(),
+            "dry_run": false,
+            "force": false
+        }),
+    )
+    .await?;
+
+    assert_err(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("No music files found"));
+
+    shutdown(client).await
+}
