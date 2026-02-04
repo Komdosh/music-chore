@@ -4,7 +4,326 @@ use crate::domain::models::{OperationResult, Track};
 use crate::services::formats;
 use std::path::{Path, PathBuf};
 
-/// Convert string to title case (first letter of each word capitalized)
+pub const STANDARD_GENRES: &[&str] = &[
+    "Acoustic",
+    "Alternative",
+    "Ambient",
+    "Avant-Garde",
+    "Blues",
+    "Classical",
+    "Country",
+    "Dance",
+    "Electronic",
+    "Folk",
+    "Hip-Hop",
+    "House",
+    "Indie",
+    "Jazz",
+    "Metal",
+    "Pop",
+    "Punk",
+    "R&B",
+    "Reggae",
+    "Rock",
+    "Soul",
+    "Techno",
+    "World",
+    "Soundtrack",
+    "New Age",
+    "Funk",
+    "Disco",
+    "Swing",
+    "Opera",
+    "Musical",
+    "Children's",
+    "Spoken Word",
+    "Comedy",
+    "Speech",
+    "Podcast",
+    "Audiobook",
+];
+
+const GENRE_ALIASES: &[(&[&str], &str)] = &[
+    (
+        &[
+            "rock and roll",
+            "rock & roll",
+            "rock'n'roll",
+            "rock'n'roll",
+            "rock & roll",
+            "rock",
+        ],
+        "Rock",
+    ),
+    (&["pop rock", "pop-rock", "pop/rock"], "Pop"),
+    (
+        &[
+            "alternative rock",
+            "alternative-rock",
+            "alt rock",
+            "alternative",
+        ],
+        "Alternative",
+    ),
+    (
+        &[
+            "electronic",
+            "electronica",
+            "electro",
+            "edm",
+            "electronic dance music",
+        ],
+        "Electronic",
+    ),
+    (&["hip hop", "hip-hop", "hiphop", "rap"], "Hip-Hop"),
+    (&["r & b", "r&b", "rn b", "rnb", "rhythm and blues"], "R&B"),
+    (
+        &["classical", "orchestral", "symphony", "chamber music"],
+        "Classical",
+    ),
+    (
+        &[
+            "jazz",
+            "jazz fusion",
+            "smooth jazz",
+            "free jazz",
+            "bebop",
+            "swing",
+        ],
+        "Jazz",
+    ),
+    (
+        &["blues", "delta blues", "chicago blues", "electric blues"],
+        "Blues",
+    ),
+    (
+        &[
+            "country",
+            "country music",
+            "country & western",
+            "c&w",
+            "nashville",
+        ],
+        "Country",
+    ),
+    (
+        &["folk", "folk rock", "contemporary folk", "traditional folk"],
+        "Folk",
+    ),
+    (
+        &[
+            "metal",
+            "heavy metal",
+            "thrash metal",
+            "death metal",
+            "black metal",
+            "doom metal",
+            "metalcore",
+        ],
+        "Metal",
+    ),
+    (
+        &[
+            "punk",
+            "punk rock",
+            "hardcore punk",
+            "post-punk",
+            "garage punk",
+        ],
+        "Punk",
+    ),
+    (&["reggae", "dancehall", "dub", "rocksteady"], "Reggae"),
+    (&["soul", "neo soul", "southern soul", "motown"], "Soul"),
+    (
+        &["funk", "funk soul", "psychedelic funk", "afrobeat"],
+        "Funk",
+    ),
+    (&["disco", "dance disco", "eurodance"], "Disco"),
+    (
+        &[
+            "ambient",
+            "ambient music",
+            "chillout",
+            "downtempo",
+            "lounge",
+        ],
+        "Ambient",
+    ),
+    (
+        &["techno", "techno music", "detroit techno", "minimal techno"],
+        "Techno",
+    ),
+    (
+        &[
+            "house",
+            "house music",
+            "deep house",
+            "progressive house",
+            "tech house",
+        ],
+        "House",
+    ),
+    (
+        &[
+            "indie",
+            "indie rock",
+            "indie pop",
+            "indie folk",
+            "alternative indie",
+        ],
+        "Indie",
+    ),
+    (&["acoustic", "acoustic music", "unplugged"], "Acoustic"),
+    (
+        &[
+            "soundtrack",
+            "movie soundtrack",
+            "film score",
+            "original soundtrack",
+            "ost",
+        ],
+        "Soundtrack",
+    ),
+    (
+        &["world", "world music", "international", "ethnic"],
+        "World",
+    ),
+    (
+        &["new age", "newage", "relaxation", "meditation"],
+        "New Age",
+    ),
+    (&["spoken word", "poetry", "readings"], "Spoken Word"),
+    (&["audiobook", "audio book", "books"], "Audiobook"),
+    (
+        &["children", "children's", "kids", "for children"],
+        "Children's",
+    ),
+    (&["comedy", "comedic", "humor"], "Comedy"),
+    (
+        &["musical", "musical theater", "musical theatre", "broadway"],
+        "Musical",
+    ),
+    (&["opera", "operatic", "opera singer"], "Opera"),
+    (
+        &["avantgarde", "avant garde", "experimental", "avant-garde"],
+        "Avant-Garde",
+    ),
+];
+
+pub fn normalize_genre(genre: &str) -> Option<String> {
+    let normalized: Vec<String> = genre
+        .trim()
+        .split('/')
+        .map(|g| {
+            let g = g.trim().to_lowercase();
+            for (aliases, standard) in GENRE_ALIASES {
+                if aliases.iter().any(|a| *a == g) {
+                    return standard.to_string();
+                }
+            }
+            let capitalized = to_title_case(&g);
+            if STANDARD_GENRES
+                .iter()
+                .any(|s| s.to_lowercase() == capitalized.to_lowercase())
+            {
+                STANDARD_GENRES
+                    .iter()
+                    .find(|s| s.to_lowercase() == capitalized.to_lowercase())
+                    .unwrap()
+                    .to_string()
+            } else {
+                capitalized
+            }
+        })
+        .filter(|g| !g.is_empty())
+        .collect();
+
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized.join("/"))
+    }
+}
+
+pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String, String> {
+    let mut out = String::new();
+
+    let tracks = if path.is_file() {
+        vec![formats::read_metadata(path)
+            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?]
+    } else if path.is_dir() {
+        crate::services::scanner::scan_dir(path)
+    } else {
+        return Err(format!("Path does not exist: {}", path.display()));
+    };
+
+    let mut updated_count = 0;
+    let mut no_change_count = 0;
+    let mut error_count = 0;
+
+    for track in tracks {
+        if let Some(ref genre) = track.metadata.genre {
+            let normalized = normalize_genre(&genre.value);
+
+            match normalized {
+                Some(ref new_genre) if new_genre != &genre.value => {
+                    if dry_run {
+                        out.push_str(&format!(
+                            "DRY RUN: Would normalize '{}' -> '{}' in {}\n",
+                            genre.value,
+                            new_genre,
+                            track.file_path.display()
+                        ));
+                    } else {
+                        let mut updated_metadata = track.metadata.clone();
+                        updated_metadata.genre = Some(
+                            crate::domain::models::MetadataValue::user_set(new_genre.clone()),
+                        );
+
+                        match formats::write_metadata(&track.file_path, &updated_metadata) {
+                            Ok(()) => {
+                                out.push_str(&format!(
+                                    "NORMALIZED: '{}' -> '{}' in {}\n",
+                                    genre.value,
+                                    new_genre,
+                                    track.file_path.display()
+                                ));
+                            }
+                            Err(e) => {
+                                out.push_str(&format!(
+                                    "ERROR: {} in {}\n",
+                                    e,
+                                    track.file_path.display()
+                                ));
+                                error_count += 1;
+                                continue;
+                            }
+                        }
+                    }
+                    updated_count += 1;
+                }
+                Some(_) => {
+                    no_change_count += 1;
+                }
+                None => {
+                    out.push_str(&format!(
+                        "ERROR: Could not normalize genre '{}' in {}\n",
+                        genre.value,
+                        track.file_path.display()
+                    ));
+                    error_count += 1;
+                }
+            }
+        }
+    }
+
+    out.push_str(&format!(
+        "\nSummary: {} normalized, {} no change, {} errors\n",
+        updated_count, no_change_count, error_count
+    ));
+
+    Ok(out)
+}
 pub fn to_title_case(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut capitalize_next = true;
@@ -169,5 +488,77 @@ mod tests {
         assert_eq!(to_title_case(""), "");
         assert_eq!(to_title_case("a"), "A");
         assert_eq!(to_title_case("already Title Case"), "Already Title Case");
+    }
+
+    #[test]
+    fn test_normalize_genre_rock_aliases() {
+        assert_eq!(normalize_genre("rock and roll"), Some("Rock".to_string()));
+        assert_eq!(normalize_genre("rock & roll"), Some("Rock".to_string()));
+        assert_eq!(normalize_genre("rock'n'roll"), Some("Rock".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_genre_hip_hop_aliases() {
+        assert_eq!(normalize_genre("hip hop"), Some("Hip-Hop".to_string()));
+        assert_eq!(normalize_genre("hip-hop"), Some("Hip-Hop".to_string()));
+        assert_eq!(normalize_genre("hiphop"), Some("Hip-Hop".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_genre_electronic_aliases() {
+        assert_eq!(
+            normalize_genre("electronic"),
+            Some("Electronic".to_string())
+        );
+        assert_eq!(
+            normalize_genre("electronica"),
+            Some("Electronic".to_string())
+        );
+        assert_eq!(normalize_genre("edm"), Some("Electronic".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_genre_standard_genres() {
+        assert_eq!(normalize_genre("rock"), Some("Rock".to_string()));
+        assert_eq!(normalize_genre("jazz"), Some("Jazz".to_string()));
+        assert_eq!(normalize_genre("classical"), Some("Classical".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_genre_case_insensitive() {
+        assert_eq!(normalize_genre("ROCK"), Some("Rock".to_string()));
+        assert_eq!(normalize_genre("Jazz"), Some("Jazz".to_string()));
+        assert_eq!(
+            normalize_genre("ELECTRONIC"),
+            Some("Electronic".to_string())
+        );
+    }
+
+    #[test]
+    fn test_normalize_genre_slash_separated() {
+        assert_eq!(
+            normalize_genre("rock/electronic"),
+            Some("Rock/Electronic".to_string())
+        );
+        assert_eq!(
+            normalize_genre("hip hop / soul"),
+            Some("Hip-Hop/Soul".to_string())
+        );
+    }
+
+    #[test]
+    fn test_normalize_genre_unknown() {
+        assert_eq!(
+            normalize_genre("Custom Genre"),
+            Some("Custom Genre".to_string())
+        );
+        assert_eq!(normalize_genre(""), None);
+    }
+
+    #[test]
+    fn test_normalize_genre_jazz_aliases() {
+        assert_eq!(normalize_genre("smooth jazz"), Some("Jazz".to_string()));
+        assert_eq!(normalize_genre("bebop"), Some("Jazz".to_string()));
+        assert_eq!(normalize_genre("swing"), Some("Jazz".to_string()));
     }
 }

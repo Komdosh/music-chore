@@ -113,7 +113,14 @@ features:
       - "Step 3: Verify error message"
     passes: true
   - category: "functional"
-    description: "Feature 17: Support REM GENRE and REM DATE parsing in CUE files."
+    description: "Feature 21: Normalize music genres to standard categories."
+    steps:
+      - "Step 1: Create track with non-standard genre"
+      - "Step 2: Run musicctl normalize-genres"
+      - "Step 3: Verify genre normalized to standard"
+    passes: true
+  - category: "functional"
+    description: "Feature 22: Support REM GENRE and REM DATE parsing in CUE files."
     steps:
       - "Step 1: Create .cue file with REM GENRE and REM DATE"
       - "Step 2: Run musicctl cue-parse"

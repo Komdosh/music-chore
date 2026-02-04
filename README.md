@@ -243,6 +243,24 @@ Transforms messy titles into clean title case:
 - `"SOMETHING"` → `"Something"`
 - `"here comes the sun"` → `"Here Comes The Sun"`
 
+### 🎵 `normalize-genres` - Normalize Music Genres
+
+```bash
+# Preview genre changes
+musicctl normalize-genres /path/to/music --dry-run
+
+# Apply changes
+musicctl normalize-genres /path/to/music
+```
+
+Normalizes genres to standard categories:
+- `"rock and roll"` → `"Rock"`
+- `"hip hop"` → `"Hip-Hop"`
+- `"electronic"` → `"Electronic"`
+- `"smooth jazz"` → `"Jazz"`
+- Supports 40+ standard genres and common aliases
+- Handles slash-separated multiple genres
+
 ### ✏️ `write` - Update Metadata
 
 ```bash

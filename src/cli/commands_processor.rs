@@ -8,7 +8,7 @@ use crate::services::cue::{
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
-use crate::services::normalization::normalize;
+use crate::services::normalization::{normalize, normalize_genres_in_library};
 use crate::services::scanner::{scan_dir, scan_tracks};
 use serde_json::to_string_pretty;
 use std::path::{Path, PathBuf};
@@ -39,6 +39,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         }
         Commands::Normalize { path, dry_run } => {
             handle_normalize(path, dry_run);
+            Ok(())
+        }
+        Commands::NormalizeGenres { path, dry_run } => {
+            handle_normalize_genres(path, dry_run);
             Ok(())
         }
         Commands::Emit { path, json } => {
@@ -113,6 +117,13 @@ pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool)
 
 pub fn handle_normalize(path: PathBuf, dry_run: bool) {
     match normalize(path, dry_run) {
+        Ok(result) => println!("{}", result),
+        Err(e) => eprintln!("{}", e),
+    }
+}
+
+pub fn handle_normalize_genres(path: PathBuf, dry_run: bool) {
+    match normalize_genres_in_library(&path, dry_run) {
         Ok(result) => println!("{}", result),
         Err(e) => eprintln!("{}", e),
     }
