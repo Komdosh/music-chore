@@ -53,15 +53,13 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Normalize track titles to title case.
+    /// Normalize track titles to title case, or normalize genres with --genres.
     Normalize {
         path: PathBuf,
+        /// Normalize genres instead of titles.
         #[arg(long)]
-        dry_run: bool,
-    },
-    /// Normalize music genres to standard categories.
-    NormalizeGenres {
-        path: PathBuf,
+        genres: bool,
+        /// Show what would be changed without actually modifying files.
         #[arg(long)]
         dry_run: bool,
     },

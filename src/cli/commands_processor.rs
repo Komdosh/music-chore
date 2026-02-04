@@ -37,12 +37,16 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             handle_write(file, set, apply, dry_run);
             Ok(())
         }
-        Commands::Normalize { path, dry_run } => {
-            handle_normalize(path, dry_run);
-            Ok(())
-        }
-        Commands::NormalizeGenres { path, dry_run } => {
-            handle_normalize_genres(path, dry_run);
+        Commands::Normalize {
+            path,
+            genres,
+            dry_run,
+        } => {
+            if genres {
+                handle_normalize_genres(path, dry_run);
+            } else {
+                handle_normalize(path, dry_run);
+            }
             Ok(())
         }
         Commands::Emit { path, json } => {

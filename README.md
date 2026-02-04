@@ -72,7 +72,7 @@ musicctl validate /path/to/your/music
 | `read` | Extract file metadata | `musicctl read track.flac` |
 | `write` | Update metadata | `musicctl write track.flac --title "New Title"` |
 | `normalize` | Title case normalization | `musicctl normalize ~/Music` |
-| `normalize-genres` | Genre standardization | `musicctl normalize-genres ~/Music` |
+| `normalize --genres` | Genre normalization | `musicctl normalize --genres ~/Music` |
 | `validate` | Check metadata quality | `musicctl validate ~/Music` |
 | `duplicates` | Find duplicate files | `musicctl duplicates ~/Music` |
 | `emit` | Export structured metadata | `musicctl emit ~/Music --json` |
@@ -95,7 +95,7 @@ musicctl cue --validate /path/to/album.cue
 ```bash
 # See what would change (no modifications)
 musicctl normalize /path/to/music --dry-run
-musicctl normalize-genres /path/to/music --dry-run
+musicctl normalize --genres /path/to/music --dry-run
 ```
 
 ---
