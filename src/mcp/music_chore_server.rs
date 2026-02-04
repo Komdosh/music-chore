@@ -10,8 +10,8 @@ use rmcp::{
 use std::path::{Path, PathBuf};
 use crate::cli::commands::validate_path;
 use crate::mcp::params::{
-    EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
-    ParseCueParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateCueParams, ValidateLibraryParams,
+    CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeTitlesParams,
+    ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
 use crate::services::cue::{generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
 use crate::services::duplicates::find_duplicates;
@@ -165,136 +165,174 @@ pub struct MusicChoreServer {
         };
     }
 
-    #[tool(description = "Generate a .cue file for an album folder")]
-    async fn generate_cue_file(
+    #[tool(description = "Generate, parse, or validate .cue files")]
+    async fn cue_file(
         &self,
-        params: Parameters<GenerateCueParams>,
+        params: Parameters<CueParams>,
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
+        let operation = params.0.operation.to_lowercase();
         let dry_run = params.0.dry_run.unwrap_or(false);
         let force = params.0.force.unwrap_or(false);
+        let audio_dir = params.0.audio_dir.map(PathBuf::from);
+        let json_output = params.0.json_output.unwrap_or(false);
 
-        log::info!("generate_cue_file called with path: {}, dry_run: {}, force: {}", path.display(), dry_run, force);
+        log::info!("cue_file called with path: {}, operation: {}, dry_run: {}, force: {}", path.display(), operation, dry_run, force);
 
-        match generate_cue_for_path(&path, params.0.output.map(PathBuf::from)) {
-            Ok(result) => {
-                if !dry_run && result.output_path.exists() && !force {
-                    return Ok(CallToolResult::error(vec![Content::text(format!(
-                        "Cue file already exists at '{}'. Use force=true to overwrite.",
-                        result.output_path.display()
-                    ))]));
-                }
-
-                if dry_run {
-                    Ok(CallToolResult::success(vec![Content::text(format!(
-                        "Would write to: {}\n\n{}",
-                        result.output_path.display(),
-                        result.cue_content
-                    ))]))
-                } else {
-                    match std::fs::write(&result.output_path, &result.cue_content) {
-                        Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
-                            "Cue file written to: {}",
-                            result.output_path.display()
-                        ))])),
-                        Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                            "Error writing cue file: {}",
-                            e
-                        ))])),
-                    }
-                }
+        match operation.as_str() {
+            "generate" => {
+                handle_cue_generate(&path, params.0.output.map(PathBuf::from), dry_run, force).await
             }
-            Err(CueGenerationError::NoMusicFiles) => {
-                Ok(CallToolResult::error(vec![Content::text("No music files found in directory (checked only immediate files, not subdirectories)")]))
-            }
-            Err(CueGenerationError::NoReadableFiles) => {
-                Ok(CallToolResult::error(vec![Content::text("No readable music files found in directory")]))
-            }
-            Err(CueGenerationError::FileReadError(msg)) => {
-                Ok(CallToolResult::error(vec![Content::text(msg)]))
-            }
+            "parse" => handle_cue_parse(&path, json_output).await,
+            "validate" => handle_cue_validate(&path, audio_dir, json_output).await,
+            _ => Ok(CallToolResult::error(vec![Content::text(
+                "Invalid operation. Must be 'generate', 'parse', or 'validate'".to_string(),
+            )])),
         }
     }
+}
 
-    #[tool(description = "Parse and read contents of a .cue file")]
-    async fn parse_cue_file(
-        &self,
-        params: Parameters<ParseCueParams>,
-    ) -> Result<CallToolResult, McpError> {
-        let path = PathBuf::from(params.0.path);
+async fn handle_cue_generate(
+    path: &Path,
+    output: Option<PathBuf>,
+    dry_run: bool,
+    force: bool,
+) -> Result<CallToolResult, McpError> {
+    match generate_cue_for_path(path, output) {
+        Ok(result) => {
+            if !dry_run && result.output_path.exists() && !force {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Cue file already exists at '{}'. Use force=true to overwrite.",
+                    result.output_path.display()
+                ))]));
+            }
 
-        log::info!("parse_cue_file called with path: {}", path.display());
+            if dry_run {
+                Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Would write to: {}\n\n{}",
+                    result.output_path.display(),
+                    result.cue_content
+                ))]))
+            } else {
+                match std::fs::write(&result.output_path, &result.cue_content) {
+                    Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                        "Cue file written to: {}",
+                        result.output_path.display()
+                    ))])),
+                    Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Error writing cue file: {}",
+                        e
+                    ))])),
+                }
+            }
+        }
+        Err(CueGenerationError::NoMusicFiles) => Ok(CallToolResult::error(vec![Content::text(
+            "No music files found in directory (checked only immediate files, not subdirectories)".to_string(),
+        )])),
+        Err(CueGenerationError::NoReadableFiles) => Ok(CallToolResult::error(vec![Content::text(
+            "No readable music files found in directory".to_string(),
+        )])),
+        Err(CueGenerationError::FileReadError(msg)) => Ok(CallToolResult::error(vec![Content::text(msg)])),
+    }
+}
 
-        match parse_cue_file(&path) {
-            Ok(cue_file) => {
+async fn handle_cue_parse(path: &Path, json_output: bool) -> Result<CallToolResult, McpError> {
+    match parse_cue_file(path) {
+        Ok(cue_file) => {
+            if json_output {
                 let result = serde_json::to_string_pretty(&cue_file).map_err(|e| {
                     McpError::invalid_params(format!("JSON serialization error: {}", e), None)
                 })?;
                 Ok(CallToolResult::success(vec![Content::text(result)]))
+            } else {
+                let mut output = format!("Cue File: {}\n", path.display());
+                if let Some(performer) = &cue_file.performer {
+                    output.push_str(&format!("  Performer: {}\n", performer));
+                }
+                if let Some(title) = &cue_file.title {
+                    output.push_str(&format!("  Title: {}\n", title));
+                }
+                if !cue_file.files.is_empty() {
+                    output.push_str("  Files:\n");
+                    for file in &cue_file.files {
+                        output.push_str(&format!("    - {}\n", file));
+                    }
+                }
+                output.push_str(&format!("  Tracks: {}\n", cue_file.tracks.len()));
+                for track in &cue_file.tracks {
+                    let file_info = track
+                        .file
+                        .as_ref()
+                        .map(|f| format!(" [{}]", f))
+                        .unwrap_or_default();
+                    output.push_str(&format!(
+                        "    Track {:02}: {}{}\n",
+                        track.number,
+                        track.title.as_deref().unwrap_or("(no title)"),
+                        file_info
+                    ));
+                }
+                Ok(CallToolResult::success(vec![Content::text(output)]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Error parsing cue file: {}",
-                e
-            ))])),
         }
+        Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+            "Error parsing cue file: {}",
+            e
+        ))])),
     }
+}
 
-    #[tool(description = "Validate a .cue file against its referenced audio files")]
-    async fn validate_cue_file(
-        &self,
-        params: Parameters<ValidateCueParams>,
-    ) -> Result<CallToolResult, McpError> {
-        let cue_path = PathBuf::from(params.0.path);
-        let audio_dir = params.0.audio_dir.map(PathBuf::from).unwrap_or_else(|| {
-            cue_path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf()
-        });
-        let json_output = params.0.json_output.unwrap_or(false);
+async fn handle_cue_validate(
+    path: &Path,
+    audio_dir: Option<PathBuf>,
+    json_output: bool,
+) -> Result<CallToolResult, McpError> {
+    let audio_directory = audio_dir.unwrap_or_else(|| {
+        path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf()
+    });
 
-        log::info!("validate_cue_file called with cue_path: {}, audio_dir: {}", cue_path.display(), audio_dir.display());
-
-        let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_dir) {
-            Ok(entries) => entries
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.file_type()
-                        .map(|ft| ft.is_file())
-                        .unwrap_or(false)
-                })
-                .filter(|e| {
-                    !e.path()
-                        .extension()
-                        .map(|ext| ext == "cue")
-                        .unwrap_or(false)
-                })
-                .map(|e| e.path())
-                .collect(),
-            Err(_) => {
-                let mut result = CueValidationResult::default();
-                result.is_valid = false;
-                result.file_missing = true;
-                let result_str = if json_output {
-                    serde_json::to_string_pretty(&result).map_err(|e| {
-                        McpError::invalid_params(format!("JSON serialization error: {}", e), None)
-                    })?
-                } else {
-                    format_cue_validation_result(&result)
-                };
-                return Ok(CallToolResult::success(vec![Content::text(result_str)]));
-            }
-        };
-
-        let audio_files_refs: Vec<&Path> = audio_files.iter().map(|p| p.as_path()).collect();
-        let result = validate_cue_consistency(&cue_path, &audio_files_refs);
-
-        if json_output {
-            let result_str = serde_json::to_string_pretty(&result).map_err(|e| {
-                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
-            })?;
-            Ok(CallToolResult::success(vec![Content::text(result_str)]))
-        } else {
-            let output = format_cue_validation_result(&result);
-            Ok(CallToolResult::success(vec![Content::text(output)]))
+    let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_directory) {
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_type()
+                    .map(|ft| ft.is_file())
+                    .unwrap_or(false)
+            })
+            .filter(|e| {
+                !e.path()
+                    .extension()
+                    .map(|ext| ext == "cue")
+                    .unwrap_or(false)
+            })
+            .map(|e| e.path())
+            .collect(),
+        Err(_) => {
+            let mut result = CueValidationResult::default();
+            result.is_valid = false;
+            result.file_missing = true;
+            let result_str = if json_output {
+                serde_json::to_string_pretty(&result).map_err(|e| {
+                    McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+                })?
+            } else {
+                format_cue_validation_result(&result)
+            };
+            return Ok(CallToolResult::success(vec![Content::text(result_str)]));
         }
+    };
+
+    let audio_files_refs: Vec<&Path> = audio_files.iter().map(|p| p.as_path()).collect();
+    let result = validate_cue_consistency(path, &audio_files_refs);
+
+    if json_output {
+        let result_str = serde_json::to_string_pretty(&result).map_err(|e| {
+            McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+        })?;
+        Ok(CallToolResult::success(vec![Content::text(result_str)]))
+    } else {
+        let output = format_cue_validation_result(&result);
+        Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 }
 

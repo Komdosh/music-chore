@@ -92,7 +92,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 10);
+    assert_eq!(tools.len(), 8);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -103,9 +103,7 @@ async fn test_tools_list() -> Result<()> {
         "emit_library_metadata",
         "validate_library",
         "find_duplicates",
-        "generate_cue_file",
-        "parse_cue_file",
-        "validate_cue_file",
+        "cue_file",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
@@ -207,7 +205,7 @@ async fn test_normalize_titles() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_valid() -> Result<()> {
+async fn test_cue_file_validate_valid() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -231,44 +229,10 @@ FILE "track2.flac" WAVE
 
     let result = call_tool(
         &client,
-        "validate_cue_file",
+        "cue_file",
         object!({
             "path": cue_path.to_string_lossy(),
-            "json_output": false
-        }),
-    )
-    .await?;
-
-    assert_ok(&result);
-
-    let text = text_content(&result);
-    assert!(text.contains("CUE file is valid"));
-
-    shutdown(client).await
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_valid_json() -> Result<()> {
-    let client = spawn_client().await?;
-
-    let temp_dir = tempfile::Builder::new().tempdir()?;
-    let cue_path = temp_dir.path().join("test.cue");
-    let audio_path = temp_dir.path().join("track.flac");
-
-    std::fs::write(&cue_path, r#"PERFORMER "Artist"
-TITLE "Album"
-FILE "track.flac" WAVE
-  TRACK 01 AUDIO
-    TITLE "Track"
-    INDEX 01 00:00:00
-"#)?;
-    std::fs::write(&audio_path, b"dummy audio")?;
-
-    let result = call_tool(
-        &client,
-        "validate_cue_file",
-        object!({
-            "path": cue_path.to_string_lossy(),
+            "operation": "validate",
             "json_output": true
         }),
     )
@@ -287,7 +251,7 @@ FILE "track.flac" WAVE
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_missing_file() -> Result<()> {
+async fn test_cue_file_validate_missing_file() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -305,9 +269,10 @@ FILE "missing.flac" WAVE
 
     let result = call_tool(
         &client,
-        "validate_cue_file",
+        "cue_file",
         object!({
             "path": cue_path.to_string_lossy(),
+            "operation": "validate",
             "json_output": false
         }),
     )
@@ -323,7 +288,7 @@ FILE "missing.flac" WAVE
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_track_mismatch() -> Result<()> {
+async fn test_cue_file_validate_track_mismatch() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -349,9 +314,10 @@ FILE "track2.flac" WAVE
 
     let result = call_tool(
         &client,
-        "validate_cue_file",
+        "cue_file",
         object!({
             "path": cue_path.to_string_lossy(),
+            "operation": "validate",
             "json_output": false
         }),
     )
@@ -367,14 +333,37 @@ FILE "track2.flac" WAVE
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_nonexistent() -> Result<()> {
+async fn test_cue_file_parse_nonexistent() -> Result<()> {
     let client = spawn_client().await?;
 
     let result = call_tool(
         &client,
-        "validate_cue_file",
+        "cue_file",
         object!({
-            "path": "/nonexistent/nonexistent.cue"
+            "path": "/nonexistent/path/nonexistent.cue",
+            "operation": "parse"
+        }),
+    )
+    .await?;
+
+    assert_err(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Error parsing cue file"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_cue_file_validate_nonexistent() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "cue_file",
+        object!({
+            "path": "/nonexistent/path/nonexistent.cue",
+            "operation": "validate"
         }),
     )
     .await?;
@@ -388,7 +377,7 @@ async fn test_validate_cue_file_nonexistent() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_validate_cue_file_with_custom_audio_dir() -> Result<()> {
+async fn test_cue_file_validate_with_custom_audio_dir() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -409,9 +398,10 @@ FILE "track.flac" WAVE
 
     let result = call_tool(
         &client,
-        "validate_cue_file",
+        "cue_file",
         object!({
             "path": cue_path.to_string_lossy(),
+            "operation": "validate",
             "audio_dir": audio_dir.to_string_lossy(),
             "json_output": false
         }),
@@ -742,7 +732,7 @@ fn test_binary_version() {
 /* -------------------------- CUE file tests ------------------------- */
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_generate_cue_file_dry_run() -> Result<()> {
+async fn test_cue_file_generate_dry_run() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -756,9 +746,10 @@ async fn test_generate_cue_file_dry_run() -> Result<()> {
 
     let result = call_tool(
         &client,
-        "generate_cue_file",
+        "cue_file",
         object!({
             "path": album_dir.to_string_lossy(),
+            "operation": "generate",
             "dry_run": true,
             "force": false
         }),
@@ -778,7 +769,7 @@ async fn test_generate_cue_file_dry_run() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_generate_cue_file_actual() -> Result<()> {
+async fn test_cue_file_generate_actual() -> Result<()> {
     let client = spawn_client().await?;
 
     let temp_dir = tempfile::Builder::new().tempdir()?;
@@ -790,9 +781,10 @@ async fn test_generate_cue_file_actual() -> Result<()> {
 
     let result = call_tool(
         &client,
-        "generate_cue_file",
+        "cue_file",
         object!({
             "path": album_dir.to_string_lossy(),
+            "operation": "generate",
             "dry_run": false,
             "force": true
         }),
@@ -815,14 +807,16 @@ async fn test_generate_cue_file_actual() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_parse_cue_file() -> Result<()> {
+async fn test_cue_file_parse() -> Result<()> {
     let client = spawn_client().await?;
 
     let result = call_tool(
         &client,
-        "parse_cue_file",
+        "cue_file",
         object!({
-            "path": "tests/fixtures/cue/album.cue"
+            "path": "tests/fixtures/cue/album.cue",
+            "operation": "parse",
+            "json_output": true
         }),
     )
     .await?;
@@ -851,27 +845,6 @@ async fn test_parse_cue_file() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_parse_cue_file_nonexistent() -> Result<()> {
-    let client = spawn_client().await?;
-
-    let result = call_tool(
-        &client,
-        "parse_cue_file",
-        object!({
-            "path": "/nonexistent/path/nonexistent.cue"
-        }),
-    )
-    .await?;
-
-    assert_err(&result);
-
-    let text = text_content(&result);
-    assert!(text.contains("Error parsing cue file"));
-
-    shutdown(client).await
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_generate_cue_file_no_files() -> Result<()> {
     let client = spawn_client().await?;
 
@@ -881,9 +854,10 @@ async fn test_generate_cue_file_no_files() -> Result<()> {
 
     let result = call_tool(
         &client,
-        "generate_cue_file",
+        "cue_file",
         object!({
             "path": empty_dir.to_string_lossy(),
+            "operation": "generate",
             "dry_run": false,
             "force": false
         }),

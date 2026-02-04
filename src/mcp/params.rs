@@ -40,21 +40,12 @@ pub struct FindDuplicatesParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct GenerateCueParams {
+pub struct CueParams {
     pub(crate) path: String,
+    pub(crate) operation: String,
     pub(crate) output: Option<String>,
     pub(crate) dry_run: Option<bool>,
     pub(crate) force: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ParseCueParams {
-    pub(crate) path: String,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ValidateCueParams {
-    pub(crate) path: String,
     pub(crate) audio_dir: Option<String>,
     pub(crate) json_output: Option<bool>,
 }
