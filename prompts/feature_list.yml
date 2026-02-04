@@ -117,11 +117,6 @@ features:
     cmd: musicctl --help | --version
     passes: true
 
-  # === NOT YET IMPLEMENTED (5 features) ===
-  - id: 20
-    desc: Support DSF metadata reading
-    cmd: musicctl read
-    passes: false
   - id: 29
     desc: Handle symlinks to music files
     cmd: musicctl scan --follow-symlinks
@@ -129,6 +124,12 @@ features:
   - id: 31
     desc: Exclude specified file patterns
     cmd: musicctl scan --exclude '*.tmp'
+    passes: true
+
+  # === NOT YET IMPLEMENTED (3 features) ===
+  - id: 20
+    desc: Support DSF metadata reading
+    cmd: musicctl read
     passes: false
   - id: 32
     desc: Emit progress output with --verbose

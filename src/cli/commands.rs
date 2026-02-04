@@ -34,6 +34,9 @@ pub enum Commands {
         /// Follow symbolic links.
         #[arg(long)]
         follow_symlinks: bool,
+        /// Exclude files matching the given glob pattern(s).
+        #[arg(long, value_name = "PATTERN")]
+        exclude: Vec<String>,
         /// Output JSON instead of a simple tree.
         #[arg(long)]
         json: bool,

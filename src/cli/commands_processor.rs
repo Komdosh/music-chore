@@ -10,7 +10,7 @@ use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
 use crate::services::normalization::{normalize, normalize_genres_in_library};
-use crate::services::scanner::{scan_dir, scan_dir_with_depth_and_symlinks};
+use crate::services::scanner::{scan_dir, scan_dir_with_options};
 use serde_json::to_string_pretty;
 use std::path::{Path, PathBuf};
 
@@ -21,9 +21,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             path,
             max_depth,
             follow_symlinks,
+            exclude,
             json,
         } => {
-            handle_scan(path, max_depth, follow_symlinks, json);
+            handle_scan(path, max_depth, follow_symlinks, exclude, json);
             Ok(())
         }
         Commands::Tree { path, json } => {
@@ -84,8 +85,14 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
     }
 }
 
-pub fn handle_scan(path: PathBuf, max_depth: Option<usize>, follow_symlinks: bool, json: bool) {
-    let tracks = scan_dir_with_depth_and_symlinks(&path, max_depth, follow_symlinks);
+pub fn handle_scan(
+    path: PathBuf,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude: Vec<String>,
+    json: bool,
+) {
+    let tracks = scan_dir_with_options(&path, max_depth, follow_symlinks, exclude);
 
     if tracks.is_empty() {
         eprintln!("No music files found in directory: {}", path.display());

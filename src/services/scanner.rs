@@ -3,6 +3,7 @@
 use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
 use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
+use glob::Pattern;
 use log::{debug, error, warn};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
@@ -580,6 +581,142 @@ pub fn scan_dir_with_depth_and_symlinks(
     tracks
 }
 
+/// Scan directory with full options including depth limit, symlink handling, and exclude patterns.
+/// Supports glob patterns for exclusion (e.g., "*.tmp", "temp_*", "backup/*")
+pub fn scan_dir_with_options(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude_patterns: Vec<String>,
+) -> Vec<Track> {
+    let supported_extensions = formats::get_supported_extensions();
+
+    let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
+
+    if let Some(depth) = max_depth {
+        walkdir = walkdir.max_depth(depth + 1);
+    }
+
+    let mut tracks = Vec::new();
+
+    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Skip symlinks to files unless follow_symlinks is true
+        if !follow_symlinks {
+            if let Ok(metadata) = path.symlink_metadata() {
+                if metadata.file_type().is_symlink() {
+                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                    continue;
+                }
+            }
+        }
+
+        // Check exclude patterns
+        let mut excluded = false;
+        if !exclude_patterns.is_empty() {
+            let path_str = path.to_string_lossy();
+            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                for pattern in &exclude_patterns {
+                    if matches_pattern(filename, pattern) || matches_pattern(&path_str, pattern) {
+                        debug!(target: "music_chore", "Skipping excluded file: {} (pattern: {})", path.display(), pattern);
+                        excluded = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if excluded {
+            continue;
+        }
+
+        if path.is_file() {
+            if is_supported_audio_file(path, &supported_extensions) {
+                // Check file validity
+                if let Err(e) = check_file_validity(path) {
+                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
+                    continue;
+                }
+
+                let inferred_artist = infer_artist_from_path(path)
+                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+
+                let inferred_album = infer_album_from_path(path)
+                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+                // If album inference failed and we have a reasonable filename, try to extract album from filename
+                let final_album = if inferred_album.is_none() {
+                    if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
+                        if let Some(album) = extract_album_from_filename(filename) {
+                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
+                        } else {
+                            // Fallback: use cleaned filename as album name
+                            let cleaned = clean_filename_as_album(filename);
+                            if !cleaned.is_empty() {
+                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
+                            } else {
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    inferred_album
+                };
+
+                let format = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("unknown")
+                    .to_lowercase();
+
+                let metadata = TrackMetadata {
+                    title: None,
+                    artist: inferred_artist,
+                    album: final_album,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format,
+                    path: path.to_path_buf(),
+                };
+
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
+                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
+            }
+        }
+    }
+
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        file_a.cmp(&file_b)
+    });
+
+    tracks
+}
+
+/// Check if a string matches a glob-like pattern.
+/// Supports: * (any characters), ? (single character)
+fn matches_pattern(s: &str, pattern: &str) -> bool {
+    // Try to match as a glob pattern
+    if let Ok(glob_pattern) = Pattern::new(pattern) {
+        if glob_pattern.matches(s) {
+            return true;
+        }
+    }
+
+    // Also check simple substring match for patterns without wildcards
+    s.contains(pattern)
+}
+
 /// Check if a file is a supported audio file
 fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool {
     path.extension()
@@ -781,5 +918,82 @@ mod tests {
         // With follow_symlinks, should find both the real file and the symlink
         let tracks = scan_dir_with_depth_and_symlinks(temp_dir.path(), None, true);
         assert_eq!(tracks.len(), 2);
+    }
+
+    #[test]
+    fn test_scan_dir_with_exclude_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create files that should be included
+        let include_file1 = temp_dir.path().join("track1.flac");
+        let mut file = std::fs::File::create(&include_file1).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        let include_file2 = temp_dir.path().join("track2.flac");
+        let mut file = std::fs::File::create(&include_file2).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        // Create a file that should be excluded
+        let exclude_file = temp_dir.path().join("temp_track.flac");
+        let mut file = std::fs::File::create(&exclude_file).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        // Scan with exclude pattern
+        let tracks =
+            scan_dir_with_options(temp_dir.path(), None, false, vec!["temp_*".to_string()]);
+        assert_eq!(tracks.len(), 2);
+        assert!(tracks.iter().any(|t| t.file_path == include_file1));
+        assert!(tracks.iter().any(|t| t.file_path == include_file2));
+        assert!(!tracks.iter().any(|t| t.file_path == exclude_file));
+    }
+
+    #[test]
+    fn test_scan_dir_with_multiple_exclude_patterns() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create files
+        let track1 = temp_dir.path().join("song.flac");
+        let mut file = std::fs::File::create(&track1).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        let track2 = temp_dir.path().join("backup.flac");
+        let mut file = std::fs::File::create(&track2).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        let track3 = temp_dir.path().join("temp.flac");
+        let mut file = std::fs::File::create(&track3).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        // Scan with multiple exclude patterns
+        let tracks = scan_dir_with_options(
+            temp_dir.path(),
+            None,
+            false,
+            vec!["backup*".to_string(), "temp*".to_string()],
+        );
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].file_path, track1);
+    }
+
+    #[test]
+    fn test_matches_pattern_simple() {
+        assert!(matches_pattern("temp_file.flac", "temp_*"));
+        assert!(matches_pattern("file.tmp", "*.tmp"));
+        assert!(!matches_pattern("file.flac", "*.tmp"));
+        assert!(matches_pattern("backup_2023.flac", "backup_*"));
+    }
+
+    #[test]
+    fn test_matches_pattern_question_mark() {
+        assert!(matches_pattern("track1.flac", "track?.flac"));
+        assert!(matches_pattern("trackA.flac", "track?.flac"));
+        assert!(!matches_pattern("track12.flac", "track?.flac"));
+    }
+
+    #[test]
+    fn test_matches_pattern_substring() {
+        // Patterns without wildcards should match as substring
+        assert!(matches_pattern("my_backup_file.flac", "backup"));
+        assert!(!matches_pattern("my_file.flac", "backup"));
     }
 }
