@@ -92,7 +92,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 9);
+    assert_eq!(tools.len(), 10);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -105,6 +105,7 @@ async fn test_tools_list() -> Result<()> {
         "find_duplicates",
         "generate_cue_file",
         "parse_cue_file",
+        "validate_cue_file",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
@@ -191,7 +192,7 @@ async fn test_normalize_titles() -> Result<()> {
         &client,
         "normalize_titles",
         object!({
-            "path": "tests/fixtures/normalization",
+            "path": "tests/fixtures/cue",
             "dry_run": true
         }),
     )
@@ -200,7 +201,227 @@ async fn test_normalize_titles() -> Result<()> {
     assert_ok(&result);
 
     let text = text_content(&result);
-    assert!(text.contains("NORMALIZED:") || text.contains("NO CHANGE:") || text.contains("ERROR:"));
+    assert!(text.is_empty(), "Expected empty output for directory with no audio files, got: {}", text);
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_valid() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("test.cue");
+    let audio_path1 = temp_dir.path().join("track1.flac");
+    let audio_path2 = temp_dir.path().join("track2.flac");
+
+    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track1.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track 1"
+    INDEX 01 00:00:00
+FILE "track2.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Track 2"
+    INDEX 01 00:02:00
+"#)?;
+    std::fs::write(&audio_path1, b"dummy audio")?;
+    std::fs::write(&audio_path2, b"dummy audio")?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("CUE file is valid"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_valid_json() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("test.cue");
+    let audio_path = temp_dir.path().join("track.flac");
+
+    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track"
+    INDEX 01 00:00:00
+"#)?;
+    std::fs::write(&audio_path, b"dummy audio")?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "json_output": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let json_text = text_content(&result);
+    let json: serde_json::Value = serde_json::from_str(&json_text)?;
+    assert_eq!(json.get("is_valid").unwrap().as_bool().unwrap(), true);
+    assert_eq!(json.get("parsing_error").unwrap().as_bool().unwrap(), false);
+    assert_eq!(json.get("file_missing").unwrap().as_bool().unwrap(), false);
+    assert_eq!(json.get("track_count_mismatch").unwrap().as_bool().unwrap(), false);
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_missing_file() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("test.cue");
+    let audio_path = temp_dir.path().join("existing.flac");
+
+    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "missing.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track"
+    INDEX 01 00:00:00
+"#)?;
+    std::fs::write(&audio_path, b"dummy audio")?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("validation failed"));
+    assert!(text.contains("missing"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_track_mismatch() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("test.cue");
+    let audio_path1 = temp_dir.path().join("track1.flac");
+    let audio_path2 = temp_dir.path().join("track2.flac");
+    let audio_path3 = temp_dir.path().join("track3.flac");
+
+    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track1.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track 1"
+    INDEX 01 00:00:00
+FILE "track2.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Track 2"
+    INDEX 01 00:02:00
+"#)?;
+    std::fs::write(&audio_path1, b"dummy audio")?;
+    std::fs::write(&audio_path2, b"dummy audio")?;
+    std::fs::write(&audio_path3, b"dummy audio")?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("validation failed"));
+    assert!(text.contains("Track count mismatch"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_nonexistent() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": "/nonexistent/nonexistent.cue"
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("validation failed"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_validate_cue_file_with_custom_audio_dir() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let audio_dir = temp_dir.path().join("audio");
+    std::fs::create_dir_all(&audio_dir)?;
+
+    let cue_path = temp_dir.path().join("test.cue");
+    let audio_path = audio_dir.join("track.flac");
+
+    std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track"
+    INDEX 01 00:00:00
+"#)?;
+    std::fs::write(&audio_path, b"dummy audio")?;
+
+    let result = call_tool(
+        &client,
+        "validate_cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "audio_dir": audio_dir.to_string_lossy(),
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("CUE file is valid"));
 
     shutdown(client).await
 }

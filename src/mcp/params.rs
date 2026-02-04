@@ -51,3 +51,10 @@ pub struct GenerateCueParams {
 pub struct ParseCueParams {
     pub(crate) path: String,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ValidateCueParams {
+    pub(crate) path: String,
+    pub(crate) audio_dir: Option<String>,
+    pub(crate) json_output: Option<bool>,
+}

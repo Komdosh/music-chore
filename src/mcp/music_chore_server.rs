@@ -7,13 +7,13 @@ use rmcp::{
     tool,
     tool_handler, tool_router, ErrorData as McpError,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::cli::commands::validate_path;
 use crate::mcp::params::{
     EmitLibraryMetadataParams, FindDuplicatesParams, GenerateCueParams, GetLibraryTreeParams, NormalizeTitlesParams,
-    ParseCueParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
+    ParseCueParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateCueParams, ValidateLibraryParams,
 };
-use crate::services::cue::{generate_cue_for_path, parse_cue_file, CueGenerationError};
+use crate::services::cue::{generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::emit_by_path;
 use crate::services::library::build_library_hierarchy;
@@ -236,6 +236,86 @@ pub struct MusicChoreServer {
                 "Error parsing cue file: {}",
                 e
             ))])),
+        }
+    }
+
+    #[tool(description = "Validate a .cue file against its referenced audio files")]
+    async fn validate_cue_file(
+        &self,
+        params: Parameters<ValidateCueParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let cue_path = PathBuf::from(params.0.path);
+        let audio_dir = params.0.audio_dir.map(PathBuf::from).unwrap_or_else(|| {
+            cue_path.parent().unwrap_or_else(|| Path::new(".")).to_path_buf()
+        });
+        let json_output = params.0.json_output.unwrap_or(false);
+
+        log::info!("validate_cue_file called with cue_path: {}, audio_dir: {}", cue_path.display(), audio_dir.display());
+
+        let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_dir) {
+            Ok(entries) => entries
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.file_type()
+                        .map(|ft| ft.is_file())
+                        .unwrap_or(false)
+                })
+                .filter(|e| {
+                    !e.path()
+                        .extension()
+                        .map(|ext| ext == "cue")
+                        .unwrap_or(false)
+                })
+                .map(|e| e.path())
+                .collect(),
+            Err(_) => {
+                let mut result = CueValidationResult::default();
+                result.is_valid = false;
+                result.file_missing = true;
+                let result_str = if json_output {
+                    serde_json::to_string_pretty(&result).map_err(|e| {
+                        McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+                    })?
+                } else {
+                    format_cue_validation_result(&result)
+                };
+                return Ok(CallToolResult::success(vec![Content::text(result_str)]));
+            }
+        };
+
+        let audio_files_refs: Vec<&Path> = audio_files.iter().map(|p| p.as_path()).collect();
+        let result = validate_cue_consistency(&cue_path, &audio_files_refs);
+
+        if json_output {
+            let result_str = serde_json::to_string_pretty(&result).map_err(|e| {
+                McpError::invalid_params(format!("JSON serialization error: {}", e), None)
+            })?;
+            Ok(CallToolResult::success(vec![Content::text(result_str)]))
+        } else {
+            let output = format_cue_validation_result(&result);
+            Ok(CallToolResult::success(vec![Content::text(output)]))
+        }
+    }
+}
+
+fn format_cue_validation_result(result: &CueValidationResult) -> String {
+    if result.is_valid {
+        "CUE file is valid: All referenced files exist and track count matches.".to_string()
+    } else {
+        let mut errors = Vec::new();
+        if result.parsing_error {
+            errors.push("Error parsing CUE file".to_string());
+        }
+        if result.file_missing {
+            errors.push("Referenced audio file(s) missing".to_string());
+        }
+        if result.track_count_mismatch {
+            errors.push("Track count mismatch between CUE and audio files".to_string());
+        }
+        if errors.is_empty() {
+            "CUE file validation failed.".to_string()
+        } else {
+            format!("CUE file validation failed:\n  - {}", errors.join("\n  - "))
         }
     }
 }
