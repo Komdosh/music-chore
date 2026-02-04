@@ -31,6 +31,14 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
     {
         let path = entry.path();
 
+        // Skip symlinks to files (but not directories - handled by walkdir)
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                continue;
+            }
+        }
+
         if path.is_file() {
             if is_supported_audio_file(path, &supported_extensions) {
                 // Check if file is empty or corrupted before processing
@@ -202,6 +210,14 @@ pub fn scan_dir_paths(base: &Path) -> Vec<PathBuf> {
     {
         let path = entry.path();
 
+        // Skip symlinks to files
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                continue;
+            }
+        }
+
         if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
             // Check file validity
             if let Err(e) = check_file_validity(path) {
@@ -229,6 +245,15 @@ pub fn scan_dir_immediate(base: &Path) -> Vec<PathBuf> {
     if let Ok(entries) = std::fs::read_dir(base) {
         for entry in entries.into_iter().flatten() {
             let path = entry.path();
+
+            // Skip symlinks to files
+            if let Ok(metadata) = path.symlink_metadata() {
+                if metadata.file_type().is_symlink() {
+                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                    continue;
+                }
+            }
+
             if path.is_file() && is_supported_audio_file(&path, &supported_extensions) {
                 // Check file validity
                 if let Err(e) = check_file_validity(&path) {
@@ -254,6 +279,14 @@ pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, Box<dyn std::er
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
+
+        // Skip symlinks to files
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                continue;
+            }
+        }
 
         if path.is_file() && formats::is_format_supported(path) {
             // Check file validity before reading metadata
@@ -360,6 +393,14 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
     for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
+        // Skip symlinks to files
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                continue;
+            }
+        }
+
         if path.is_file() {
             if is_supported_audio_file(path, &supported_extensions) {
                 // Check file validity
@@ -457,6 +498,16 @@ pub fn scan_dir_with_depth_and_symlinks(
     for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
+        // Skip symlinks to files unless follow_symlinks is true
+        if !follow_symlinks {
+            if let Ok(metadata) = path.symlink_metadata() {
+                if metadata.file_type().is_symlink() {
+                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                    continue;
+                }
+            }
+        }
+
         if path.is_file() {
             if is_supported_audio_file(path, &supported_extensions) {
                 // Check file validity
@@ -523,7 +574,6 @@ pub fn scan_dir_with_depth_and_symlinks(
     tracks.sort_by(|a, b| {
         let file_a = a.file_path.file_name().unwrap_or_default();
         let file_b = b.file_path.file_name().unwrap_or_default();
-        debug!(target: "music_chore", "Comparing files: {:?} vs {:?}", file_a, file_b);
         file_a.cmp(&file_b)
     });
 
@@ -684,5 +734,52 @@ mod tests {
 
         // Should have used filename "Track" as album fallback
         assert!(tracks[0].metadata.album.is_some());
+    }
+
+    #[test]
+    fn test_scan_dir_skips_symlinks_by_default() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a valid file
+        let real_file = temp_dir.path().join("real.flac");
+        let mut file = std::fs::File::create(&real_file).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        // Create a symlink to the file
+        let symlink_file = temp_dir.path().join("link.flac");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&real_file, &symlink_file).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&real_file, &symlink_file).unwrap();
+
+        // Without follow_symlinks, should only find the real file
+        let tracks = scan_dir_with_depth_and_symlinks(temp_dir.path(), None, false);
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].file_path, real_file);
+    }
+
+    #[test]
+    fn test_scan_dir_follows_symlinks_when_enabled() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a subdirectory
+        let subdir = temp_dir.path().join("music");
+        std::fs::create_dir(&subdir).unwrap();
+
+        // Create a valid file in subdirectory
+        let real_file = subdir.join("real.flac");
+        let mut file = std::fs::File::create(&real_file).unwrap();
+        file.write_all(b"some data").unwrap();
+
+        // Create a symlink to the file in the root
+        let symlink_file = temp_dir.path().join("link.flac");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&real_file, &symlink_file).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&real_file, &symlink_file).unwrap();
+
+        // With follow_symlinks, should find both the real file and the symlink
+        let tracks = scan_dir_with_depth_and_symlinks(temp_dir.path(), None, true);
+        assert_eq!(tracks.len(), 2);
     }
 }
