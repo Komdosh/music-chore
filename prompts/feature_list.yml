@@ -117,11 +117,11 @@ features:
   - id: 26
     desc: Handle missing album directories
     cmd: musicctl scan
-    passes: false
+    passes: true
   - id: 27
     desc: Handle empty track files
     cmd: musicctl scan
-    passes: false
+    passes: true
   - id: 29
     desc: Handle symlinks to music files
     cmd: musicctl scan
