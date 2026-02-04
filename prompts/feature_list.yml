@@ -95,28 +95,35 @@ features:
     description: "Feature 14: Generate .cue file from album."
     steps:
       - "Step 1: Prepare album with multiple tracks"
-      - "Step 2: Run musicctl cue"
+      - "Step 2: Run musicctl cue --generate"
       - "Step 3: Verify .cue file content"
     passes: true
   - category: "functional"
     description: "Feature 15: Parse existing .cue file."
     steps:
       - "Step 1: Prepare .cue file"
-      - "Step 2: Run musicctl cue parse"
+      - "Step 2: Run musicctl cue --parse"
       - "Step 3: Verify parsed metadata"
     passes: true
   - category: "functional"
     description: "Feature 16: Validate .cue file consistency."
     steps:
       - "Step 1: Create inconsistent .cue"
-      - "Step 2: Run musicctl cue-validate"
+      - "Step 2: Run musicctl cue --validate"
       - "Step 3: Verify error message"
+    passes: true
+  - category: "functional"
+    description: "Feature 17: Unified normalize command with --title (default) and --genres flags."
+    steps:
+      - "Step 1: Test normalize without flags (titles)"
+      - "Step 2: Test normalize --title (titles)"
+      - "Step 3: Test normalize --genres"
     passes: true
   - category: "functional"
     description: "Feature 21: Normalize music genres to standard categories."
     steps:
       - "Step 1: Create track with non-standard genre"
-      - "Step 2: Run musicctl normalize-genres"
+      - "Step 2: Run musicctl normalize --genres"
       - "Step 3: Verify genre normalized to standard"
     passes: true
   - category: "functional"
@@ -132,14 +139,14 @@ features:
       - "Step 1: Prepare MP3 file"
       - "Step 2: Run musicctl read"
       - "Step 3: Verify ID3 tags read"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 18: Support WAV metadata reading."
     steps:
       - "Step 1: Prepare WAV file"
       - "Step 2: Run musicctl read"
       - "Step 3: Verify WAV tags read"
-    passes: false
+    passes: true
   - category: "functional"
     description: "Feature 19: Support DSF metadata reading."
     steps:
@@ -221,4 +228,4 @@ features:
     steps:
       - "Step 1: Run musicctl --help"
       - "Step 2: Verify usage message"
-    passes: false
+    passes: true
