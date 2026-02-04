@@ -3,7 +3,7 @@
 use crate::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
 use crate::services::formats;
 use crate::services::inference::{infer_album_from_path, infer_artist_from_path};
-use log::debug;
+use log::{debug, warn};
 use serde_json::to_string_pretty;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -11,6 +11,7 @@ use walkdir::WalkDir;
 
 /// Recursively scan `base` for supported music files and return a vector of Track.
 /// Uses deterministic ordering: sorted by filename for consistent output.
+/// Logs warnings for unsupported file types found during scan.
 pub fn scan_dir(base: &Path) -> Vec<Track> {
     let mut tracks = Vec::new();
     let supported_extensions = formats::get_supported_extensions();
@@ -22,37 +23,46 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
     {
         let path = entry.path();
 
-        if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
-            // Infer basic info from directory structure first (faster than full metadata read)
-            let inferred_artist = infer_artist_from_path(path)
-                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+        if path.is_file() {
+            if is_supported_audio_file(path, &supported_extensions) {
+                // Infer basic info from directory structure first (faster than full metadata read)
+                let inferred_artist = infer_artist_from_path(path)
+                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
 
-            let inferred_album = infer_album_from_path(path)
-                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+                let inferred_album = infer_album_from_path(path)
+                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
-            // Get file extension for format identification
-            let format = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("unknown")
-                .to_lowercase();
+                // Get file extension for format identification
+                let format = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("unknown")
+                    .to_lowercase();
 
-            let metadata = TrackMetadata {
-                title: None,
-                artist: inferred_artist,
-                album: inferred_album,
-                album_artist: None,
-                track_number: None,
-                disc_number: None,
-                year: None,
-                genre: None,
-                duration: None,
-                format,
-                path: path.to_path_buf(),
-            };
+                let metadata = TrackMetadata {
+                    title: None,
+                    artist: inferred_artist,
+                    album: inferred_album,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format,
+                    path: path.to_path_buf(),
+                };
 
-            let track = Track::new(path.to_path_buf(), metadata);
-            tracks.push(track);
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
+                // File has an audio extension but format is not supported
+                warn!(
+                    "Unsupported audio format: {} (supported: {})",
+                    path.display(),
+                    supported_extensions.join(", ")
+                );
+            }
         }
     }
 
@@ -221,35 +231,43 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
     for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
-        if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
-            let inferred_artist = infer_artist_from_path(path)
-                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+        if path.is_file() {
+            if is_supported_audio_file(path, &supported_extensions) {
+                let inferred_artist = infer_artist_from_path(path)
+                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
 
-            let inferred_album = infer_album_from_path(path)
-                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+                let inferred_album = infer_album_from_path(path)
+                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
-            let format = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("unknown")
-                .to_lowercase();
+                let format = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("unknown")
+                    .to_lowercase();
 
-            let metadata = TrackMetadata {
-                title: None,
-                artist: inferred_artist,
-                album: inferred_album,
-                album_artist: None,
-                track_number: None,
-                disc_number: None,
-                year: None,
-                genre: None,
-                duration: None,
-                format,
-                path: path.to_path_buf(),
-            };
+                let metadata = TrackMetadata {
+                    title: None,
+                    artist: inferred_artist,
+                    album: inferred_album,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format,
+                    path: path.to_path_buf(),
+                };
 
-            let track = Track::new(path.to_path_buf(), metadata);
-            tracks.push(track);
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
+                warn!(
+                    "Unsupported audio format: {} (supported: {})",
+                    path.display(),
+                    supported_extensions.join(", ")
+                );
+            }
         }
     }
 
@@ -267,6 +285,17 @@ fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| supported_extensions.contains(&ext.to_lowercase()))
+        .unwrap_or(false)
+}
+
+/// Check if a file has an audio extension (regardless of support)
+fn has_audio_extension(path: &Path) -> bool {
+    const AUDIO_EXTENSIONS: &[&str] = &[
+        "flac", "mp3", "wav", "ogg", "m4a", "aac", "wma", "aiff", "dsf", "opus", "webm",
+    ];
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| AUDIO_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
         .unwrap_or(false)
 }
 
@@ -345,5 +374,19 @@ mod tests {
         let base = PathBuf::from("tests/fixtures/inference");
         let tracks = scan_dir_with_depth(&base, Some(2));
         assert_eq!(tracks.len(), 2);
+    }
+
+    #[test]
+    fn test_has_audio_extension() {
+        assert!(has_audio_extension(&PathBuf::from("test.flac")));
+        assert!(has_audio_extension(&PathBuf::from("test.mp3")));
+        assert!(has_audio_extension(&PathBuf::from("test.wav")));
+        assert!(has_audio_extension(&PathBuf::from("test.ogg")));
+        assert!(has_audio_extension(&PathBuf::from("test.m4a")));
+        assert!(has_audio_extension(&PathBuf::from("test.dsf")));
+        assert!(has_audio_extension(&PathBuf::from("test.FLAC")));
+        assert!(!has_audio_extension(&PathBuf::from("test.txt")));
+        assert!(!has_audio_extension(&PathBuf::from("test.jpg")));
+        assert!(!has_audio_extension(&PathBuf::from("test")));
     }
 }

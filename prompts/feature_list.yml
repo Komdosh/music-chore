@@ -105,7 +105,7 @@ features:
   - id: 23
     desc: Detect unsupported file types with warning
     cmd: musicctl scan
-    passes: false
+    passes: true
   - id: 24
     desc: Ensure deterministic scan order
     cmd: musicctl scan
