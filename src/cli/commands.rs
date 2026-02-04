@@ -71,35 +71,31 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Generate .cue file for an album folder.
+    /// Generate, parse, or validate .cue files.
     Cue {
-        /// Path to album directory.
+        /// Generate .cue file from album directory.
+        #[arg(long)]
+        generate: bool,
+        /// Parse and display .cue file contents.
+        #[arg(long)]
+        parse: bool,
+        /// Validate .cue file against audio files.
+        #[arg(long)]
+        validate: bool,
+        /// Path to album directory, .cue file, or audio directory depending on operation.
         path: PathBuf,
-        /// Output path for .cue file (defaults to album directory).
+        /// Output path for .cue file (--generate only, defaults to album directory).
         output: Option<PathBuf>,
-        /// Show what would be written without actually writing file.
+        /// Show what would be done without actually writing (--generate only).
         #[arg(long)]
         dry_run: bool,
-        /// Overwrite existing .cue file.
+        /// Overwrite existing .cue file (--generate only).
         #[arg(long)]
         force: bool,
-    },
-    /// Parse and display contents of a .cue file.
-    CueParse {
-        /// Path to .cue file.
-        path: PathBuf,
-        /// Output JSON instead of human-readable format.
-        #[arg(long)]
-        json: bool,
-    },
-    /// Validate a .cue file against its referenced audio files.
-    CueValidate {
-        /// Path to .cue file.
-        path: PathBuf,
-        /// Path to directory containing audio files (defaults to .cue file directory).
+        /// Path to directory containing audio files (--validate only, defaults to .cue file directory).
         #[arg(long)]
         audio_dir: Option<PathBuf>,
-        /// Output JSON instead of human-readable format.
+        /// Output JSON instead of human-readable format (--parse and --validate only).
         #[arg(long)]
         json: bool,
     },

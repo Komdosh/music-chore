@@ -441,21 +441,41 @@ Duplicate Group 1 (3 files):
 - **Quality Control**: Ensure only the best quality versions remain
 - **Migration Planning**: Avoid importing duplicates when consolidating libraries
 
-### 💿 `cue` - Generate CUE Files
+### 💿 `cue` - Generate, Parse, or Validate CUE Files
 
 ```bash
 # Generate CUE file for an album (dry run - preview only)
-musicctl cue /path/to/album --dry-run
+musicctl cue --generate /path/to/album --dry-run
 
 # Generate and write CUE file
-musicctl cue /path/to/album
+musicctl cue --generate /path/to/album
 
-# Overwrite existing CUE file
-musicctl cue /path/to/album --force
+# Parse and display CUE file contents
+musicctl cue --parse /path/to/album.cue
 
-# Specify output path
-musicctl cue /path/to/album --output /path/to/output.cue
+# Validate CUE file against audio files
+musicctl cue --validate /path/to/album.cue
+
+# Validate with custom audio directory
+musicctl cue --validate /path/to/album.cue --audio-dir /path/to/audio
 ```
+
+**CUE Operations:**
+
+| Operation | Flag | Description |
+|-----------|------|-------------|
+| Generate | `--generate` | Create CUE file from album directory |
+| Parse | `--parse` | Display parsed CUE file contents |
+| Validate | `--validate` | Check CUE file against audio files |
+
+**Generate Options:**
+- `--output` - Specify output path for CUE file
+- `--dry-run` - Preview without writing
+- `--force` - Overwrite existing file
+
+**Parse/Validate Options:**
+- `--json` - JSON output for automation
+- `--audio-dir` - Custom audio directory (validate only)
 
 **CUE Generation Features:**
 - Extracts metadata from FLAC, MP3, and WAV files
