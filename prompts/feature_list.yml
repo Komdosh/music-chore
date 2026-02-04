@@ -126,16 +126,18 @@ features:
     cmd: musicctl scan --exclude '*.tmp'
     passes: true
 
-  # === NOT YET IMPLEMENTED (3 features) ===
+  # === COMPLETED FEATURES ===
   - id: 20
     desc: Support DSF metadata reading
     cmd: musicctl read
-    passes: false
+    passes: true
   - id: 32
     desc: Emit progress output with --verbose
     cmd: musicctl scan --verbose
-    passes: false
+    passes: true
   - id: 33
     desc: Validate metadata schema on read
     cmd: musicctl read
-    passes: false
+    passes: true
+
+  # === NOT YET IMPLEMENTED (0 features) ===
