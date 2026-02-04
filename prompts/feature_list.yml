@@ -113,7 +113,14 @@ features:
       - "Step 3: Verify error message"
     passes: true
   - category: "functional"
-    description: "Feature 17: Support MP3 metadata reading."
+    description: "Feature 17: Support REM GENRE and REM DATE parsing in CUE files."
+    steps:
+      - "Step 1: Create .cue file with REM GENRE and REM DATE"
+      - "Step 2: Run musicctl cue-parse"
+      - "Step 3: Verify genre and date are parsed"
+    passes: true
+  - category: "functional"
+    description: "Feature 18: Support MP3 metadata reading."
     steps:
       - "Step 1: Prepare MP3 file"
       - "Step 2: Run musicctl read"

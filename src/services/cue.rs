@@ -896,6 +896,8 @@ FILE "test.flac" WAVE
 
         assert_eq!(result.performer, Some("Test Artist".to_string()), "Album performer should be 'Test Artist'");
         assert_eq!(result.title, Some("Test Album".to_string()), "Album title should be 'Test Album'");
+        assert!(result.genre.is_none(), "Genre should be None for basic test");
+        assert!(result.date.is_none(), "Date should be None for basic test");
         assert_eq!(result.files, vec!["test.flac".to_string()]);
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
