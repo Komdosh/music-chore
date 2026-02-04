@@ -59,6 +59,12 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Normalize music genres to standard categories.
+    NormalizeGenres {
+        path: PathBuf,
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Emit library metadata in structured JSON format.
     Emit {
         path: PathBuf,
