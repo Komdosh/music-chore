@@ -28,6 +28,9 @@ pub enum Commands {
     Scan {
         /// Base directory to scan.
         path: PathBuf,
+        /// Maximum recursion depth (0 = immediate files only, 1 = one level deep, etc.).
+        #[arg(long)]
+        max_depth: Option<usize>,
         /// Output JSON instead of a simple tree.
         #[arg(long)]
         json: bool,

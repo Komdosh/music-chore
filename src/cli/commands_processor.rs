@@ -9,15 +9,19 @@ use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
 use crate::services::normalization::{normalize, normalize_genres_in_library};
-use crate::services::scanner::{scan_dir, scan_tracks};
+use crate::services::scanner::{scan_dir, scan_dir_with_depth};
 use serde_json::to_string_pretty;
 use std::path::{Path, PathBuf};
 
 /// Handle the parsed CLI command
 pub fn handle_command(command: Commands) -> Result<(), i32> {
     match command {
-        Commands::Scan { path, json } => {
-            handle_scan(path, json);
+        Commands::Scan {
+            path,
+            max_depth,
+            json,
+        } => {
+            handle_scan(path, max_depth, json);
             Ok(())
         }
         Commands::Tree { path, json } => {
@@ -78,10 +82,23 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
     }
 }
 
-pub fn handle_scan(path: PathBuf, json: bool) {
-    match scan_tracks(path, json) {
-        Ok(result) => println!("{}", result),
-        Err(err) => eprintln!("{}", err),
+pub fn handle_scan(path: PathBuf, max_depth: Option<usize>, json: bool) {
+    let tracks = scan_dir_with_depth(&path, max_depth);
+
+    if tracks.is_empty() {
+        eprintln!("No music files found in directory: {}", path.display());
+        return;
+    }
+
+    if json {
+        match to_string_pretty(&tracks) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Error serializing to JSON: {}", e),
+        }
+    } else {
+        for track in tracks {
+            println!("{}", track.file_path.display());
+        }
     }
 }
 

@@ -202,6 +202,66 @@ pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
     }
 }
 
+/// Scan directory with optional max depth limit.
+/// None = unlimited depth (full recursion)
+/// Some(0) = immediate directory only (like ls)
+/// Some(1) = base dir + 1 level deep
+/// Some(2) = base dir + 2 levels deep, etc.
+pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> {
+    let supported_extensions = formats::get_supported_extensions();
+
+    let mut walkdir = WalkDir::new(base).follow_links(false);
+
+    if let Some(depth) = max_depth {
+        walkdir = walkdir.max_depth(depth + 1); // +1 because WalkDir counts the base as depth 0
+    }
+
+    let mut tracks = Vec::new();
+
+    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        if path.is_file() && is_supported_audio_file(path, &supported_extensions) {
+            let inferred_artist = infer_artist_from_path(path)
+                .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+
+            let inferred_album = infer_album_from_path(path)
+                .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+            let format = path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("unknown")
+                .to_lowercase();
+
+            let metadata = TrackMetadata {
+                title: None,
+                artist: inferred_artist,
+                album: inferred_album,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format,
+                path: path.to_path_buf(),
+            };
+
+            let track = Track::new(path.to_path_buf(), metadata);
+            tracks.push(track);
+        }
+    }
+
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        file_a.cmp(&file_b)
+    });
+
+    tracks
+}
+
 /// Check if a file is a supported audio file
 fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool {
     path.extension()
@@ -253,5 +313,37 @@ mod tests {
 
         let complex_unicode = PathBuf::from("éxito ñoño/café/track.flac");
         assert!(complex_unicode.to_str().is_some());
+    }
+
+    #[test]
+    fn test_scan_dir_with_depth_unlimited() {
+        let base = PathBuf::from("tests/fixtures/inference");
+        let tracks = scan_dir_with_depth(&base, None);
+        assert!(tracks.len() >= 6);
+    }
+
+    #[test]
+    fn test_scan_dir_with_depth_zero() {
+        let base = PathBuf::from("tests/fixtures/inference/flat");
+        let tracks = scan_dir_with_depth(&base, Some(0));
+        assert!(tracks.is_empty());
+    }
+
+    #[test]
+    fn test_scan_dir_with_depth_one() {
+        let base = PathBuf::from("tests/fixtures/inference");
+        let tracks = scan_dir_with_depth(&base, Some(1));
+        assert_eq!(tracks.len(), 1);
+        assert!(tracks[0]
+            .file_path
+            .to_string_lossy()
+            .contains("root/track.flac"));
+    }
+
+    #[test]
+    fn test_scan_dir_with_depth_two() {
+        let base = PathBuf::from("tests/fixtures/inference");
+        let tracks = scan_dir_with_depth(&base, Some(2));
+        assert_eq!(tracks.len(), 2);
     }
 }
