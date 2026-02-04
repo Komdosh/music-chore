@@ -6,11 +6,12 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 6 core tools exposed and working
-- ✅ Proper initialization and shutdown handling  
+- ✅ All 9 core tools exposed and working
+- ✅ Proper initialization and shutdown handling
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
 - ✅ Duplicate detection with SHA256 checksums
+- ✅ CUE file generation and parsing
 
 ## Overview
 
@@ -20,9 +21,12 @@ The MCP server allows AI agents to:
 - Get hierarchical library tree views with format indicators
 - Normalize track titles automatically
 - Find duplicate tracks by checksum
-- Emit structured library metadata for analysis (mixed format)
+- Emit structured library metadata for analysis
+- Validate library metadata quality
+- Generate CUE files for albums
+- Parse existing CUE files
 
-**Note**: The CLI also includes additional commands like `validate` (metadata validation) and `write` (metadata updates) which are not exposed via MCP. All commands now support both FLAC and MP3 formats.
+## Available Tools
 
 ## Installation
 
@@ -337,6 +341,74 @@ Find duplicate tracks by comparing SHA256 checksums of audio files.
 }
 ```
 
+### 7. `generate_cue_file`
+
+Generate a CUE sheet file for an album directory.
+
+**Parameters:**
+- `path` (string, required): Path to the album directory
+- `output` (string, optional): Output path for the .cue file (defaults to album directory)
+- `dry_run` (boolean, optional): Preview without writing. Default: false
+- `force` (boolean, optional): Overwrite existing file. Default: false
+
+**Returns:**
+- If `dry_run=true`: Shows what would be written and the output path
+- If `dry_run=false`: Confirmation of file written with path
+
+**Example:**
+```json
+{
+  "name": "generate_cue_file",
+  "arguments": {
+    "path": "/Users/music/FLAC/Album",
+    "dry_run": true,
+    "force": false
+  }
+}
+```
+
+### 8. `parse_cue_file`
+
+Parse and read contents of a CUE file.
+
+**Parameters:**
+- `path` (string, required): Path to the .cue file
+
+**Returns:**
+JSON object with parsed CUE file contents:
+- `performer`: Album performer/artist
+- `title`: Album title
+- `files`: Array of audio file names
+- `tracks`: Array of track objects with number, title, performer, index, and file
+
+**Example:**
+```json
+{
+  "name": "parse_cue_file",
+  "arguments": {
+    "path": "/Users/music/Album.cue"
+  }
+}
+```
+
+**Response Example:**
+```json
+{
+  "performer": "Kai Engel",
+  "title": "Meanings",
+  "files": ["01. A New Journey Begins.flac", "02. Time Goes On.flac"],
+  "tracks": [
+    {
+      "number": 1,
+      "title": "A New Journey Begins",
+      "performer": "Kai Engel",
+      "index": "00:00:00",
+      "file": "01. A New Journey Begins.flac"
+    }
+  ]
+}
+```
+
 ## Response Formats
 
 ### Success Response
@@ -447,14 +519,13 @@ Configure logging with the `RUST_LOG` environment variable:
 ## Limitations
 
 **Current v1 limitations:**
-- Supports only FLAC format
 - No internet-based metadata lookup
 
 **Planned v2 enhancements:**
-- MP3, WAV, DSF format support
-- Metadata write capabilities via MCP
-- Cue sheet integration
-- Playlist management
+- Additional audio format support (DSF, OGG, M4A)
+- Batch metadata operations
+- Genre normalization
+- Advanced CUE file validation
 
 ## Security
 

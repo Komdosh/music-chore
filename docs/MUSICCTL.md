@@ -4,9 +4,9 @@
 
 ## 📅 Last Updated
 
-- **Date**: February 3, 2026
-- **Version**: v0.1.7
-- **Features**: CLI with 7 commands + MCP server with 6 tools
+- **Date**: February 4, 2026
+- **Version**: v0.2.3
+- **Features**: CLI with 10 commands + MCP server with 9 tools
 
 ## 📋 Table of Contents
 
@@ -16,8 +16,12 @@
   - [scan - Discover Music Files](#-scan---discover-music-files)
   - [tree - Display Library Hierarchy](#-tree---display-library-hierarchy)
   - [read - Extract File Metadata](#-read---extract-file-metadata)
+  - [write - Update File Metadata](#-write---update-file-metadata)
   - [normalize - Normalize Track Titles](#-normalize---normalize-track-titles)
+  - [validate - Validate Metadata Completeness](#-validate---validate-metadata-completeness)
   - [duplicates - Find Duplicate Tracks](#-duplicates---find-duplicate-tracks)
+  - [cue - Generate CUE Files](#-cue---generate-cue-files)
+  - [cue-parse - Parse CUE Files](#-cue-parse---parse-cue-files)
   - [emit - Export Library Metadata](#-emit---export-library-metadata)
 - [Advanced Usage](#advanced-usage)
 - [Examples](#examples)
@@ -88,6 +92,29 @@ musicctl duplicates ~/Music
 
 # JSON output for automation
 musicctl duplicates ~/Music --json
+```
+
+### 7. Generate CUE Files
+
+```bash
+# Preview CUE file generation
+musicctl cue /path/to/album --dry-run
+
+# Generate and write CUE file
+musicctl cue /path/to/album
+
+# Overwrite existing CUE file
+musicctl cue /path/to/album --force
+```
+
+### 8. Parse CUE Files
+
+```bash
+# Human-readable output
+musicctl cue-parse /path/to/album.cue
+
+# JSON output for programmatic use
+musicctl cue-parse /path/to/album.cue --json
 ```
 
 ---
@@ -435,6 +462,119 @@ musicctl duplicates ~/Music --json > duplicates.json
 - Results are deterministic - same input always produces same output
 - JSON output includes full metadata for each duplicate file
 
+### 💿 `cue` - Generate CUE Files
+
+Generate standard CUE sheet files for album disc images.
+
+```bash
+musicctl cue [OPTIONS] <PATH>
+
+Arguments:
+  <PATH>              Album directory to process (required)
+
+Options:
+  -o, --output <PATH>  Output path for .cue file
+  -d, --dry-run         Preview without writing
+  -f, --force           Overwrite existing .cue file
+```
+
+**Output Examples:**
+
+```
+# Dry run preview
+Would write to: /music/Album/Album Name.cue
+
+PERFORMER "Artist Name"
+TITLE "Album Name"
+REM GENRE Rock
+REM DATE 2024
+FILE "01. Track One.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER "Artist Name"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Track Two"
+    PERFORMER "Artist Name"
+    INDEX 01 00:03:00
+```
+
+**CUE Generation Features:**
+- Extracts metadata from FLAC, MP3, and WAV files
+- Generates standard CUE sheets compatible with most audio players
+- Supports multiple files per album (one FILE entry per track)
+- Includes genre and year from track metadata
+- Normalizes text to title case
+- Embeds album artist if available (takes precedence over track artist)
+
+**Use Cases:**
+- Create disc images for burning or virtual drives
+- Generate playlists for audio software
+- Archive album metadata in standard format
+- Share album tracklists with precise timing information
+
+### 📖 `cue-parse` - Parse CUE Files
+
+Parse and display contents of existing CUE sheet files.
+
+```bash
+musicctl cue-parse [OPTIONS] <CUE_PATH>
+
+Arguments:
+  <CUE_PATH>          Path to .cue file (required)
+
+Options:
+  -j, --json           Output as JSON
+```
+
+**Output Examples:**
+
+```
+# Human-readable output
+Cue File: /music/Album/Album.cue
+  Performer: Kai Engel
+  Title: Meanings
+  Files:
+    - 01. A New Journey Begins.flac
+    - 02. Time Goes On.flac
+  Tracks: 2
+    Track 01: A New Journey Begins [01. A New Journey Begins.flac]
+    Track 02: Time Goes On [02. Time Goes On.flac]
+```
+
+**JSON Output:**
+```json
+{
+  "performer": "Kai Engel",
+  "title": "Meanings",
+  "files": [
+    "01. A New Journey Begins.flac",
+    "02. Time Goes On.flac"
+  ],
+  "tracks": [
+    {
+      "number": 1,
+      "title": "A New Journey Begins",
+      "performer": "Kai Engel",
+      "index": "00:00:00",
+      "file": "01. A New Journey Begins.flac"
+    }
+  ]
+}
+```
+
+**CUE Parsing Features:**
+- Parses album-level metadata (performer, title, files)
+- Parses track-level metadata (number, title, performer, index)
+- Handles multi-file CUE sheets correctly
+- JSON output for automation and AI agents
+
+**Use Cases:**
+- Verify CUE file contents before burning
+- Extract tracklist information
+- Integrate with automated workflows
+- Parse CUE files for AI analysis
+
 ### 📤 `emit` - Export Library Metadata
 
 Export structured library data for analysis or AI processing.
@@ -742,8 +882,12 @@ musicctl --help
 # Command-specific help
 musicctl scan --help
 musicctl read --help
+musicctl write --help
 musicctl normalize --help
+musicctl validate --help
 musicctl duplicates --help
+musicctl cue --help
+musicctl cue-parse --help
 musicctl emit --help
 musicctl tree --help
 ```
