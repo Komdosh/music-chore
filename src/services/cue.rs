@@ -335,7 +335,7 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
 
     for line in content.lines() {
         let trimmed = line.trim();
-        let is_track_level = line.starts_with("  ");
+        let is_track_level = line.starts_with("  ") || line.starts_with("\t");
 
         if trimmed.starts_with("PERFORMER") && !is_track_level {
             if let Some(value) = extract_quoted_value(trimmed) {
@@ -1182,5 +1182,35 @@ FILE "test.flac" WAVE
 
         assert!(result.genre.is_none());
         assert!(result.date.is_none());
+    }
+
+    #[test]
+    fn test_parse_cue_file_with_tabs() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let cue_content = "PERFORMER \"Test Artist\"\n\
+TITLE \"Test Album\"\n\
+FILE \"test.flac\" WAVE\n\
+\tTRACK 01 AUDIO\n\
+\t\tTITLE \"Track One\"\n\
+\t\tPERFORMER \"Track Artist\"\n\
+\t\tINDEX 01 00:00:00\n\
+\tTRACK 02 AUDIO\n\
+\t\tTITLE \"Track Two\"\n\
+\t\tINDEX 01 00:03:00\n";
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.performer, Some("Test Artist".to_string()));
+        assert_eq!(result.title, Some("Test Album".to_string()));
+        assert_eq!(result.files, vec!["test.flac".to_string()]);
+        assert_eq!(result.tracks.len(), 2);
+        assert_eq!(result.tracks[0].number, 1);
+        assert_eq!(result.tracks[0].title, Some("Track One".to_string()));
+        assert_eq!(result.tracks[0].performer, Some("Track Artist".to_string()));
+        assert_eq!(result.tracks[1].number, 2);
+        assert_eq!(result.tracks[1].title, Some("Track Two".to_string()));
     }
 }
