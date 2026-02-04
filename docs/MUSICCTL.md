@@ -128,7 +128,6 @@ musicctl cue-parse /path/to/album.cue --json
 musicctl [GLOBAL_OPTIONS] <COMMAND> [COMMAND_OPTIONS]
 
 Global Options:
-  -v, --verbose     Enable verbose output
   -h, --help        Print help information
   -V, --version     Print version information
 ```
@@ -141,7 +140,7 @@ Recursively scan directories for supported audio files.
 musicctl scan [OPTIONS] <PATH>
 
 Options:
-  -v, --verbose     Show detailed scanning information
+  --verbose         Show progress output during scanning
   -j, --json        Output results as JSON
 
 Arguments:
@@ -181,7 +180,6 @@ musicctl tree [OPTIONS] <PATH>
 
 Options:
   -j, --json        Output results as JSON
-  -v, --verbose     Show additional metadata
 
 Arguments:
   <PATH>            Directory to scan (required)
@@ -501,7 +499,7 @@ FILE "01. Track One.flac" WAVE
 ```
 
 **CUE Generation Features:**
-- Extracts metadata from FLAC, MP3, and WAV files
+- Extracts metadata from FLAC, MP3, WAV, DSF, and WavPack files
 - Generates standard CUE sheets compatible with most audio players
 - Supports multiple files per album (one FILE entry per track)
 - Includes genre and year from track metadata

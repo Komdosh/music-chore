@@ -22,13 +22,15 @@
 | Feature | Description |
 |:--------:|:------------|
 | 🔍 | Recursive directory scanning |
-| 🏷️ | Metadata extraction (FLAC, MP3, WAV) |
+| 🏷️ | Metadata extraction (FLAC, MP3, WAV, DSF, WavPack) |
 | 📂 | Artist → Album → Track inference |
 | 🔤 | Title/genre normalization |
 | 🌳 | Tree visualization |
 | 🔄 | Duplicate detection (SHA256) |
 | 📊 | Structured output for AI/MCP |
 | 📝 | CUE file operations |
+| 📈 | Progress output with --verbose |
+| ✅ | Metadata schema validation |
 
 </div>
 
@@ -68,6 +70,7 @@ musicctl validate /path/to/your/music
 | Command | Description | Example |
 |---------|-------------|---------|
 | `scan` | Discover music files | `musicctl scan ~/Music` |
+| `scan --verbose` | Discover with progress output | `musicctl scan ~/Music --verbose` |
 | `tree` | Visual library view | `musicctl tree ~/Music` |
 | `read` | Extract file metadata | `musicctl read track.flac` |
 | `write` | Update metadata | `musicctl write track.flac --title "New Title"` |
@@ -181,7 +184,8 @@ cargo clippy
 | FLAC | ✅ | ✅ |
 | MP3 | ✅ | ✅ |
 | WAV | ✅ | ✅ |
-| DSF | 🔜 | 🔜 |
+| DSF | ✅ | ✅ |
+| WavPack | ✅ | ✅ |
 | OGG | 🔜 | 🔜 |
 | M4A | 🔜 | 🔜 |
 

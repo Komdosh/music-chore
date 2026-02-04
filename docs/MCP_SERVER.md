@@ -6,7 +6,7 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 8 core tools exposed and working
+- ✅ All 9 core tools exposed and working
 - ✅ Proper initialization and shutdown handling
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
@@ -521,7 +521,7 @@ const response = await client.callTool('scan_directory', {
 
 The MCP server provides detailed error messages for:
 - Invalid file paths
-- Unsupported file formats (currently FLAC only)
+- Unsupported file formats (currently supports FLAC, MP3, WAV, DSF, WavPack)
 - Permission issues
 - Corrupted metadata
 - Network/disk I/O errors
@@ -549,7 +549,7 @@ Configure logging with the `RUST_LOG` environment variable:
 - No internet-based metadata lookup
 
 **Planned v2 enhancements:**
-- Additional audio format support (DSF, OGG, M4A)
+- Additional audio format support (OGG, M4A)
 - Batch metadata operations
 - Genre normalization
 - Advanced CUE file validation
