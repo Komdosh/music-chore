@@ -3,170 +3,137 @@
 
 features:
   # === COMPLETED (17 features) ===
-
   - id: 1
     desc: Scan directory for music files
     cmd: musicctl scan <path>
     passes: true
-
   - id: 2
     desc: Read metadata from FLAC file
     cmd: musicctl read <file.flac>
     passes: true
-
   - id: 3
     desc: Infer artist from directory structure
     cmd: musicctl scan
     passes: true
-
   - id: 4
     desc: Infer album from subdirectory name
     cmd: musicctl scan
     passes: true
-
   - id: 5
     desc: Normalize track titles to title case
     cmd: musicctl normalize [--title]
     passes: true
-
   - id: 6
     desc: Emit metadata in JSON format
     cmd: musicctl emit --json
     passes: true
-
   - id: 7
     desc: Emit metadata in human-readable table
     cmd: musicctl emit
     passes: true
-
   - id: 8
     desc: Dry-run mode prevents file writes
     cmd: musicctl write --dry-run
     passes: true
-
   - id: 9
     desc: Apply metadata updates with --apply
     cmd: musicctl write --set title="X" --apply
     passes: true
-
   - id: 10
     desc: Validate missing required fields
     cmd: musicctl validate
     passes: true
-
   - id: 11
     desc: Handle Unicode characters in paths
     cmd: musicctl scan
     passes: true
-
   - id: 12
     desc: Handle non-ASCII artist names
     cmd: musicctl scan
     passes: true
-
   - id: 13
     desc: Detect duplicate tracks by checksum
     cmd: musicctl duplicates
     passes: true
-
   - id: 14
     desc: Generate .cue file from album
     cmd: musicctl cue --generate
     passes: true
-
   - id: 15
     desc: Parse existing .cue file
     cmd: musicctl cue --parse
     passes: true
-
   - id: 16
     desc: Validate .cue file consistency
     cmd: musicctl cue --validate
     passes: true
-
   - id: 17
     desc: Unified normalize command (--title/--genres)
     cmd: musicctl normalize [--title|--genres]
     passes: true
-
   - id: 18
     desc: Support MP3 metadata reading (ID3 tags)
     cmd: musicctl read
     passes: true
-
   - id: 19
     desc: Support WAV metadata reading
     cmd: musicctl read
     passes: true
-
+  - id: 28
+    desc: Support recursive depth limit
+    cmd: musicctl scan --max-depth N
+    passes: true
   - id: 30
     desc: Support --help and --version flags
     cmd: musicctl --help | --version
     passes: true
 
-  # === NOT YET IMPLEMENTED (10 features) ===
-
+  # === NOT YET IMPLEMENTED (9 features) ===
   - id: 20
     desc: Support DSF metadata reading
     cmd: musicctl read
     passes: false
-
   - id: 21
     desc: Normalize music genres to standard categories
     cmd: musicctl normalize --genres
     note: Covered by unified normalize (id:17)
     passes: true
-
   - id: 22
     desc: REM GENRE and REM DATE parsing in CUE
     cmd: musicctl cue --parse
     passes: true
-
   - id: 23
     desc: Detect unsupported file types with warning
     cmd: musicctl scan
     passes: false
-
   - id: 24
     desc: Ensure deterministic scan order
     cmd: musicctl scan
     passes: false
-
   - id: 25
     desc: Expose schema version in output
     cmd: musicctl emit
     passes: false
-
   - id: 26
     desc: Handle missing album directories
     cmd: musicctl scan
     passes: false
-
   - id: 27
     desc: Handle empty track files
     cmd: musicctl scan
     passes: false
-
-  - id: 28
-    desc: Support recursive depth limit
-    cmd: musicctl scan --max-depth N
-    passes: false
-
   - id: 29
     desc: Handle symlinks to music files
     cmd: musicctl scan
     passes: false
-
   - id: 31
     desc: Exclude specified file patterns
     cmd: musicctl scan --exclude '*.tmp'
     passes: false
-
   - id: 32
     desc: Emit progress output with --verbose
     cmd: musicctl scan --verbose
     passes: false
-
   - id: 33
     desc: Validate metadata schema on read
     cmd: musicctl read
