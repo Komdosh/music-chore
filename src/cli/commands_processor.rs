@@ -2,14 +2,16 @@ use crate::build_library_hierarchy;
 use crate::cli::commands::validate_path;
 use crate::cli::Commands;
 use crate::services::apply_metadata::write_metadata_by_path;
-use crate::services::cue::{generate_cue_for_path, parse_cue_file, CueGenerationError};
+use crate::services::cue::{
+    generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError,
+};
 use crate::services::duplicates::find_duplicates;
 use crate::services::format_tree::{emit_by_path, format_tree_output};
 use crate::services::formats::read_metadata;
 use crate::services::normalization::normalize;
 use crate::services::scanner::{scan_dir, scan_tracks};
 use serde_json::to_string_pretty;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Handle the parsed CLI command
 pub fn handle_command(command: Commands) -> Result<(), i32> {
@@ -51,6 +53,14 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         } => handle_cue(path, output, dry_run, force),
         Commands::CueParse { path, json } => {
             handle_cue_parse(path, json);
+            Ok(())
+        }
+        Commands::CueValidate {
+            path,
+            audio_dir,
+            json,
+        } => {
+            handle_cue_validate(path, audio_dir, json);
             Ok(())
         }
         Commands::Validate { path, json } => {
@@ -216,5 +226,51 @@ fn handle_cue_parse(path: PathBuf, json: bool) {
             }
         }
         Err(e) => eprintln!("Error parsing cue file: {}", e),
+    }
+}
+
+fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
+    let audio_directory = audio_dir.unwrap_or_else(|| {
+        path.parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf()
+    });
+
+    let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_directory) {
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+            .map(|e| e.path())
+            .collect(),
+        Err(e) => {
+            eprintln!("Error reading audio directory: {}", e);
+            return;
+        }
+    };
+
+    let audio_files_refs: Vec<&Path> = audio_files.iter().map(|p| p.as_path()).collect();
+    let result = validate_cue_consistency(&path, &audio_files_refs);
+
+    if json {
+        match to_string_pretty(&result) {
+            Ok(s) => println!("{}", s),
+            Err(e) => eprintln!("Error serializing result: {}", e),
+        }
+    } else {
+        if result.is_valid {
+            println!("✓ CUE file is valid");
+            println!("  All referenced files exist and track count matches.");
+        } else {
+            println!("✗ CUE file validation failed:");
+            if result.parsing_error {
+                println!("  - Error parsing CUE file");
+            }
+            if result.file_missing {
+                println!("  - Referenced audio file(s) missing");
+            }
+            if result.track_count_mismatch {
+                println!("  - Track count mismatch between CUE and audio files");
+            }
+        }
     }
 }

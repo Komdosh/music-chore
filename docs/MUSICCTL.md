@@ -5,8 +5,8 @@
 ## 📅 Last Updated
 
 - **Date**: February 4, 2026
-- **Version**: v0.2.3
-- **Features**: CLI with 10 commands + MCP server with 9 tools
+- **Version**: v0.2.4
+- **Features**: CLI with 11 commands + MCP server with 10 tools
 
 ## 📋 Table of Contents
 
@@ -22,6 +22,7 @@
   - [duplicates - Find Duplicate Tracks](#-duplicates---find-duplicate-tracks)
   - [cue - Generate CUE Files](#-cue---generate-cue-files)
   - [cue-parse - Parse CUE Files](#-cue-parse---parse-cue-files)
+  - [cue-validate - Validate CUE Files](#-cue-validate---validate-cue-files)
   - [emit - Export Library Metadata](#-emit---export-library-metadata)
 - [Advanced Usage](#advanced-usage)
 - [Examples](#examples)
@@ -575,6 +576,58 @@ Cue File: /music/Album/Album.cue
 - Integrate with automated workflows
 - Parse CUE files for AI analysis
 
+### 🔍 `cue-validate` - Validate CUE Files
+
+Validate CUE sheet files against their referenced audio files.
+
+```bash
+musicctl cue-validate [OPTIONS] <CUE_PATH>
+
+Arguments:
+  <CUE_PATH>          Path to .cue file (required)
+
+Options:
+  --audio-dir <PATH>  Directory containing audio files (defaults to CUE file directory)
+  -j, --json          Output as JSON
+```
+
+**Output Examples:**
+
+```
+# Valid CUE file
+✓ CUE file is valid
+  All referenced files exist and track count matches.
+```
+
+```
+# Validation failed
+✗ CUE file validation failed:
+  - Referenced audio file(s) missing
+  - Track count mismatch between CUE and audio files
+```
+
+**JSON Output:**
+```json
+{
+  "is_valid": false,
+  "parsing_error": false,
+  "file_missing": true,
+  "track_count_mismatch": false
+}
+```
+
+**CUE Validation Features:**
+- Checks that referenced audio files exist in the directory
+- Validates track count consistency between CUE and audio files
+- Supports custom audio directory for validation
+- Parsing errors are reported as validation failures
+
+**Use Cases:**
+- Verify CUE file integrity before burning discs
+- Check that all referenced audio files are present
+- Validate CUE files in automated workflows
+- Debug CUE file issues
+
 ### 📤 `emit` - Export Library Metadata
 
 Export structured library data for analysis or AI processing.
@@ -888,6 +941,7 @@ musicctl validate --help
 musicctl duplicates --help
 musicctl cue --help
 musicctl cue-parse --help
+musicctl cue-validate --help
 musicctl emit --help
 musicctl tree --help
 ```

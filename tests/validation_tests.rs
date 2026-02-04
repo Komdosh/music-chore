@@ -2,7 +2,7 @@
 //! Tests the CLI validation functions that are reused by MCP
 
 use music_chore::services::validation::validate_tracks;
-use music_chore::{MetadataValue, TrackMetadata, Track};
+use music_chore::{MetadataValue, Track, TrackMetadata};
 use std::path::PathBuf;
 
 #[test]

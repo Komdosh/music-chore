@@ -86,6 +86,17 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Validate a .cue file against its referenced audio files.
+    CueValidate {
+        /// Path to .cue file.
+        path: PathBuf,
+        /// Path to directory containing audio files (defaults to .cue file directory).
+        #[arg(long)]
+        audio_dir: Option<PathBuf>,
+        /// Output JSON instead of human-readable format.
+        #[arg(long)]
+        json: bool,
+    },
     /// Validate metadata completeness and consistency.
     Validate {
         /// Base directory to validate.

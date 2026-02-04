@@ -469,7 +469,7 @@ pub fn validate_cue_consistency(cue_path: &Path, audio_files: &[&Path]) -> CueVa
 }
 
 /// Result of .cue file validation.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CueValidationResult {
     pub is_valid: bool,
     pub parsing_error: bool,
@@ -986,5 +986,119 @@ TITLE "Album"
     fn test_parse_cue_file_nonexistent() {
         let result = parse_cue_file(&PathBuf::from("/nonexistent/test.cue"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_cue_consistency_valid() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+        let audio_path1 = temp_dir.path().join("track1.flac");
+        let audio_path2 = temp_dir.path().join("track2.flac");
+
+        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track1.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track 1"
+    INDEX 01 00:00:00
+FILE "track2.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Track 2"
+    INDEX 01 00:02:00
+"#).unwrap();
+        std::fs::write(&audio_path1, b"dummy audio").unwrap();
+        std::fs::write(&audio_path2, b"dummy audio").unwrap();
+
+        let audio_files: Vec<&Path> = vec![audio_path1.as_path(), audio_path2.as_path()];
+        let result = validate_cue_consistency(&cue_path, &audio_files);
+
+        assert!(result.is_valid);
+        assert!(!result.parsing_error);
+        assert!(!result.file_missing);
+        assert!(!result.track_count_mismatch);
+    }
+
+    #[test]
+    fn test_validate_cue_consistency_missing_file() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+        let audio_path = temp_dir.path().join("existing.flac");
+
+        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "missing.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track"
+    INDEX 01 00:00:00
+"#).unwrap();
+        std::fs::write(&audio_path, b"dummy audio").unwrap();
+
+        let audio_files: Vec<&Path> = vec![audio_path.as_path()];
+        let result = validate_cue_consistency(&cue_path, &audio_files);
+
+        assert!(!result.is_valid);
+        assert!(result.file_missing);
+    }
+
+    #[test]
+    fn test_validate_cue_consistency_track_count_mismatch() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+        let audio_path1 = temp_dir.path().join("track1.flac");
+        let audio_path2 = temp_dir.path().join("track2.flac");
+        let audio_path3 = temp_dir.path().join("track3.flac");
+
+        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+TITLE "Album"
+FILE "track1.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track 1"
+    INDEX 01 00:00:00
+FILE "track2.flac" WAVE
+  TRACK 02 AUDIO
+    TITLE "Track 2"
+    INDEX 01 00:02:00
+"#).unwrap();
+        std::fs::write(&audio_path1, b"dummy audio").unwrap();
+        std::fs::write(&audio_path2, b"dummy audio").unwrap();
+        std::fs::write(&audio_path3, b"dummy audio").unwrap();
+
+        let audio_files: Vec<&Path> = vec![audio_path1.as_path(), audio_path2.as_path(), audio_path3.as_path()];
+        let result = validate_cue_consistency(&cue_path, &audio_files);
+
+        assert!(!result.is_valid);
+        assert!(result.track_count_mismatch);
+    }
+
+    #[test]
+    fn test_validate_cue_consistency_invalid_content() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+        let audio_path = temp_dir.path().join("track.flac");
+
+        std::fs::write(&cue_path, "INVALID CUE CONTENT").unwrap();
+        std::fs::write(&audio_path, b"dummy audio").unwrap();
+
+        let audio_files: Vec<&Path> = vec![audio_path.as_path()];
+        let result = validate_cue_consistency(&cue_path, &audio_files);
+
+        assert!(!result.is_valid);
+        assert!(!result.parsing_error);
+        assert!(result.track_count_mismatch);
+    }
+
+    #[test]
+    fn test_validate_cue_consistency_nonexistent_cue() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("nonexistent.cue");
+        let audio_path = temp_dir.path().join("track.flac");
+
+        std::fs::write(&audio_path, b"dummy audio").unwrap();
+
+        let audio_files: Vec<&Path> = vec![audio_path.as_path()];
+        let result = validate_cue_consistency(&cue_path, &audio_files);
+
+        assert!(!result.is_valid);
+        assert!(result.parsing_error);
     }
 }

@@ -121,6 +121,10 @@ musicctl cue /path/to/album --force
 # Parse and display CUE file contents
 musicctl cue-parse /path/to/album.cue
 musicctl cue-parse /path/to/album.cue --json
+
+# Validate CUE file against its audio files
+musicctl cue-validate /path/to/album.cue
+musicctl cue-validate /path/to/album.cue --audio-dir /path/to/audio --json
 ```
 
 ---
@@ -510,6 +514,48 @@ Cue File: /path/to/album.cue
 }
 ```
 
+### 🔍 `cue-validate` - Validate CUE Files
+
+```bash
+# Validate CUE file against audio files in same directory
+musicctl cue-validate /path/to/album.cue
+
+# Validate with custom audio directory
+musicctl cue-validate /path/to/album.cue --audio-dir /path/to/audio
+
+# JSON output for programmatic use
+musicctl cue-validate /path/to/album.cue --json
+```
+
+**CUE Validation Features:**
+- Checks that referenced audio files exist
+- Validates track count consistency
+- Supports custom audio directory
+- Human-readable or JSON output
+
+**Human-Readable Output:**
+```
+✓ CUE file is valid
+  All referenced files exist and track count matches.
+```
+
+**Validation Failed Output:**
+```
+✗ CUE file validation failed:
+  - Referenced audio file(s) missing
+  - Track count mismatch between CUE and audio files
+```
+
+**JSON Output:**
+```json
+{
+  "is_valid": false,
+  "parsing_error": false,
+  "file_missing": true,
+  "track_count_mismatch": false
+}
+```
+
 ### 📤 `emit` - Export Structured Metadata
 
 ```bash
@@ -634,6 +680,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 | `find_duplicates` | Find duplicate tracks by checksum | `path` (required), `json_output` (optional) | "Find duplicate files in my library" |
 | `generate_cue_file` | Generate CUE file for an album | `path` (required), `output` (optional), `dry_run` (optional), `force` (optional) | "Create CUE sheet for this album" |
 | `parse_cue_file` | Parse and read CUE file contents | `path` (required) | "Read CUE file and extract metadata" |
+| `validate_cue_file` | Validate CUE file against audio files | `path` (required), `audio_dir` (optional), `json_output` (optional) | "Check CUE file consistency" |
 
 ### 🧪 Example AI Workflows
 

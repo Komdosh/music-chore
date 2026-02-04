@@ -6,12 +6,12 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 9 core tools exposed and working
+- ✅ All 10 core tools exposed and working
 - ✅ Proper initialization and shutdown handling
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
 - ✅ Duplicate detection with SHA256 checksums
-- ✅ CUE file generation and parsing
+- ✅ CUE file generation, parsing, and validation
 
 ## Overview
 
@@ -25,6 +25,7 @@ The MCP server allows AI agents to:
 - Validate library metadata quality
 - Generate CUE files for albums
 - Parse existing CUE files
+- Validate CUE files against audio files
 
 ## Available Tools
 
@@ -298,6 +299,8 @@ If `json_output=true`:
 }
 ```
 
+### 5. `emit_library_metadata`
+
 Emit complete library metadata in structured format optimized for AI analysis.
 
 **Parameters:**
@@ -318,7 +321,7 @@ Complete library information with summary statistics and detailed track informat
 }
 ```
 
-### 6. `find_duplicates`
+### 7. `find_duplicates`
 
 Find duplicate tracks by comparing SHA256 checksums of audio files.
 
@@ -341,7 +344,7 @@ Find duplicate tracks by comparing SHA256 checksums of audio files.
 }
 ```
 
-### 7. `generate_cue_file`
+### 8. `generate_cue_file`
 
 Generate a CUE sheet file for an album directory.
 
@@ -367,7 +370,7 @@ Generate a CUE sheet file for an album directory.
 }
 ```
 
-### 8. `parse_cue_file`
+### 9. `parse_cue_file`
 
 Parse and read contents of a CUE file.
 
@@ -407,6 +410,58 @@ JSON object with parsed CUE file contents:
     }
   ]
 }
+```
+
+### 9. `validate_cue_file`
+
+Validate a CUE file against its referenced audio files.
+
+**Parameters:**
+- `path` (string, required): Path to the .cue file
+- `audio_dir` (string, optional): Directory containing audio files (defaults to CUE file directory)
+- `json_output` (boolean, optional): Return results as JSON. Default: false
+
+**Returns:**
+- If `json_output=false`: Human-readable validation result
+- If `json_output=true`: JSON object with validation results:
+  - `is_valid`: boolean indicating if CUE file is valid
+  - `parsing_error`: boolean indicating if CUE file couldn't be parsed
+  - `file_missing`: boolean indicating if referenced files are missing
+  - `track_count_mismatch`: boolean indicating if track counts don't match
+
+**Example:**
+```json
+{
+  "name": "validate_cue_file",
+  "arguments": {
+    "path": "/Users/music/Album.cue",
+    "json_output": true
+  }
+}
+```
+
+**Response Example (json_output=false):**
+```
+✓ CUE file is valid
+  All referenced files exist and track count matches.
+```
+
+**Response Example (validation failed):**
+```
+✗ CUE file validation failed:
+  - Referenced audio file(s) missing
+  - Track count mismatch between CUE and audio files
+```
+
+**Response Example (json_output=true):**
+```json
+{
+  "is_valid": false,
+  "parsing_error": false,
+  "file_missing": true,
+  "track_count_mismatch": false
+}
+```
 ```
 
 ## Response Formats
