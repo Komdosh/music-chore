@@ -548,6 +548,8 @@ Cue File: /music/Album/Album.cue
 {
   "performer": "Kai Engel",
   "title": "Meanings",
+  "genre": "Ambient",
+  "date": "2024",
   "files": [
     "01. A New Journey Begins.flac",
     "02. Time Goes On.flac"
@@ -565,7 +567,7 @@ Cue File: /music/Album/Album.cue
 ```
 
 **CUE Parsing Features:**
-- Parses album-level metadata (performer, title, files)
+- Parses album-level metadata (performer, title, genre, date, files)
 - Parses track-level metadata (number, title, performer, index)
 - Handles multi-file CUE sheets correctly
 - JSON output for automation and AI agents

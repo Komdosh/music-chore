@@ -381,6 +381,8 @@ Parse and read contents of a CUE file.
 JSON object with parsed CUE file contents:
 - `performer`: Album performer/artist
 - `title`: Album title
+- `genre`: Album genre (from REM GENRE)
+- `date`: Album date (from REM DATE)
 - `files`: Array of audio file names
 - `tracks`: Array of track objects with number, title, performer, index, and file
 
@@ -399,6 +401,8 @@ JSON object with parsed CUE file contents:
 {
   "performer": "Kai Engel",
   "title": "Meanings",
+  "genre": "Ambient",
+  "date": "2024",
   "files": ["01. A New Journey Begins.flac", "02. Time Goes On.flac"],
   "tracks": [
     {

@@ -345,6 +345,20 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
             if let Some(value) = extract_quoted_value(trimmed) {
                 cue_file.title = Some(value);
             }
+        } else if trimmed.starts_with("REM GENRE") {
+            if let Some(value) = extract_quoted_value(trimmed) {
+                cue_file.genre = Some(value);
+            } else {
+                let value = trimmed.trim_start_matches("REM GENRE").trim();
+                if !value.is_empty() {
+                    cue_file.genre = Some(value.to_string());
+                }
+            }
+        } else if trimmed.starts_with("REM DATE") {
+            let value = trimmed.trim_start_matches("REM DATE").trim();
+            if !value.is_empty() {
+                cue_file.date = Some(value.to_string());
+            }
         } else if trimmed.starts_with("FILE") {
             if let Some(value) = extract_quoted_value(trimmed) {
                 current_file = Some(value.clone());
@@ -422,6 +436,8 @@ fn parse_track_line(line: &str) -> Option<CueTrack> {
 pub struct CueFile {
     pub performer: Option<String>,
     pub title: Option<String>,
+    pub genre: Option<String>,
+    pub date: Option<String>,
     pub files: Vec<String>,
     pub tracks: Vec<CueTrack>,
 }
@@ -880,6 +896,8 @@ FILE "test.flac" WAVE
 
         assert_eq!(result.performer, Some("Test Artist".to_string()), "Album performer should be 'Test Artist'");
         assert_eq!(result.title, Some("Test Album".to_string()), "Album title should be 'Test Album'");
+        assert!(result.genre.is_none(), "Genre should be None for basic test");
+        assert!(result.date.is_none(), "Date should be None for basic test");
         assert_eq!(result.files, vec!["test.flac".to_string()]);
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
@@ -1100,5 +1118,69 @@ FILE "track2.flac" WAVE
 
         assert!(!result.is_valid);
         assert!(result.parsing_error);
+    }
+
+    #[test]
+    fn test_parse_cue_file_with_rem_genre() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"PERFORMER "Test Artist"
+TITLE "Test Album"
+REM GENRE "Rock"
+REM DATE 2024
+FILE "test.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.genre, Some("Rock".to_string()));
+        assert_eq!(result.date, Some("2024".to_string()));
+    }
+
+    #[test]
+    fn test_parse_cue_file_with_rem_genre_no_quotes() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"PERFORMER "Test Artist"
+TITLE "Test Album"
+REM GENRE Rock
+REM DATE 2024
+FILE "test.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert_eq!(result.genre, Some("Rock".to_string()));
+        assert_eq!(result.date, Some("2024".to_string()));
+    }
+
+    #[test]
+    fn test_parse_cue_file_without_rem_fields() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let cue_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"PERFORMER "Test Artist"
+TITLE "Test Album"
+FILE "test.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    INDEX 01 00:00:00
+"#;
+        std::fs::write(&cue_path, cue_content).unwrap();
+
+        let result = parse_cue_file(&cue_path).unwrap();
+
+        assert!(result.genre.is_none());
+        assert!(result.date.is_none());
     }
 }

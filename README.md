@@ -498,6 +498,8 @@ Cue File: /path/to/album.cue
 {
   "performer": "Kai Engel",
   "title": "Meanings",
+  "genre": "Ambient",
+  "date": "2024",
   "files": [
     "01. A New Journey Begins.flac",
     "02. Time Goes On.flac"
