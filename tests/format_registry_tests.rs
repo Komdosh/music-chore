@@ -88,3 +88,49 @@ fn test_write_metadata_unsupported_format() {
     let result = write_metadata(&path, &metadata);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_read_metadata_success_for_flac() {
+    use tempfile::TempDir;
+    use std::fs;
+    let temp_dir = TempDir::new().unwrap();
+    let flac_file = temp_dir.path().join("test.flac");
+    fs::write(&flac_file, b"dummy flac content").unwrap();
+
+    let result = read_metadata(&flac_file);
+    // Expect an error because it's dummy content, but it should be an InvalidFile error
+    // indicating the correct handler was found and tried to process it.
+    assert!(result.is_err());
+    assert!(format!("{:?}", result).contains("InvalidFile"));
+}
+
+#[test]
+fn test_write_metadata_success_for_flac() {
+    use tempfile::TempDir;
+    use std::fs;
+    use music_chore::core::domain::models::{TrackMetadata, MetadataValue};
+
+    let temp_dir = TempDir::new().unwrap();
+    let flac_file = temp_dir.path().join("test.flac");
+    fs::write(&flac_file, b"dummy flac content").unwrap();
+
+    let metadata = TrackMetadata {
+        title: Some(MetadataValue::embedded("Test Title".to_string())),
+        artist: None,
+        album: None,
+        album_artist: None,
+        track_number: None,
+        disc_number: None,
+        year: None,
+        genre: None,
+        duration: None,
+        format: "flac".to_string(),
+        path: flac_file.clone(),
+    };
+
+    let result = write_metadata(&flac_file, &metadata);
+    // Expect an error because it's dummy content, but it should be an InvalidFile error
+    // indicating the correct handler was found and tried to process it.
+    assert!(result.is_err());
+    assert!(format!("{:?}", result).contains("InvalidFile"));
+}

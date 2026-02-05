@@ -23,8 +23,6 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Recursively scan a directory for music files.
-    ///
-    /// Currently supports: .flac files
     Scan {
         /// Base directory to scan.
         path: PathBuf,
@@ -46,7 +44,9 @@ pub enum Commands {
     },
     /// Show a human‑friendly tree view.
     Tree {
+        /// Base directory to scan.
         path: PathBuf,
+        /// Output JSON instead of a simple tree
         #[arg(long)]
         json: bool,
     },
@@ -57,16 +57,21 @@ pub enum Commands {
     },
     /// Write metadata to a file.
     Write {
+        /// Path to the file to update
         file: PathBuf,
+        /// example: title="New Title" artist="New Artist"
         #[arg(long, num_args = 1..)]
         set: Vec<String>,
+        /// Apply changes and writing them to the disk
         #[arg(long)]
         apply: bool,
+        /// Show what would be changed without actually modifying files.
         #[arg(long)]
         dry_run: bool,
     },
     /// Normalize track titles to title case, or normalize genres with --genres.
     Normalize {
+        /// Path to the file to normalize.
         path: PathBuf,
         /// Normalize genres instead of titles.
         #[arg(long)]
@@ -80,7 +85,9 @@ pub enum Commands {
     },
     /// Emit library metadata in structured JSON format.
     Emit {
+        /// Path to the file to emit metadata
         path: PathBuf,
+        /// Output JSON instead of a simple tree
         #[arg(long)]
         json: bool,
     },

@@ -10,7 +10,7 @@ This document provides comprehensive manual testing scenarios for the musicctl C
 **Test ID:** TC-SCAN-001  
 **Objective:** Verify directory scanning functionality  
 **Steps:**
-1. Navigate to project directory: `cd /Users/komdosh/Projects/music-chore`
+1. Navigate to project directory: `cd ~/music-chore`
 2. Create test directory with mixed audio files: `mkdir -p test_scan/{flac,mp3,wav,dsf,wavpack}`
 3. Copy sample files to each subdirectory
 4. Run: `cargo run --bin musicctl -- scan test_scan`

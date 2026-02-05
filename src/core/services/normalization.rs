@@ -1,9 +1,10 @@
 //! Text normalization services.
 
-use crate::core::domain::models::{OperationResult, Track};
-use crate::adapters::audio_formats as formats;
-use std::path::{Path, PathBuf};
 use crate::MetadataValue;
+use crate::adapters::audio_formats as formats;
+use crate::core::domain::models::{OperationResult, Track};
+use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
+use std::path::{Path, PathBuf};
 
 pub const STANDARD_GENRES: &[&str] = &[
     "Acoustic",
@@ -255,7 +256,7 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        crate::core::services::scanner::scan_dir(path)
+        scan_dir(path)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -279,9 +280,7 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
                         ));
                     } else {
                         let mut updated_metadata = track.metadata.clone();
-                        updated_metadata.genre = Some(
-                            MetadataValue::user_set(new_genre.clone()),
-                        );
+                        updated_metadata.genre = Some(MetadataValue::user_set(new_genre.clone()));
 
                         match formats::write_metadata(&track.file_path, &updated_metadata) {
                             Ok(()) => {
@@ -419,9 +418,17 @@ fn normalize_track_titles_with_options(
         results.push(normalize_single_track(track, dry_run));
     } else if path.is_dir() {
         // Directory - scan for supported audio files
-        let tracks = crate::core::services::scanner::scan_dir(path);
-        for track in tracks {
-            results.push(normalize_single_track(track, dry_run));
+        let tracks = scan_dir_with_metadata(path);
+        match tracks {
+            Ok(tracks) => {
+                for track in tracks {
+                    let result = normalize_single_track(track, dry_run);
+                    results.push(result);
+                }
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to scan directory: {}", e);
+            }
         }
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
@@ -441,8 +448,9 @@ fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
                 let extracted_title = if let Some(pos) = file_stem.find(" - ") {
                     // Pattern: "01 - Title" or "Artist - Title"
                     let title_part = &file_stem[pos + 3..];
-                    if !title_part.trim().is_empty() {
-                        title_part.trim()
+                    let title_trimmed = title_part.trim();
+                    if !title_trimmed.is_empty() {
+                        title_trimmed
                     } else {
                         // If after " - " is empty, use the whole filename
                         file_stem

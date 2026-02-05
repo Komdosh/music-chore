@@ -37,7 +37,7 @@ pub async fn start() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run the server with stdio transport
     let service = server.serve(stdio()).await.inspect_err(|e| {
-        println!("Error starting server: {}", e);
+        eprintln!("Error starting server: {}", e);
     })?;
     service.waiting().await?;
 

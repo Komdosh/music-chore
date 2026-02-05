@@ -1,7 +1,9 @@
 //! Enhanced directory scanner with improved error handling and edge cases.
 
-use crate::core::domain::models::{MetadataValue, Track, TrackMetadata, FOLDER_INFERRED_CONFIDENCE};
 use crate::adapters::audio_formats as formats;
+use crate::core::domain::models::{
+    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata,
+};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 use glob::Pattern;
 use log::{debug, error, warn};
@@ -271,7 +273,7 @@ pub fn scan_dir_immediate(base: &Path) -> Vec<PathBuf> {
 }
 
 /// Scan and read full metadata for all files in directory
-pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, Box<dyn std::error::Error>> {
+pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, String> {
     let mut tracks_map = BTreeMap::new();
 
     for entry in WalkDir::new(base)
@@ -722,8 +724,10 @@ fn scan_dir_with_options_impl(
     }
 
     if verbose {
-        eprintln!("Scan completed: {} processed, {} supported, {} unsupported",
-                 processed_files, supported_files, unsupported_files);
+        eprintln!(
+            "Scan completed: {} processed, {} supported, {} unsupported",
+            processed_files, supported_files, unsupported_files
+        );
     }
 
     tracks.sort_by(|a, b| {

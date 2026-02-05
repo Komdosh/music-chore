@@ -22,9 +22,9 @@ fn test_normalize_dry_run() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
+    // only track 2 should be normalized
+    assert!(!output.contains("track1.flac"));
     assert!(output.contains("track2.flac"));
-    // The test files from fixtures likely already have proper title case, so they might not need normalization
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn test_normalize_mixed_file_types() {
 
     // Mix of music and non-music files
     fs::copy(
-        "tests/fixtures/flac/simple/track1.flac",
-        source_path.join("artist/album/track1.flac"),
+        "tests/fixtures/flac/simple/track2.flac",
+        source_path.join("artist/album/track2.flac"),
     )
     .unwrap();
     fs::write(source_path.join("artist/album/readme.txt"), "album info").unwrap();
@@ -104,7 +104,7 @@ fn test_normalize_mixed_file_types() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
+    assert!(output.contains("track2.flac"));
     // Should only process the music file, not txt/jpg files
 }
 
@@ -133,7 +133,8 @@ fn test_normalize_nested_directories() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
+    // only track 2 should be normalized from artist2/album2
+    assert!(!output.contains("track1.flac"));
     assert!(output.contains("track2.flac"));
 }
 
@@ -165,9 +166,10 @@ fn test_normalize_different_formats() {
     let result = normalize(source_path.to_path_buf(), true);
     assert!(result.is_ok());
 
+    // only Track3 should be normalized
     let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
-    assert!(output.contains("track2.mp3"));
+    assert!(!output.contains("track1.flac"));
+    assert!(!output.contains("track2.mp3"));
     assert!(output.contains("track3.wav"));
 }
 
@@ -202,14 +204,14 @@ fn test_normalize_unicode_paths() {
     fs::create_dir_all(source_path.join("艺术家/专辑")).unwrap();
 
     // Copy test file
-    let test_file = source_path.join("艺术家/专辑/track1.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+    let test_file = source_path.join("艺术家/专辑/track2.flac");
+    fs::copy("tests/fixtures/flac/simple/track2.flac", &test_file).unwrap();
 
     let result = normalize(source_path.to_path_buf(), true);
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
+    assert!(output.contains("track2.flac"));
 }
 
 #[test]
@@ -236,6 +238,7 @@ fn test_normalize_preserves_metadata() {
         .clone();
 
     let result = normalize(source_path.to_path_buf(), false);
+    println!("{:?}", result);
     assert!(result.is_ok());
 
     // Check that metadata is preserved

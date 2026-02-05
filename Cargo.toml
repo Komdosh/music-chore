@@ -11,10 +11,6 @@ path = "src/bin/musicctl.rs"
 name = "musicctl-mcp"
 path = "src/bin/musicctl-mcp.rs"
 
-[[bin]]
-name = "create-no-metadata-flac"
-path = "src/bin/create_no_metadata_flac.rs"
-
 [dependencies]
 walkdir = "2"
 serde_json = "1"
@@ -28,16 +24,17 @@ rmcp = { version = "0.14", features = [
     "client",
     "transport-io",
     "transport-child-process",
-    "transport-streamable-http-server",
+    #  "transport-streamable-http-server",
     "schemars",
 ] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+#
 env_logger = "0.11"
 log = "0.4"
-anyhow = "1"
 schemars = "1.2.0"
 sha2 = "0.10"
 glob = "0.3"
 
 [dev-dependencies]
 tempfile = "3"
+anyhow = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

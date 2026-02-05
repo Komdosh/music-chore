@@ -101,6 +101,38 @@ musicctl normalize /path/to/music --dry-run
 musicctl normalize --genres /path/to/music --dry-run
 ```
 
+### Advanced Examples
+
+```bash
+# Normalize an entire library with verbose output
+musicctl normalize ~/Music --apply --verbose
+
+# Validate a specific album and get JSON output
+musicctl validate ~/Music/Artist/Album --json
+
+# Emit library metadata in JSON format
+musicctl emit ~/Music --json > library_metadata.json
+
+# Find duplicates in a specific directory
+musicctl duplicates ~/Music/Compilations
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Permission errors**: Ensure you have read/write permissions for the directories and files you're working with.
+
+2. **Unsupported format errors**: The tool only supports FLAC, MP3, WAV, DSF, and WavPack formats. Convert unsupported files to a supported format first.
+
+3. **Metadata not updating**: Remember to use the `--apply` flag when writing metadata; by default, operations are dry runs.
+
+4. **DSF/WavPack reading issues**: Some test files may not contain proper audio data. If you encounter issues with these formats, ensure your files are valid DSF or WavPack files with proper headers.
+
+#### Verbose Output
+
+Use the `--verbose` flag with commands to get more detailed output and debugging information.
+
 ---
 
 ## 🤖 MCP Server

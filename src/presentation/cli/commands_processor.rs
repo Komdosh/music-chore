@@ -1,16 +1,14 @@
-use crate::core::services::library::build_library_hierarchy;
-use crate::presentation::cli::commands::validate_path;
-use crate::presentation::cli::Commands;
+use crate::adapters::audio_formats::{get_supported_extensions, read_metadata};
 use crate::core::domain::with_schema_version;
 use crate::core::services::apply_metadata::write_metadata_by_path;
-use crate::core::services::cue::{
-    generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError,
-};
+use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError};
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_tree_output};
-use crate::adapters::audio_formats::read_metadata;
+use crate::core::services::library::build_library_hierarchy;
 use crate::core::services::normalization::{normalize, normalize_genres_in_library};
 use crate::core::services::scanner::scan_dir;
+use crate::presentation::cli::commands::validate_path;
+use crate::presentation::cli::Commands;
 use serde_json::to_string_pretty;
 use std::path::{Path, PathBuf};
 
@@ -463,10 +461,20 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) ->
             .to_path_buf()
     });
 
+    let supported_extensions = get_supported_extensions();
+
     let audio_files: Vec<PathBuf> = match std::fs::read_dir(&audio_directory) {
         Ok(entries) => entries
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
+            .filter(|e| {
+                // Only include audio files, not the CUE file itself
+                let extension = e.path().extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.to_lowercase());
+
+                extension.as_deref().iter().any(|ext| supported_extensions.contains(&ext.to_string()))
+            })
             .map(|e| e.path())
             .collect(),
         Err(e) => {
@@ -488,22 +496,326 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) ->
             }
         }
     } else {
-        if result.is_valid {
-            println!("✓ CUE file is valid");
-            println!("  All referenced files exist and track count matches.");
-        } else {
-            println!("✗ CUE file validation failed:");
-            if result.parsing_error {
-                println!("  - Error parsing CUE file");
-            }
-            if result.file_missing {
-                println!("  - Referenced audio file(s) missing");
-            }
-            if result.track_count_mismatch {
-                println!("  - Track count mismatch between CUE and audio files");
-            }
-        }
+        println!("{}", format_cue_validation_result(&result));
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_handle_scan_with_existing_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path().join("test_dir");
+        fs::create_dir(&test_path).unwrap();
+        
+        // Create a dummy audio file to ensure scan finds something
+        let audio_file = test_path.join("test.flac");
+        fs::write(&audio_file, b"dummy flac content").unwrap();
+        
+        let result = handle_scan(
+            test_path,
+            None,
+            false,
+            vec![],
+            false,
+            false
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_scan_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_scan(
+            nonexistent_path,
+            None,
+            false,
+            vec![],
+            false,
+            false
+        );
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_tree_with_existing_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_path = temp_dir.path().join("test_dir");
+        fs::create_dir(&test_path).unwrap();
+        
+        let result = handle_tree(test_path, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_tree_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_tree(nonexistent_path, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_read_with_nonexistent_file() {
+        let nonexistent_file = PathBuf::from("/nonexistent/path/test.flac");
+        let result = handle_read(nonexistent_file);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_normalize_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_normalize(nonexistent_path, true);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_normalize_genres_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_normalize_genres(nonexistent_path, true);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_emit_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_emit(nonexistent_path, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_duplicates_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_duplicates(nonexistent_path, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_validate_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_validate(nonexistent_path, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_cue_generate_with_nonexistent_path() {
+        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
+        let result = handle_cue_generate(nonexistent_path, None, false, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_cue_parse_with_nonexistent_file() {
+        let nonexistent_file = PathBuf::from("/nonexistent/path/test.cue");
+        let result = handle_cue_parse(nonexistent_file, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_cue_validate_with_nonexistent_file() {
+        let nonexistent_file = PathBuf::from("/nonexistent/path/test.cue");
+        let result = handle_cue_validate(nonexistent_file, None, false);
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_cue_operation_selection_logic() {
+        // Test that cue command enforces exactly one operation
+        let params_no_op = CueParams {
+            path: PathBuf::from("test.cue"),
+            output: None,
+            dry_run: false,
+            force: false,
+            audio_dir: None,
+            json: false,
+            generate: false,
+            parse: false,
+            validate: false,
+        };
+        
+        let result_no_op = handle_cue(params_no_op);
+        assert_eq!(result_no_op, Err(1)); // Should fail when no operation is specified
+        
+        let params_multi_op = CueParams {
+            path: PathBuf::from("test.cue"),
+            output: None,
+            dry_run: false,
+            force: false,
+            audio_dir: None,
+            json: false,
+            generate: true,
+            parse: true,
+            validate: false,
+        };
+        
+        let result_multi_op = handle_cue(params_multi_op);
+        assert_eq!(result_multi_op, Err(1)); // Should fail when multiple operations are specified
+    }
+
+    #[test]
+    fn test_handle_write_with_nonexistent_file_dry_run() {
+        // Test that handle_write fails when file doesn't exist, even with dry_run
+        let nonexistent_file = PathBuf::from("/nonexistent/path/test.flac");
+        let result = handle_write(nonexistent_file, vec![], false, true); // apply=false, dry_run=true
+        // This should fail since the file doesn't exist
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn test_handle_write_with_nonexistent_file_apply_true() {
+        // Test that handle_write fails when file doesn't exist and apply is true
+        let nonexistent_file = PathBuf::from("/nonexistent/path/test.flac");
+        let result = handle_write(nonexistent_file, vec![], true, false); // apply=true, dry_run=false
+        assert_eq!(result, Err(1)); // Should fail when trying to apply to non-existent file
+    }
+
+    // --- New tests for handle_cue_validate ---
+
+    #[test]
+    fn test_handle_cue_validate_success_same_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let cue_file_path = temp_dir.path().join("test.cue");
+        let audio_file_path = temp_dir.path().join("track01.flac");
+
+        // Create a dummy CUE file
+        let cue_content = format!(
+            r#"TITLE "Test Album"
+PERFORMER "Test Artist"
+FILE "track01.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Test Track 01"
+    PERFORMER "Test Artist"
+    INDEX 01 00:00:00"#
+        );
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        // Create a dummy audio file
+        fs::write(&audio_file_path, b"dummy flac content").unwrap();
+
+        let result = handle_cue_validate(cue_file_path, None, false);
+        assert!(result.is_ok());
+        // Expected: Prints success message indicating validation passed
+    }
+
+    #[test]
+    fn test_handle_cue_validate_success_with_audio_dir() {
+        let cue_temp_dir = TempDir::new().unwrap();
+        let audio_temp_dir = TempDir::new().unwrap();
+
+        let cue_file_path = cue_temp_dir.path().join("test.cue");
+        let audio_file_path = audio_temp_dir.path().join("track01.flac");
+
+        // Create a dummy CUE file referencing the audio file in a separate directory
+        let cue_content = format!(
+            r#"TITLE "Test Album"
+PERFORMER "Test Artist"
+FILE "track01.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Test Track 01"
+    PERFORMER "Test Artist"
+    INDEX 01 00:00:00"#
+        );
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        // Create a dummy audio file in the specified audio directory
+        fs::write(&audio_file_path, b"dummy flac content").unwrap();
+
+        let result = handle_cue_validate(cue_file_path, Some(audio_temp_dir.path().to_path_buf()), false);
+        assert!(result.is_ok());
+        // Expected: Prints success message indicating validation passed
+    }
+
+    #[test]
+    fn test_handle_cue_validate_reports_missing_audio_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let cue_file_path = temp_dir.path().join("test.cue");
+
+        // Create a dummy CUE file referencing a non-existent audio file
+        let cue_content = format!(
+            r#"TITLE "Test Album"
+PERFORMER "Test Artist"
+FILE "non_existent_track.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Non-Existent Track"
+    PERFORMER "Test Artist"
+    INDEX 01 00:00:00"#
+        );
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        // DO NOT create the audio file
+
+        let result = handle_cue_validate(cue_file_path, None, false);
+        assert!(result.is_ok()); // Validation should still return Ok, but report the missing file
+        // Expected: Prints validation report including "File 'non_existent_track.flac' mentioned in CUE file not found"
+    }
+
+    // --- New tests for handle_cue_parse ---
+
+    #[test]
+    fn test_handle_cue_parse_success_text_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let cue_file_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"TITLE "Example Album"
+PERFORMER "Example Artist"
+FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER "Example Artist"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Track Two"
+    PERFORMER "Another Artist"
+    INDEX 01 03:00:00"#;
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        let result = handle_cue_parse(cue_file_path, false);
+        assert!(result.is_ok());
+        // Expected output: Formatted text representation of the CUE file.
+    }
+
+    #[test]
+    fn test_handle_cue_parse_success_json_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let cue_file_path = temp_dir.path().join("test.cue");
+
+        let cue_content = r#"TITLE "Example Album"
+PERFORMER "Example Artist"
+FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER "Example Artist"
+    INDEX 01 00:00:00"#;
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        let result = handle_cue_parse(cue_file_path, true);
+        assert!(result.is_ok());
+        // Expected output: JSON representation of the CUE file.
+    }
+
+    #[test]
+    fn test_handle_cue_parse_invalid_cue_syntax() {
+        let temp_dir = TempDir::new().unwrap();
+        let cue_file_path = temp_dir.path().join("invalid.cue");
+
+        // Malformed CUE content
+        let cue_content = r#"TITLE "Example Album"
+PERFORMER "Example Artist"
+FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER Example Artist" // Missing quote
+    INDEX 01 00:00:00"#;
+        fs::write(&cue_file_path, cue_content).unwrap();
+
+        let result = handle_cue_parse(cue_file_path, false);
+        assert_eq!(result, Err(1));
+        // Expected: Prints an error message about parsing the cue file.
+    }
 }

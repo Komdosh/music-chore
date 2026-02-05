@@ -321,24 +321,27 @@ pub fn generate_cue_for_path(
 }
 
 /// Parses a .cue file and extracts basic information.
-pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
-    let content = std::fs::read_to_string(cue_path)?;
+pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
+    let content = std::fs::read_to_string(cue_path)
+        .map_err(|e| format!("Failed to read CUE file '{}': {}", cue_path.display(), e))?;
     let mut cue_file = CueFile::default();
     let mut current_track: Option<CueTrack> = None;
     let mut current_file: Option<String> = None;
 
-    for line in content.lines() {
+    for (line_num, line) in content.lines().enumerate() {
         let trimmed = line.trim();
         let is_track_level = line.starts_with("  ") || line.starts_with("\t");
 
         if trimmed.starts_with("PERFORMER") && !is_track_level {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                cue_file.performer = Some(value);
-            }
+            cue_file.performer = Some(
+                extract_quoted_value(trimmed)
+                    .ok_or_else(|| format!("Malformed PERFORMER line at line {}: {}", line_num + 1, line))?,
+            );
         } else if trimmed.starts_with("TITLE") && !is_track_level {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                cue_file.title = Some(value);
-            }
+            cue_file.title = Some(
+                extract_quoted_value(trimmed)
+                    .ok_or_else(|| format!("Malformed TITLE line at line {}: {}", line_num + 1, line))?,
+            );
         } else if trimmed.starts_with("REM GENRE") {
             if let Some(value) = extract_quoted_value(trimmed) {
                 cue_file.genre = Some(value);
@@ -354,35 +357,41 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
                 cue_file.date = Some(value.to_string());
             }
         } else if trimmed.starts_with("FILE") {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                current_file = Some(value.clone());
-                cue_file.files.push(value);
-            }
+            let file_value = extract_quoted_value(trimmed)
+                .ok_or_else(|| format!("Malformed FILE line at line {}: {}", line_num + 1, line))?;
+            current_file = Some(file_value.clone());
+            cue_file.files.push(file_value);
         } else if trimmed.starts_with("TRACK") && is_track_level {
-            if let Some(track) = parse_track_line(trimmed) {
-                if let Some(prev_track) = current_track.take() {
-                    cue_file.tracks.push(prev_track);
-                }
-                let mut new_track = track;
-                new_track.file = current_file.clone();
-                current_track = Some(new_track);
+            if let Some(prev_track) = current_track.take() {
+                cue_file.tracks.push(prev_track);
             }
+            let mut new_track = parse_track_line(trimmed)
+                .ok_or_else(|| format!("Malformed TRACK line at line {}: {}", line_num + 1, line))?;
+            new_track.file = current_file.clone();
+            current_track = Some(new_track);
         } else if trimmed.starts_with("TITLE") && is_track_level {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                if let Some(ref mut track) = current_track {
-                    track.title = Some(value);
-                }
+            if let Some(ref mut track) = current_track {
+                track.title = Some(
+                    extract_quoted_value(trimmed)
+                        .ok_or_else(|| format!("Malformed TRACK TITLE line at line {}: {}", line_num + 1, line))?,
+                );
             }
         } else if trimmed.starts_with("PERFORMER") && is_track_level {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                if let Some(ref mut track) = current_track {
-                    track.performer = Some(value);
-                }
+            if let Some(ref mut track) = current_track {
+                track.performer = Some(
+                    extract_quoted_value(trimmed)
+                        .ok_or_else(|| format!("Malformed TRACK PERFORMER line at line {}: {}", line_num + 1, line))?,
+                );
             }
         } else if trimmed.starts_with("INDEX") && is_track_level {
-            if let Some(value) = extract_quoted_value(trimmed) {
-                if let Some(ref mut track) = current_track {
-                    track.index = Some(value);
+            if let Some(ref mut track) = current_track {
+                let remainder = trimmed.trim_start_matches("INDEX").trim();
+                // Expect format like "01 00:00:00"
+                let parts: Vec<&str> = remainder.split_whitespace().collect();
+                if parts.len() >= 2 && parts[0].parse::<u32>().is_ok() {
+                    track.index = Some(remainder.to_string());
+                } else {
+                    return Err(format!("Malformed INDEX line at line {}: {}", line_num + 1, line));
                 }
             }
         }
@@ -396,22 +405,16 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, std::io::Error> {
 }
 
 fn extract_quoted_value(line: &str) -> Option<String> {
-    let mut chars = line.chars();
-    loop {
-        match chars.next() {
-            Some('"') => break,
-            Some(_) => continue,
-            None => return None,
+    let first_quote = line.find('"');
+    let last_quote = line.rfind('"');
+
+    match (first_quote, last_quote) {
+        (Some(start), Some(end)) if start < end => {
+            // Extract the content between the first and last quotes
+            Some(line[start + 1..end].to_string())
         }
+        _ => None, // No matching pair of quotes or no quotes at all
     }
-    let mut value = String::new();
-    for c in chars {
-        if c == '"' {
-            break;
-        }
-        value.push(c);
-    }
-    Some(value)
 }
 
 fn parse_track_line(line: &str) -> Option<CueTrack> {
@@ -472,16 +475,43 @@ pub fn validate_cue_consistency(cue_path: &Path, audio_files: &[&Path]) -> CueVa
             }
         }
 
-        if cue_file.tracks.len() != audio_files.len() {
+        // Compare the number of unique files in the CUE sheet with the number of audio files
+        // This fixes the bug where track count was compared to file count, which is incorrect
+        // since multiple tracks can exist in a single audio file
+        if cue_file.files.len() != audio_files.len() {
             result.track_count_mismatch = true;
             result.is_valid = false;
         }
     } else {
         result.is_valid = false;
         result.parsing_error = true;
+        // Even if parsing fails, we still want to indicate a mismatch
+        result.track_count_mismatch = true;
     }
 
     result
+}
+
+pub fn format_cue_validation_result(result: &CueValidationResult) -> String {
+    if result.is_valid {
+        "CUE file is valid: All referenced files exist and track count matches.".to_string()
+    } else {
+        let mut errors = Vec::new();
+        if result.parsing_error {
+            errors.push("Error parsing CUE file".to_string());
+        }
+        if result.file_missing {
+            errors.push("Referenced audio file(s) missing".to_string());
+        }
+        if result.track_count_mismatch {
+            errors.push("Track count mismatch between CUE and audio files".to_string());
+        }
+        if errors.is_empty() {
+            "CUE file validation failed.".to_string()
+        } else {
+            format!("CUE file validation failed:\n  - {}", errors.join("\n  - "))
+        }
+    }
 }
 
 /// Result of .cue file validation.

@@ -9,7 +9,7 @@ use lofty::{
 };
 
 use std::path::Path;
-
+use crate::adapters::audio_formats::wav::item_value_text;
 use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
 use crate::core::domain::traits::{AudioFile, AudioFileError};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
@@ -158,11 +158,7 @@ impl Mp3Handler {
         if let Some(tag) = tagged_file.primary_tag() {
             for tag_item in tag.items() {
                 // Helper function to convert ItemValue to string
-                let item_value_str = match tag_item.value() {
-                    ItemValue::Text(s) => s.to_string(),
-                    ItemValue::Locator(s) => s.to_string(),
-                    ItemValue::Binary(_) => "<binary data>".to_string(),
-                };
+                let item_value_str = item_value_text(tag_item);
 
                 match tag_item.key() {
                     ItemKey::TrackTitle => {
@@ -277,6 +273,9 @@ impl Mp3Handler {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::fs;
+    use tempfile::TempDir;
+    use crate::core::domain::models::MetadataSource; // Added MetadataSource import
 
     #[test]
     fn test_mp3_handler_supported_extensions() {
@@ -293,5 +292,189 @@ mod tests {
         assert!(handler.can_handle(&PathBuf::from("test.MP3")));
         assert!(!handler.can_handle(&PathBuf::from("test.flac")));
         assert!(!handler.can_handle(&PathBuf::from("test.wav")));
+    }
+
+    #[test]
+    fn test_mp3_handler_new_creates_instance() {
+        let handler = Mp3Handler::new();
+        assert!(handler.can_handle(&PathBuf::from("test.mp3")));
+    }
+
+    #[test]
+    fn test_mp3_handler_default_creates_instance() {
+        let handler = Mp3Handler::default();
+        assert!(handler.can_handle(&PathBuf::from("test.mp3")));
+    }
+
+    #[test]
+    fn test_mp3_handler_read_metadata_unsupported_format() {
+        let handler = Mp3Handler::new();
+        let result = handler.read_metadata(&PathBuf::from("test.flac"));
+        assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
+    }
+
+    #[test]
+    fn test_mp3_handler_write_metadata_unsupported_format() {
+        let handler = Mp3Handler::new();
+        let metadata = TrackMetadata {
+            title: None,
+            artist: None,
+            album: None,
+            album_artist: None,
+            track_number: None,
+            disc_number: None,
+            year: None,
+            genre: None,
+            duration: None,
+            format: "mp3".to_string(),
+            path: PathBuf::from("test.mp3"),
+        };
+        let result = handler.write_metadata(&PathBuf::from("test.flac"), &metadata);
+        assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
+    }
+
+    #[test]
+    fn test_mp3_handler_read_basic_info_unsupported_format() {
+        let handler = Mp3Handler::new();
+        let result = handler.read_basic_info(&PathBuf::from("test.flac"));
+        assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
+    }
+
+    #[test]
+    fn test_mp3_handler_read_basic_info_nonexistent_file() {
+        let handler = Mp3Handler::new();
+        let result = handler.read_basic_info(&PathBuf::from("nonexistent.mp3"));
+        assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
+    }
+
+    #[test]
+    fn test_mp3_handler_read_metadata_nonexistent_file() {
+        let handler = Mp3Handler::new();
+        let result = handler.read_metadata(&PathBuf::from("nonexistent.mp3"));
+        assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
+    }
+
+    #[test]
+    fn test_mp3_handler_write_metadata_nonexistent_file() {
+        let handler = Mp3Handler::new();
+        let metadata = TrackMetadata {
+            title: None,
+            artist: None,
+            album: None,
+            album_artist: None,
+            track_number: None,
+            disc_number: None,
+            year: None,
+            genre: None,
+            duration: None,
+            format: "mp3".to_string(),
+            path: PathBuf::from("nonexistent.mp3"),
+        };
+        let result = handler.write_metadata(&PathBuf::from("nonexistent.mp3"), &metadata);
+        assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
+    }
+
+    #[test]
+    fn test_mp3_handler_with_real_file_should_fail_on_dummy() {
+        // Test that a dummy file (not a real MP3 file) produces an error
+        let handler = Mp3Handler::new();
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.mp3");
+        
+        // Create a dummy file that is not a real MP3 file
+        fs::write(&test_file, b"not a real mp3 file").unwrap();
+        
+        let result = handler.read_metadata(&test_file);
+        assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
+    }
+    
+    // --- New tests for successful read operations ---
+
+    #[test]
+    fn test_mp3_handler_read_metadata_success() {
+        let handler = Mp3Handler::new();
+        let test_file_path = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
+
+        let result = handler.read_metadata(&test_file_path);
+        assert!(result.is_ok(), "Expected OK result, but got {:?}", result);
+        let track = result.unwrap();
+
+        let metadata = track.metadata;
+        
+        let title_meta = metadata.title.as_ref().unwrap();
+        assert_eq!(title_meta.value, "Test Track 1");
+        assert_eq!(title_meta.source, MetadataSource::Embedded);
+        assert_eq!(title_meta.confidence, 1.0);
+
+        let artist_meta = metadata.artist.as_ref().unwrap();
+        assert_eq!(artist_meta.value, "Test Artist");
+        assert_eq!(artist_meta.source, MetadataSource::Embedded);
+        assert_eq!(artist_meta.confidence, 1.0);
+
+        let album_meta = metadata.album.as_ref().unwrap();
+        assert_eq!(album_meta.value, "Test Album");
+        assert_eq!(album_meta.source, MetadataSource::Embedded);
+        assert_eq!(album_meta.confidence, 1.0);
+        
+        assert!(metadata.album_artist.is_none());
+        
+        let track_number_meta = metadata.track_number.as_ref().unwrap();
+        assert_eq!(track_number_meta.value, 1);
+        assert_eq!(track_number_meta.source, MetadataSource::Embedded);
+        assert_eq!(track_number_meta.confidence, 1.0);
+        
+        assert!(metadata.disc_number.is_none());
+        
+        let year_meta = metadata.year.as_ref().unwrap();
+        assert_eq!(year_meta.value, 2024);
+        assert_eq!(year_meta.source, MetadataSource::Embedded);
+        assert_eq!(year_meta.confidence, 1.0);
+        
+        let genre_meta = metadata.genre.as_ref().unwrap();
+        assert_eq!(genre_meta.value, "Test Genre");
+        assert_eq!(genre_meta.source, MetadataSource::Embedded);
+        assert_eq!(genre_meta.confidence, 1.0);
+        
+        let duration_meta = metadata.duration.as_ref().unwrap();
+        assert!(duration_meta.value > 0.0); // Duration should be positive
+        assert_eq!(duration_meta.source, MetadataSource::Embedded);
+        assert_eq!(duration_meta.confidence, 1.0);
+        
+        assert_eq!(metadata.format, "mp3");
+    }
+
+    #[test]
+    fn test_mp3_handler_read_basic_info_success() {
+        let handler = Mp3Handler::new();
+        let test_file_path = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
+
+        let result = handler.read_basic_info(&test_file_path);
+        assert!(result.is_ok(), "Expected OK result, but got {:?}", result);
+        let metadata = result.unwrap();
+
+        assert!(metadata.title.is_none());
+        
+        let artist_meta = metadata.artist.as_ref().unwrap();
+        assert_eq!(artist_meta.value, "mp3");
+        assert_eq!(artist_meta.source, MetadataSource::FolderInferred);
+        assert_eq!(artist_meta.confidence, FOLDER_INFERRED_CONFIDENCE);
+        
+        let album_meta = metadata.album.as_ref().unwrap();
+        assert_eq!(album_meta.value, "simple");
+        assert_eq!(album_meta.source, MetadataSource::FolderInferred);
+        assert_eq!(album_meta.confidence, FOLDER_INFERRED_CONFIDENCE);
+
+        assert!(metadata.album_artist.is_none());
+        assert!(metadata.track_number.is_none());
+        assert!(metadata.disc_number.is_none());
+        assert!(metadata.year.is_none());
+        assert!(metadata.genre.is_none());
+        assert_eq!(metadata.format, "mp3");
+        assert!(metadata.duration.is_some());
+
+        // Duration should be embedded
+        let duration_meta = metadata.duration.as_ref().unwrap();
+        assert_eq!(duration_meta.source, MetadataSource::Embedded);
+        assert_eq!(duration_meta.confidence, 1.0);
     }
 }
