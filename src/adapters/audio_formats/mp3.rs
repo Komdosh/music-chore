@@ -45,9 +45,16 @@ impl AudioFile for Mp3Handler {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        // Use lofty to read the file
+        // Use lofty to read the file with error handling for problematic ID3 tags
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e)))?;
+            .map_err(|e| {
+                let error_msg = format!("{}", e);
+                if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator") {
+                    AudioFileError::InvalidFile(format!("MP3 file contains unsupported encrypted/compressed frames: {}", e))
+                } else {
+                    AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
+                }
+            })?;
 
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
@@ -122,7 +129,14 @@ impl AudioFile for Mp3Handler {
         }
 
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e)))?;
+            .map_err(|e| {
+                let error_msg = format!("{}", e);
+                if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator") {
+                    AudioFileError::InvalidFile(format!("MP3 file contains unsupported encrypted/compressed frames: {}", e))
+                } else {
+                    AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
+                }
+            })?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }

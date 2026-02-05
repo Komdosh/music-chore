@@ -655,11 +655,15 @@ fn scan_dir_with_options_impl(
             if is_supported_audio_file(path, &supported_extensions) {
                 supported_files += 1;
 
-                // Check file validity
+                // Check basic file validity
                 if let Err(e) = check_file_validity(path) {
                     error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
                     continue;
                 }
+
+                // For the scanner, we don't need to fully validate content during scanning
+                // Just check that it has the right extension. Content validation happens during read operations.
+                // This preserves the original behavior for exclude patterns and file counting.
 
                 let inferred_artist = infer_artist_from_path(path)
                     .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
@@ -757,7 +761,7 @@ fn matches_pattern(s: &str, pattern: &str) -> bool {
     s.contains(pattern)
 }
 
-/// Check if a file is a supported audio file
+/// Check if a file has a supported extension (does not validate content)
 fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())

@@ -435,15 +435,42 @@ fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
     let current_title = match &track.metadata.title {
         Some(title) => &title.value,
         None => {
-            return OperationResult::Error {
-                track,
-                error: "No title found".to_string(),
-            };
+            // If no embedded title, try to extract from filename
+            if let Some(file_stem) = track.file_path.file_stem().and_then(|s| s.to_str()) {
+                // Extract title from filename patterns like "01 - Title" or "Title"
+                let extracted_title = if let Some(pos) = file_stem.find(" - ") {
+                    // Pattern: "01 - Title" or "Artist - Title"
+                    let title_part = &file_stem[pos + 3..];
+                    if !title_part.trim().is_empty() {
+                        title_part.trim()
+                    } else {
+                        // If after " - " is empty, use the whole filename
+                        file_stem
+                    }
+                } else {
+                    // No " - " pattern, use the whole filename stem
+                    file_stem
+                };
+
+                if !extracted_title.is_empty() {
+                    extracted_title
+                } else {
+                    return OperationResult::Error {
+                        track,
+                        error: "No title found".to_string(),
+                    };
+                }
+            } else {
+                return OperationResult::Error {
+                    track,
+                    error: "No title found".to_string(),
+                };
+            }
         }
     };
 
     let normalized_title = to_title_case(current_title);
-    let old_title = current_title.clone();
+    let old_title = current_title.to_string();
 
     // Check if title needs to be changed
     if current_title == &normalized_title {

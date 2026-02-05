@@ -25,16 +25,22 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             json,
             verbose,
         } => {
-            handle_scan(path, max_depth, follow_symlinks, exclude, json, verbose);
-            Ok(())
+            match handle_scan(path, max_depth, follow_symlinks, exclude, json, verbose) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Tree { path, json } => {
-            handle_tree(path, json);
-            Ok(())
+            match handle_tree(path, json) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Read { file } => {
-            handle_read(file);
-            Ok(())
+            match handle_read(file) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Write {
             file,
@@ -42,8 +48,10 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             apply,
             dry_run,
         } => {
-            handle_write(file, set, apply, dry_run);
-            Ok(())
+            match handle_write(file, set, apply, dry_run) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Normalize {
             path,
@@ -52,15 +60,22 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             dry_run,
         } => {
             if genres {
-                handle_normalize_genres(path, dry_run);
+                match handle_normalize_genres(path, dry_run) {
+                    Ok(()) => Ok(()),
+                    Err(code) => Err(code),
+                }
             } else {
-                handle_normalize(path, dry_run);
+                match handle_normalize(path, dry_run) {
+                    Ok(()) => Ok(()),
+                    Err(code) => Err(code),
+                }
             }
-            Ok(())
         }
         Commands::Emit { path, json } => {
-            handle_emit(path, json);
-            Ok(())
+            match handle_emit(path, json) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Cue {
             path,
@@ -72,16 +87,25 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             generate,
             parse,
             validate,
-        } => handle_cue(CueParams {
-            path, output, dry_run, force, audio_dir, json, generate, parse, validate,
-        }),
+        } => {
+            match handle_cue(CueParams {
+                path, output, dry_run, force, audio_dir, json, generate, parse, validate,
+            }) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
+        }
         Commands::Validate { path, json } => {
-            handle_validate(path, json);
-            Ok(())
+            match handle_validate(path, json) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
         Commands::Duplicates { path, json } => {
-            handle_duplicates(path, json);
-            Ok(())
+            match handle_duplicates(path, json) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
+            }
         }
     }
 }
@@ -93,12 +117,22 @@ pub fn handle_scan(
     exclude: Vec<String>,
     json: bool,
     verbose: bool,
-) {
+) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     let tracks = crate::core::services::scanner::scan_dir_with_options_verbose(&path, max_depth, follow_symlinks, exclude, verbose);
 
     if tracks.is_empty() {
-        eprintln!("No music files found in directory: {}", path.display());
-        return;
+        if path.is_file() {
+            eprintln!("Error: Path is not a directory: {}", path.display());
+            return Err(1);
+        } else {
+            eprintln!("No music files found in directory: {}", path.display());
+        }
+        return Ok(());
     }
 
     if verbose {
@@ -108,81 +142,173 @@ pub fn handle_scan(
     if json {
         match to_string_pretty(&tracks) {
             Ok(s) => println!("{}", s),
-            Err(e) => eprintln!("Error serializing to JSON: {}", e),
+            Err(e) => {
+                eprintln!("Error serializing to JSON: {}", e);
+                return Err(1);
+            }
         }
     } else {
         for track in tracks {
             println!("{}", track.file_path.display());
         }
     }
+
+    Ok(())
 }
 
-pub fn handle_tree(path: PathBuf, json: bool) {
+pub fn handle_tree(path: PathBuf, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     if json {
         let tracks = scan_dir(&path);
         let library = build_library_hierarchy(tracks);
         let wrapper = with_schema_version(&library);
         match to_string_pretty(&wrapper) {
             Ok(s) => println!("{}", s),
-            Err(e) => eprintln!("Error serializing to JSON: {}", e),
+            Err(e) => {
+                eprintln!("Error serializing to JSON: {}", e);
+                return Err(1);
+            }
         }
     } else {
         println!("{}", format_tree_output(&path));
     }
+
+    Ok(())
 }
 
-pub fn handle_read(file: PathBuf) {
+pub fn handle_read(file: PathBuf) -> Result<(), i32> {
+    if !file.exists() {
+        eprintln!("Error: File does not exist: {}", file.display());
+        return Err(1);
+    }
+
     match read_metadata(&file) {
         Ok(track) => {
             let wrapper = with_schema_version(&track);
             match to_string_pretty(&wrapper) {
                 Ok(s) => println!("{}", s),
-                Err(e) => eprintln!("Error serializing track: {}", e),
+                Err(e) => {
+                    eprintln!("Error serializing track: {}", e);
+                    return Err(1);
+                }
             }
         }
-        Err(e) => eprintln!("Error reading metadata: {}", e),
+        Err(e) => {
+            eprintln!("Error reading metadata: {}", e);
+            return Err(1);
+        }
     }
+
+    Ok(())
 }
 
-pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) {
+pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
+    if !file.exists() && apply {
+        eprintln!("Error: File does not exist: {}", file.display());
+        return Err(1);
+    }
+
     match write_metadata_by_path(&file, set, apply, dry_run) {
         Ok(result) => println!("{}", result),
-        Err(e) => eprintln!("{}", e),
+        Err(e) => {
+            eprintln!("{}", e);
+            return Err(1);
+        }
     }
+
+    Ok(())
 }
 
-pub fn handle_normalize(path: PathBuf, dry_run: bool) {
+pub fn handle_normalize(path: PathBuf, dry_run: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match normalize(path, dry_run) {
-        Ok(result) => println!("{}", result),
-        Err(e) => eprintln!("{}", e),
+        Ok(result) => {
+            println!("{}", result);
+            Ok(())
+        },
+        Err(e) => {
+            eprintln!("{}", e);
+            Err(1)
+        }
     }
 }
 
-pub fn handle_normalize_genres(path: PathBuf, dry_run: bool) {
+pub fn handle_normalize_genres(path: PathBuf, dry_run: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match normalize_genres_in_library(&path, dry_run) {
-        Ok(result) => println!("{}", result),
-        Err(e) => eprintln!("{}", e),
+        Ok(result) => {
+            println!("{}", result);
+            Ok(())
+        },
+        Err(e) => {
+            eprintln!("{}", e);
+            Err(1)
+        }
     }
 }
 
-pub fn handle_emit(path: PathBuf, json: bool) {
+pub fn handle_emit(path: PathBuf, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match emit_by_path(&path, json) {
         Ok(result) => println!("{}", result),
-        Err(err) => eprintln!("{}", err),
+        Err(err) => {
+            eprintln!("{}", err);
+            return Err(1);
+        }
     }
+
+    Ok(())
 }
 
-pub fn handle_duplicates(path: PathBuf, json: bool) {
+pub fn handle_duplicates(path: PathBuf, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match find_duplicates(&path, json) {
-        Ok(value) => println!("{}", value),
-        Err(value) => eprintln!("{}", value),
+        Ok(value) => {
+            println!("{}", value);
+            Ok(())
+        },
+        Err(value) => {
+            eprintln!("{}", value);
+            Err(1)
+        }
     }
 }
 
-fn handle_validate(path: PathBuf, json: bool) {
+fn handle_validate(path: PathBuf, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: Path does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match validate_path(&path, json) {
-        Ok(value) => println!("{}", value),
-        Err(value) => eprintln!("{}", value),
+        Ok(value) => {
+            println!("{}", value);
+            Ok(())
+        },
+        Err(value) => {
+            eprintln!("{}", value);
+            Err(1)
+        }
     }
 }
 
@@ -214,9 +340,9 @@ fn handle_cue(params: CueParams) -> Result<(), i32> {
     if params.generate {
         handle_cue_generate(params.path, params.output, params.dry_run, params.force)?;
     } else if params.parse {
-        handle_cue_parse(params.path, params.json);
+        handle_cue_parse(params.path, params.json)?;
     } else if params.validate {
-        handle_cue_validate(params.path, params.audio_dir, params.json);
+        handle_cue_validate(params.path, params.audio_dir, params.json)?;
     }
 
     Ok(())
@@ -270,14 +396,22 @@ fn handle_cue_generate(
     }
 }
 
-fn handle_cue_parse(path: PathBuf, json: bool) {
+fn handle_cue_parse(path: PathBuf, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: File does not exist: {}", path.display());
+        return Err(1);
+    }
+
     match parse_cue_file(&path) {
         Ok(cue_file) => {
             if json {
                 let wrapper = with_schema_version(&cue_file);
                 match to_string_pretty(&wrapper) {
                     Ok(s) => println!("{}", s),
-                    Err(e) => eprintln!("Error serializing cue file: {}", e),
+                    Err(e) => {
+                        eprintln!("Error serializing cue file: {}", e);
+                        return Err(1);
+                    }
                 }
             } else {
                 println!("Cue File: {}", path.display());
@@ -308,12 +442,21 @@ fn handle_cue_parse(path: PathBuf, json: bool) {
                     );
                 }
             }
+            Ok(())
         }
-        Err(e) => eprintln!("Error parsing cue file: {}", e),
+        Err(e) => {
+            eprintln!("Error parsing cue file: {}", e);
+            Err(1)
+        }
     }
 }
 
-fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
+fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) -> Result<(), i32> {
+    if !path.exists() {
+        eprintln!("Error: File does not exist: {}", path.display());
+        return Err(1);
+    }
+
     let audio_directory = audio_dir.unwrap_or_else(|| {
         path.parent()
             .unwrap_or_else(|| Path::new("."))
@@ -328,7 +471,7 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
             .collect(),
         Err(e) => {
             eprintln!("Error reading audio directory: {}", e);
-            return;
+            return Err(1);
         }
     };
 
@@ -339,7 +482,10 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
         let wrapper = with_schema_version(&result);
         match to_string_pretty(&wrapper) {
             Ok(s) => println!("{}", s),
-            Err(e) => eprintln!("Error serializing result: {}", e),
+            Err(e) => {
+                eprintln!("Error serializing result: {}", e);
+                return Err(1);
+            }
         }
     } else {
         if result.is_valid {
@@ -358,4 +504,6 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) {
             }
         }
     }
+
+    Ok(())
 }
