@@ -1,6 +1,6 @@
 //! Tests for metadata application functionality
 
-use music_chore::services::apply_metadata::write_metadata_by_path;
+use music_chore::core::services::apply_metadata::write_metadata_by_path;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -118,7 +118,7 @@ fn test_write_metadata_apply_all_fields() {
     assert!(output.contains("Successfully updated metadata"));
 
     // Verify the metadata was written
-    let track = music_chore::services::formats::read_metadata(&test_file).unwrap();
+    let track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
     assert_eq!(track.metadata.title.unwrap().value, "New Title");
     assert_eq!(track.metadata.artist.unwrap().value, "New Artist");
     assert_eq!(track.metadata.album.unwrap().value, "New Album");
@@ -234,7 +234,7 @@ fn test_write_metadata_case_insensitive_field_names() {
     assert!(result.is_ok());
 
     // Verify the metadata was written
-    let track = music_chore::services::formats::read_metadata(&test_file).unwrap();
+    let track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
     assert_eq!(track.metadata.title.unwrap().value, "New Title");
     assert_eq!(track.metadata.artist.unwrap().value, "New Artist");
     assert_eq!(track.metadata.album.unwrap().value, "New Album");

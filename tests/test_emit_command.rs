@@ -57,13 +57,13 @@ fn test_emit_command_nested_structure() {
         .expect("Failed to run emit command on nested structure");
 
     assert!(output.status.success());
-    let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
+    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
 
     // Should find The Beatles artist
-    assert!(stderr.contains("Failed to read metadata"));
-    assert!(
-        stderr.contains("Invalid file: Failed to read FLAC file: Invalid argument (os error 22)")
-    );
+    assert!(stdout.contains("ARTIST: The Beatles"));
+    assert!(stdout.contains("ALBUM: Abbey Road (1970)"));
+    assert!(stdout.contains("TRACK: \"Come Together\" | Duration: 0:01 | File: tests/fixtures/flac/nested/The Beatles/Abbey Road/track.flac"));
+    assert!(stdout.contains("TRACK: \"Something\" | Duration: 0:01 | File: tests/fixtures/flac/nested/The Beatles/Abbey Road/track2.flac"));
 }
 
 #[test]
@@ -74,24 +74,24 @@ fn test_emit_command_nested_json() {
         .expect("Failed to run emit command on nested structure with JSON");
 
     assert!(output.status.success());
-    let stdout = String::from_utf8(output.stderr).expect("Invalid UTF-8");
+    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
 
     println!("{}", stdout);
     // // Verify it's valid JSON
-    // let parsed: serde_json::Value =
-    //     serde_json::from_str(&stdout).expect("Output should be valid JSON");
-    //
-    // assert_eq!(parsed["total_tracks"], 2);
-    // assert_eq!(parsed["total_artists"], 1);
-    // assert_eq!(parsed["total_albums"], 1);
-    //
-    // // Check artist and album names
-    // let artist = &parsed["artists"][0];
-    // assert_eq!(artist["name"], "The Beatles");
-    //
-    // let album = &artist["albums"][0];
-    // assert_eq!(album["title"], "Abbey Road");
-    // assert_eq!(album["tracks"].as_array().unwrap().len(), 2);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).expect("Output should be valid JSON");
+    
+    assert_eq!(parsed["total_tracks"], 2);
+    assert_eq!(parsed["total_artists"], 1);
+    assert_eq!(parsed["total_albums"], 1);
+    
+    // Check artist and album names
+    let artist = &parsed["artists"][0];
+    assert_eq!(artist["name"], "The Beatles");
+    
+    let album = &artist["albums"][0];
+    assert_eq!(album["title"], "Abbey Road");
+    assert_eq!(album["tracks"].as_array().unwrap().len(), 2);
 }
 
 #[test]
@@ -120,15 +120,12 @@ fn test_emit_command_nonexistent_directory() {
         .args(&["emit", "/nonexistent/path"])
         .output()
         .expect("Failed to run emit command");
-
-    // Should succeed with empty results for non-existent directory
-    assert!(output.status.success());
-    let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
+   
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
 
     // Should show empty library
-    assert!(stdout.contains("Total Artists: 0"));
-    assert!(stdout.contains("Total Albums: 0"));
-    assert!(stdout.contains("Total Tracks: 0"));
+    assert!(stderr.contains("Error: Path does not exist: /nonexistent/path"));
 }
 
 #[test]

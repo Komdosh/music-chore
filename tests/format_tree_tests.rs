@@ -1,4 +1,4 @@
-use music_chore::services::format_tree::{
+use music_chore::core::services::format_tree::{
     emit_structured_output, format_library_output, format_tree_output,
 };
 use music_chore::{AlbumNode, ArtistNode, Library, MetadataValue, TrackMetadata, TrackNode};

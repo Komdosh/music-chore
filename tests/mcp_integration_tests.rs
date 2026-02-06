@@ -82,7 +82,7 @@ async fn test_server_initialization() -> Result<()> {
 
     let info = client.peer_info().expect("No peer info");
     assert_eq!(info.server_info.name, "music-chore");
-    assert!(info.server_info.version.starts_with("0.2."));
+    assert!(info.server_info.version.starts_with("0.3."));
 
     shutdown(client).await
 }
@@ -649,10 +649,14 @@ async fn test_validate_nested_directory() -> Result<()> {
         })
         .await?;
 
-    assert_err(&result);
+    assert_ok(&result);
 
     let text = text_content(&result);
-    assert!(text.contains("Unable to read metadata from any files for validation"));
+    assert!(text.contains("=== METADATA VALIDATION RESULTS ==="));
+    assert!(text.contains("Total files: 2"));
+    assert!(text.contains("Files with errors: 0"));
+    assert!(text.contains("Files with warnings: 0"));
+    assert!(text.contains("✅ All files passed validation!"));
 
     shutdown(client).await
 }
@@ -745,7 +749,7 @@ fn test_binary_version() {
     let stdout = String::from_utf8(output.stdout).unwrap();
 
     assert!(stdout.starts_with("musicctl-mcp "));
-    assert!(stdout.contains("0.2."));
+    assert!(stdout.contains("0.3."));
 }
 
 /* -------------------------- CUE file tests ------------------------- */
@@ -896,6 +900,120 @@ async fn test_generate_cue_file_no_files() -> Result<()> {
 
     let text = text_content(&result);
     assert!(text.contains("No music files found"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mcp_cue_file_parse_text_output() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("test_parse_text.cue");
+
+    let cue_content = r#"TITLE "Example Album"
+PERFORMER "Example Artist"
+FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    PERFORMER "Example Artist"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Track Two"
+    PERFORMER "Another Artist"
+    INDEX 01 03:00:00"#;
+    std::fs::write(&cue_path, cue_content)?;
+
+    let result = call_tool(
+        &client,
+        "cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "operation": "parse",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Cue File:"));
+    assert!(text.contains("Performer: Example Artist"));
+    assert!(text.contains("Title: Example Album"));
+    assert!(text.contains("Track 01: Track One"));
+    assert!(text.contains("Track 02: Track Two"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mcp_cue_file_parse_invalid_syntax() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let cue_path = temp_dir.path().join("invalid_syntax.cue");
+
+    // Malformed CUE content (missing quote)
+    let cue_content = r#"TITLE "Example Album"
+PERFORMER Example Artist" // Missing quote
+FILE "audio.flac" WAVE
+  TRACK 01 AUDIO
+    TITLE "Track One"
+    INDEX 01 00:00:00"#;
+    std::fs::write(&cue_path, cue_content)?;
+
+    let result = call_tool(
+        &client,
+        "cue_file",
+        object!({
+            "path": cue_path.to_string_lossy(),
+            "operation": "parse",
+            "json_output": false
+        }),
+    )
+    .await?;
+
+    assert_err(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Error parsing cue file"));
+    assert!(text.contains("Malformed PERFORMER line"));
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mcp_cue_file_generate_exists_no_force() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let album_dir = temp_dir.path().join("Existing Album");
+    std::fs::create_dir_all(&album_dir)?;
+
+    let track1 = album_dir.join("01. Song.flac");
+    std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
+
+    let cue_path = album_dir.join("Existing Album.cue");
+    std::fs::write(&cue_path, "dummy cue content")?; // Pre-create the CUE file
+
+    let result = call_tool(
+        &client,
+        "cue_file",
+        object!({
+            "path": album_dir.to_string_lossy(),
+            "operation": "generate",
+            "dry_run": false,
+            "force": false
+        }),
+    )
+    .await?;
+
+    assert_err(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Cue file already exists"));
+    assert!(text.contains("Use force=true to overwrite"));
 
     shutdown(client).await
 }

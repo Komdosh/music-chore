@@ -1,4 +1,4 @@
-use music_chore::services::formats::read_metadata;
+use music_chore::adapters::audio_formats::read_metadata;
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;

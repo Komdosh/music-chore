@@ -1,4 +1,4 @@
-use music_chore::services::scanner::{scan_dir, scan_dir_paths};
+use music_chore::core::services::scanner::{scan_dir, scan_dir_paths};
 use std::path::Path;
 
 #[test]

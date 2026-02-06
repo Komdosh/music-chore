@@ -1,7 +1,7 @@
 //! Tests for Track checksum functionality
 
-use music_chore::domain::models::Track;
-use music_chore::services::scanner::scan_with_duplicates;
+use music_chore::core::domain::models::Track;
+use music_chore::core::services::scanner::scan_with_duplicates;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -12,7 +12,7 @@ fn test_track_calculate_checksum() {
     let test_file = temp_dir.path().join("test.flac");
     fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
 
-    let track = music_chore::services::formats::read_metadata(&test_file).unwrap();
+    let track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
 
     // Calculate checksum
     let checksum = track.calculate_checksum().unwrap();
@@ -28,8 +28,8 @@ fn test_track_checksum_deterministic() {
     let test_file = temp_dir.path().join("test.flac");
     fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
 
-    let track1 = music_chore::services::formats::read_metadata(&test_file).unwrap();
-    let track2 = music_chore::services::formats::read_metadata(&test_file).unwrap();
+    let track1 = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    let track2 = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
 
     // Same file should produce same checksum
     let checksum1 = track1.calculate_checksum().unwrap();
@@ -49,15 +49,15 @@ fn test_track_checksum_different_files() {
     fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file2).unwrap();
 
     // Modify the second file slightly to make it different
-    let metadata = music_chore::services::formats::read_metadata(&test_file2).unwrap();
+    let metadata = music_chore::adapters::audio_formats::read_metadata(&test_file2).unwrap();
     let mut new_metadata = metadata.metadata.clone();
-    new_metadata.title = Some(music_chore::domain::models::MetadataValue::user_set(
+    new_metadata.title = Some(music_chore::core::domain::models::MetadataValue::user_set(
         "Modified Title".to_string(),
     ));
-    music_chore::services::formats::write_metadata(&test_file2, &new_metadata).unwrap();
+    music_chore::adapters::audio_formats::write_metadata(&test_file2, &new_metadata).unwrap();
 
-    let track1 = music_chore::services::formats::read_metadata(&test_file1).unwrap();
-    let track2 = music_chore::services::formats::read_metadata(&test_file2).unwrap();
+    let track1 = music_chore::adapters::audio_formats::read_metadata(&test_file1).unwrap();
+    let track2 = music_chore::adapters::audio_formats::read_metadata(&test_file2).unwrap();
 
     // Different files should produce different checksums
     let checksum1 = track1.calculate_checksum().unwrap();
@@ -70,7 +70,7 @@ fn test_track_checksum_different_files() {
 fn test_track_checksum_nonexistent_file() {
     let track = Track::new(
         PathBuf::from("/nonexistent/file.flac"),
-        music_chore::domain::models::TrackMetadata {
+        music_chore::core::domain::models::TrackMetadata {
             title: None,
             artist: None,
             album: None,
@@ -107,12 +107,12 @@ fn test_duplicate_detection() {
 
     // Create a different file by copying track1 then modifying metadata
     fs::copy("tests/fixtures/flac/simple/track1.flac", &file3).unwrap();
-    let metadata = music_chore::services::formats::read_metadata(&file3).unwrap();
+    let metadata = music_chore::adapters::audio_formats::read_metadata(&file3).unwrap();
     let mut new_metadata = metadata.metadata.clone();
-    new_metadata.title = Some(music_chore::domain::models::MetadataValue::user_set(
+    new_metadata.title = Some(music_chore::core::domain::models::MetadataValue::user_set(
         "Different Title".to_string(),
     ));
-    music_chore::services::formats::write_metadata(&file3, &new_metadata).unwrap();
+    music_chore::adapters::audio_formats::write_metadata(&file3, &new_metadata).unwrap();
 
     let (tracks, duplicates) = scan_with_duplicates(&dir_path);
 
@@ -142,12 +142,12 @@ fn test_duplicate_detection_no_duplicates() {
     fs::copy("tests/fixtures/flac/simple/track1.flac", &file2).unwrap();
 
     // Modify second file to make it different
-    let metadata = music_chore::services::formats::read_metadata(&file2).unwrap();
+    let metadata = music_chore::adapters::audio_formats::read_metadata(&file2).unwrap();
     let mut new_metadata = metadata.metadata.clone();
-    new_metadata.title = Some(music_chore::domain::models::MetadataValue::user_set(
+    new_metadata.title = Some(music_chore::core::domain::models::MetadataValue::user_set(
         "Different Title".to_string(),
     ));
-    music_chore::services::formats::write_metadata(&file2, &new_metadata).unwrap();
+    music_chore::adapters::audio_formats::write_metadata(&file2, &new_metadata).unwrap();
 
     let (tracks, duplicates) = scan_with_duplicates(&dir_path);
 
@@ -159,7 +159,7 @@ fn test_duplicate_detection_no_duplicates() {
 #[test]
 fn test_track_with_checksum() {
     let path = PathBuf::from("/test/file.flac");
-    let metadata = music_chore::domain::models::TrackMetadata {
+    let metadata = music_chore::core::domain::models::TrackMetadata {
         title: None,
         artist: None,
         album: None,

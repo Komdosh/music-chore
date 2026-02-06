@@ -6,7 +6,7 @@ This document provides configuration examples for integrating the Music Chore MC
 
 - **Date**: February 2, 2026
 - **Version**: v0.1.7
-- **Features**: 6 MCP tools (scan_directory, get_library_tree, read_file_metadata, normalize_titles, emit_library_metadata, validate_library)
+- **Features**: 9 MCP tools (scan_directory, get_library_tree, read_file_metadata, normalize_titles, normalize_genres, emit_library_metadata, validate_library, find_duplicates, cue_file)
 
 ## Claude Desktop
 
@@ -237,6 +237,32 @@ class MusicChoreClient:
             'path': path,
             'dry_run': dry_run
         })
+        return json.loads(result.content[0].text)
+
+    async def normalize_genres(self, path, dry_run=True):
+        """Normalize music genres"""
+        result = await self.client.call_tool('normalize_genres', {
+            'path': path,
+            'dry_run': dry_run
+        })
+        return json.loads(result.content[0].text)
+
+    async def find_duplicates(self, path, json_output=False):
+        """Find duplicate tracks by checksum"""
+        result = await self.client.call_tool('find_duplicates', {
+            'path': path,
+            'json_output': json_output
+        })
+        return json.loads(result.content[0].text)
+
+    async def cue_file_operation(self, path, operation, **kwargs):
+        """Generate, parse, or validate CUE files"""
+        params = {
+            'path': path,
+            'operation': operation
+        }
+        params.update(kwargs)
+        result = await self.client.call_tool('cue_file', params)
         return json.loads(result.content[0].text)
 
 # Usage example

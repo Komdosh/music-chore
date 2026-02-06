@@ -6,8 +6,8 @@ use tempfile::tempdir;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use music_chore::domain::models::FOLDER_INFERRED_CONFIDENCE;
-    use music_chore::services::scanner::scan_dir;
+    use music_chore::core::domain::models::FOLDER_INFERRED_CONFIDENCE;
+    use music_chore::core::services::scanner::scan_dir;
 
     #[test]
     fn test_empty_directory_scan() {

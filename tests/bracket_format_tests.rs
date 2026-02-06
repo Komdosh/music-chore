@@ -1,6 +1,6 @@
 //! Tests for bracket folder patterns
 
-use music_chore::services::inference::{infer_album_from_path, infer_artist_from_path};
+use music_chore::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 use std::path::PathBuf;
 
 #[test]
