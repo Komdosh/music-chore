@@ -21,9 +21,15 @@ fn test_scan_tracks_text_output_with_inferred_metadata() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    // Expecting "01 - Inferred Track.flac [🤖]" or similar
+    // Expecting "{full_path} [01 - Inferred Track.flac]"
+    let expected_track_name = "01 - Inferred Track.flac";
+    let expected_output_line = format!(
+        "{} [{}]\n",
+        track_file.to_string_lossy(),
+        expected_track_name
+    );
     assert!(
-        output.contains("01 - Inferred Track.flac [🤖]"),
+        output.contains(&expected_output_line),
         "Output did not contain expected inferred track name. Full output:\n{}",
         output
     );
@@ -61,9 +67,15 @@ FILE "{}" WAVE
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    // Expecting "Track One CUE (01 - Track One.flac) [📄]"
+    // Expecting "{full_path} [Track One CUE (01 - Track One.flac)]"
+    let expected_track_name = "Track One CUE (01 - Track One.flac)";
+    let expected_output_line = format!(
+        "{} [{}]\n",
+        track1_flac.to_string_lossy(),
+        expected_track_name
+    );
     assert!(
-        output.contains("Track One CUE (01 - Track One.flac) [📄]"),
+        output.contains(&expected_output_line),
         "Output did not contain expected CUE-inferred track name. Full output:\n{}",
         output
     );
@@ -83,9 +95,15 @@ fn test_scan_tracks_text_output_with_embedded_metadata() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    // Expecting "Test Track With Metadata [🎯]" or similar, with the embedded title
+    // Expecting "{full_path} [Test Track With Metadata]"
+    let expected_track_name = "Test Track With Metadata";
+    let expected_output_line = format!(
+        "{} [{}]\n",
+        target_path.to_string_lossy(),
+        expected_track_name
+    );
     assert!(
-        output.contains("Test Track With Metadata [🎯]"),
+        output.contains(&expected_output_line),
         "Output did not contain expected embedded track name. Full output:\n{}",
         output
     );

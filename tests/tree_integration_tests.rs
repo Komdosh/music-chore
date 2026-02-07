@@ -6,6 +6,7 @@ mod tests {
         AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, TrackNode,
         build_library_hierarchy,
     };
+    use std::collections::HashSet;
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -13,52 +14,59 @@ mod tests {
     fn create_test_library() -> Library {
         let mut library = Library::new();
 
+        let track_node_for_album1 = TrackNode {
+            file_path: PathBuf::from("Test Artist/First Album/01 Track.flac"),
+            metadata: music_chore::TrackMetadata {
+                title: Some(MetadataValue {
+                    value: "First Track".to_string(),
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                artist: Some(MetadataValue {
+                    value: "Test Artist".to_string(),
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                album: Some(MetadataValue {
+                    value: "First Album".to_string(),
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                album_artist: None,
+                track_number: Some(MetadataValue {
+                    value: 1,
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                disc_number: None,
+                year: Some(MetadataValue {
+                    value: 2023,
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                genre: None,
+                duration: Some(MetadataValue {
+                    value: 180.5,
+                    source: MetadataSource::Embedded,
+                    confidence: 1.0,
+                }),
+                format: "flac".to_string(),
+                path: PathBuf::from("Test Artist/First Album/01 Track.flac"),
+            },
+        };
+
+        let album1_files: HashSet<PathBuf> = vec![
+            PathBuf::from("Test Artist/First Album/01 Track.flac"),
+        ].into_iter().collect();
+
         // Create first artist with multiple albums
         let artist1 = ArtistNode {
             name: "Test Artist".to_string(),
             albums: vec![AlbumNode {
                 title: "First Album".to_string(),
                 year: Some(2023),
-                tracks: vec![TrackNode {
-                    file_path: PathBuf::from("Test Artist/First Album/01 Track.flac"),
-                    metadata: music_chore::TrackMetadata {
-                        title: Some(MetadataValue {
-                            value: "First Track".to_string(),
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        artist: Some(MetadataValue {
-                            value: "Test Artist".to_string(),
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        album: Some(MetadataValue {
-                            value: "First Album".to_string(),
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        album_artist: None,
-                        track_number: Some(MetadataValue {
-                            value: 1,
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        disc_number: None,
-                        year: Some(MetadataValue {
-                            value: 2023,
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        genre: None,
-                        duration: Some(MetadataValue {
-                            value: 180.5,
-                            source: MetadataSource::Embedded,
-                            confidence: 1.0,
-                        }),
-                        format: "flac".to_string(),
-                        path: PathBuf::from("Test Artist/First Album/01 Track.flac"),
-                    },
-                }],
+                tracks: vec![track_node_for_album1],
+                files: album1_files,
                 path: PathBuf::from("Test Artist/First Album"),
             }],
         };
@@ -113,10 +121,10 @@ mod tests {
         assert_eq!(library.total_albums, 1);
 
         let artist = &library.artists[0];
-        assert!(artist.name.contains("ArtistA") || artist.name == "Unknown Artist");
+        assert_eq!(artist.name, "Test Artist"); // Expect embedded artist from track1.flac
 
         let album = &artist.albums[0];
-        assert!(album.title.contains("Album1") || album.title == "Unknown Album");
+        assert_eq!(album.title, "Test Album"); // Expect embedded album from track1.flac
         assert_eq!(album.tracks.len(), 2);
     }
 
@@ -179,18 +187,17 @@ mod tests {
         let dir = tempdir().unwrap();
 
         // Copy fixture files for multiple artists and albums
-        let flac_fixture = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
-        let mp3_fixture = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
+        // Use the truly untagged FLAC file to ensure folder inference for artist/album
+        let untagged_fixture_path = PathBuf::from("tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac");
 
         for artist_name in ["ArtistA", "ArtistB"] {
             for album_name in ["Album1", "Album2"] {
                 let album_dir = dir.path().join(artist_name).join(album_name);
                 fs::create_dir_all(&album_dir).unwrap();
 
-                for (i, track_name) in ["track1.flac", "track2.mp3"].iter().enumerate() {
-                    let track_path = album_dir.join(track_name);
-                    let fixture = if i == 0 { &flac_fixture } else { &mp3_fixture };
-                    fs::copy(fixture, &track_path).unwrap();
+                for (_i, track_filename) in ["track1.flac", "track2.flac"].iter().enumerate() { // Use two untagged FLACs
+                    let track_path = album_dir.join(track_filename);
+                    fs::copy(&untagged_fixture_path, &track_path).unwrap();
                 }
             }
         }
@@ -221,26 +228,27 @@ mod tests {
         let album_dir = artist_dir.join("TestAlbum");
         fs::create_dir_all(&album_dir).unwrap();
 
-        // Copy files with different formats from fixtures
-        let flac_fixture = PathBuf::from("tests/fixtures/flac/simple/track1.flac");
-        let mp3_fixture = PathBuf::from("tests/fixtures/mp3/simple/track1.mp3");
-        let wav_fixture = PathBuf::from("tests/fixtures/wav/simple/track1.wav");
+        // Use the truly untagged FLAC file for all formats
+        let untagged_fixture_path = PathBuf::from("tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac");
 
         let track1 = album_dir.join("track1.flac");
         let track2 = album_dir.join("track2.FLAC");
-        let track3 = album_dir.join("track3.mp3");
-        let track4 = album_dir.join("track4.wav");
+        let track3 = album_dir.join("track3.mp3"); // Copy untagged FLAC as mp3
+        let track4 = album_dir.join("track4.wav"); // Copy untagged FLAC as wav
 
-        fs::copy(&flac_fixture, &track1).unwrap();
-        fs::copy(&flac_fixture, &track2).unwrap();
-        fs::copy(&mp3_fixture, &track3).unwrap();
-        fs::copy(&wav_fixture, &track4).unwrap();
+        fs::copy(&untagged_fixture_path, &track1).unwrap();
+        fs::copy(&untagged_fixture_path, &track2).unwrap();
+        fs::copy(&untagged_fixture_path, &track3).unwrap();
+        fs::copy(&untagged_fixture_path, &track4).unwrap();
 
         let tracks = scan_dir(dir.path());
         let library = build_library_hierarchy(tracks);
 
         // Should find FLAC, MP3, and WAV files (case insensitive)
         assert_eq!(library.total_tracks, 4); // flac, FLAC, mp3, and wav
+        assert_eq!(library.total_artists, 1); // All untagged, so one folder inferred artist
+        assert_eq!(library.total_albums, 1);  // All untagged, so one folder inferred album
+
 
         let tracks = &library.artists[0].albums[0].tracks;
         let track_formats: Vec<_> = tracks.iter().map(|t| &t.metadata.format).collect();

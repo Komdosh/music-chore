@@ -2,6 +2,7 @@
 
 use crate::core::domain::models::{AlbumNode, ArtistNode, Library, Track, TrackNode};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// Build library hierarchy from flat track list
@@ -53,7 +54,9 @@ pub fn build_library_hierarchy(tracks: Vec<Track>) -> Library {
                 .unwrap_or_else(|| PathBuf::from(""));
 
             let mut track_nodes = Vec::new();
+            let mut album_files = HashSet::new(); // New: to collect file paths for the album
             for track in album_tracks {
+                album_files.insert(track.file_path.clone()); // New: add file_path to album_files
                 track_nodes.push(TrackNode {
                     file_path: track.file_path,
                     metadata: track.metadata,
@@ -64,6 +67,7 @@ pub fn build_library_hierarchy(tracks: Vec<Track>) -> Library {
                 title: album_name,
                 year,
                 tracks: track_nodes,
+                files: album_files,
                 path: album_path,
             });
         }

@@ -2,6 +2,7 @@ use music_chore::core::services::format_tree::{
     emit_structured_output, format_library_output, format_tree_output,
 };
 use music_chore::{AlbumNode, ArtistNode, Library, MetadataValue, TrackMetadata, TrackNode};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -37,13 +38,18 @@ fn create_test_library() -> Library {
 
     let track1_node = TrackNode {
         file_path: PathBuf::from("/test/artist1/album1/track1.flac"),
-        metadata: track1_metadata,
+        metadata: track1_metadata.clone(),
     };
 
     let track2_node = TrackNode {
         file_path: PathBuf::from("/test/artist1/album1/track2.flac"),
-        metadata: track2_metadata,
+        metadata: track2_metadata.clone(),
     };
+
+    let album1_files: HashSet<PathBuf> = vec![
+        PathBuf::from("/test/artist1/album1/track1.flac"),
+        PathBuf::from("/test/artist1/album1/track2.flac"),
+    ].into_iter().collect();
 
     Library {
         artists: vec![ArtistNode {
@@ -52,12 +58,14 @@ fn create_test_library() -> Library {
                 title: "Test Album".to_string(),
                 year: Some(2023),
                 tracks: vec![track1_node, track2_node],
+                files: album1_files,
                 path: PathBuf::from("/test/artist1/album1"),
             }],
         }],
         total_tracks: 2,
         total_artists: 1,
         total_albums: 1,
+        total_files: 2,
     }
 }
 
@@ -133,7 +141,7 @@ fn test_format_tree_output_with_real_files() {
     assert!(output.contains("Folders:"));
     assert!(output.contains("artist"));
     assert!(output.contains("album"));
-    assert!(output.contains("track1.flac"));
+    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion
 }
 
 #[test]
@@ -175,8 +183,8 @@ fn test_format_tree_output_nested_structure() {
     assert!(output.contains("artist2"));
     assert!(output.contains("album1"));
     assert!(output.contains("album2"));
-    assert!(output.contains("track1.flac"));
-    assert!(output.contains("track2.flac"));
+    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion for track1
+    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion for track2 (since it's also track1.flac fixture)
 }
 
 #[test]
@@ -203,18 +211,24 @@ fn test_format_library_output_multiple_artists() {
         metadata: track3_metadata,
     };
 
+    let album2_files: HashSet<PathBuf> = vec![
+        PathBuf::from("/test/artist2/album2/track3.flac"),
+    ].into_iter().collect();
+
     library.artists.push(ArtistNode {
         name: "Another Artist".to_string(),
         albums: vec![AlbumNode {
             title: "Another Album".to_string(),
             year: Some(2024),
             tracks: vec![track3_node],
+            files: album2_files,
             path: PathBuf::from("/test/artist2/album2"),
         }],
     });
     library.total_artists = 2;
     library.total_albums = 2;
     library.total_tracks = 3;
+    library.total_files = 3; // Updated to reflect the total files
 
     let output = format_library_output(&library);
 

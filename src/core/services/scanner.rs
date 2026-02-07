@@ -2,17 +2,21 @@
 #[allow(unused_imports)]
 use crate::adapters::audio_formats as formats;
 use crate::core::domain::models::{
-    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata, MetadataSource,
+    FOLDER_INFERRED_CONFIDENCE, MetadataSource, MetadataValue, Track, TrackMetadata,
 };
+use crate::core::services::cue::{CueFile, CueTrack, parse_cue_file};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
-use crate::core::services::cue::{parse_cue_file, CueFile, CueTrack}; // Added Cue imports
+// Added Cue imports
 use glob::Pattern;
-use log::{debug, error, warn};
+use log::{error, info, warn};
+// Removed debug
+use crate::adapters::audio_formats::{BasicAudioInfo, read_basic_info};
 use serde_json::to_string_pretty;
-use std::collections::{BTreeMap, HashSet}; // Added HashSet
+use std::collections::{BTreeMap, HashSet};
+// Added HashSet
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use crate::adapters::audio_formats::{read_basic_info, BasicAudioInfo}; // Added this import
+// Added this import
 
 /// Recursively scan `base` for supported music files with enhanced error handling.
 ///
@@ -33,7 +37,9 @@ pub fn scan_dir(base: &Path) -> Vec<Track> {
 fn is_supported_audio_file(path: &Path, supported_extensions: &HashSet<String>) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map_or(false, |ext| supported_extensions.contains(&ext.to_lowercase()))
+        .map_or(false, |ext| {
+            supported_extensions.contains(&ext.to_lowercase())
+        })
 }
 
 /// Helper function to determine if a file has an audio extension (supported or not).
@@ -41,7 +47,9 @@ fn has_audio_extension(path: &Path) -> bool {
     let audio_extensions = ["mp3", "flac", "wav", "dsf", "wv"];
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map_or(false, |ext| audio_extensions.contains(&ext.to_lowercase().as_str()))
+        .map_or(false, |ext| {
+            audio_extensions.contains(&ext.to_lowercase().as_str())
+        })
 }
 
 /// Helper function to check if a path matches any of the given glob patterns.
@@ -154,7 +162,6 @@ pub fn scan_dir_paths(base: &Path) -> Vec<PathBuf> {
         // Skip symlinks to files
         if let Ok(metadata) = path.symlink_metadata() {
             if metadata.file_type().is_symlink() {
-                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
                 continue;
             }
         }
@@ -191,7 +198,6 @@ pub fn scan_dir_immediate(base: &Path) -> Vec<PathBuf> {
             // Skip symlinks to files
             if let Ok(metadata) = path.symlink_metadata() {
                 if metadata.file_type().is_symlink() {
-                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
                     continue;
                 }
             }
@@ -225,7 +231,6 @@ pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, String> {
         // Skip symlinks to files
         if let Ok(metadata) = path.symlink_metadata() {
             if metadata.file_type().is_symlink() {
-                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
                 continue;
             }
         }
@@ -290,58 +295,43 @@ pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
     (tracks_with_checksums, duplicates)
 }
 
-/// Helper function to format track display name for non-JSON output
-fn format_track_display_name(track: &Track) -> String {
-    let mut display_name = track
+/// Helper function to get the track name string for display in `scan` output.
+/// It prioritizes CUE-inferred, then embedded, then folder-inferred filename.
+/// This function does NOT include the source icon.
+fn get_track_name_for_scan_output(track: &Track) -> String {
+    let mut track_name = track
         .file_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string(); // Default to filename
 
-    let mut determined_source_icon = "🤖"; // Default source icon
-
     if let Some(title_metadata_value) = track.metadata.title.as_ref() {
-        determined_source_icon = match title_metadata_value.source {
-            MetadataSource::Embedded => "🎯",
-            MetadataSource::FolderInferred => "🤖",
-            MetadataSource::CueInferred => "📄",
-            MetadataSource::UserEdited => "👤",
-        };
-
         if title_metadata_value.source == MetadataSource::CueInferred {
-            display_name = format!(
+            // For CUE-inferred, use the title value and append filename in parentheses
+            track_name = format!(
                 "{} ({})",
                 title_metadata_value.value,
-                track.file_path.file_name().unwrap_or_default().to_string_lossy()
+                track
+                    .file_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
             );
         } else if !title_metadata_value.value.is_empty() {
-            display_name = title_metadata_value.value.clone();
-        }
-    } else {
-        if let Some(artist_meta) = track.metadata.artist.as_ref() {
-            determined_source_icon = match artist_meta.source {
-                MetadataSource::Embedded => "🎯",
-                MetadataSource::FolderInferred => "🤖",
-                MetadataSource::CueInferred => "📄",
-                MetadataSource::UserEdited => "👤",
-            };
-        } else if let Some(album_meta) = track.metadata.album.as_ref() {
-            determined_source_icon = match album_meta.source {
-                MetadataSource::Embedded => "🎯",
-                MetadataSource::FolderInferred => "🤖",
-                MetadataSource::CueInferred => "📄",
-                MetadataSource::UserEdited => "👤",
-            };
+            // For non-CUE-inferred titles, use the title if it exists and is not empty
+            track_name = title_metadata_value.value.clone();
         }
     }
+    // If no title, or empty title that's not CUE-inferred, track_name remains the filename.
 
-    format!("{} [{}]", display_name, determined_source_icon)
+    track_name
 }
 
-
 pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
-    let tracks = scan_dir_with_metadata(&path)?; // Changed from scan_dir(&path)
+    // let tracks = scan_dir_with_metadata(&path)?; // Old call
+    // Using scan_dir_with_options to properly handle CUE files and other options
+    let tracks = scan_dir_with_options(&path, None, false, Vec::new()); // New call
 
     if tracks.is_empty() {
         return Err(format!(
@@ -359,7 +349,12 @@ pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
         let mut out = String::new();
 
         for track in tracks {
-            out.push_str(&format!("{}\n", format_track_display_name(&track)));
+            let track_name_for_display = get_track_name_for_scan_output(&track);
+            out.push_str(&format!(
+                "{} [{}]\n",
+                track.file_path.display(),
+                track_name_for_display
+            ));
         }
 
         Ok(out)
@@ -389,7 +384,6 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
         // Skip symlinks to files
         if let Ok(metadata) = path.symlink_metadata() {
             if metadata.file_type().is_symlink() {
-                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
                 continue;
             }
         }
@@ -397,314 +391,6 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
         if path.is_file() {
             if is_supported_audio_file(path, &supported_extensions) {
                 // Check file validity
-                if let Err(e) = check_file_validity(path) {
-                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
-                    continue;
-                }
-
-                let inferred_artist = infer_artist_from_path(path)
-                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-
-                let inferred_album = infer_album_from_path(path)
-                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
-
-                // If album inference failed and we have a reasonable filename, try to extract album from filename
-                let final_album = if inferred_album.is_none() {
-                    if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
-                        if let Some(album) = extract_album_from_filename(filename) {
-                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
-                        } else {
-                            // Fallback: use cleaned filename as album name
-                            let cleaned = clean_filename_as_album(filename);
-                            if !cleaned.is_empty() {
-                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
-                            } else {
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    inferred_album
-                };
-
-                let format = path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("unknown")
-                    .to_lowercase();
-
-                let metadata = TrackMetadata {
-                    title: None,
-                    artist: inferred_artist,
-                    album: final_album,
-                    album_artist: None,
-                    track_number: None,
-                    disc_number: None,
-                    year: None,
-                    genre: None,
-                    duration: None,
-                    format,
-                    path: path.to_path_buf(),
-                };
-
-                let track = Track::new(path.to_path_buf(), metadata);
-                tracks.push(track);
-            }
-        }
-    }
-
-    tracks.sort_by(|a, b| {
-        let file_a = a.file_path.file_name().unwrap_or_default();
-        let file_b = b.file_path.file_name().unwrap_or_default();
-        file_a.cmp(&file_b)
-    });
-
-    tracks
-}
-
-/// Scan directory with optional max depth limit and symlink handling.
-/// If follow_symlinks is true, symbolic links to files are followed.
-/// None = unlimited depth (full recursion)
-/// Some(0) = immediate files only (like ls)
-/// Some(1) = base dir + 1 level deep
-/// Some(2) = base dir + 2 levels deep, etc.
-pub fn scan_dir_with_depth_and_symlinks(
-    base: &Path,
-    max_depth: Option<usize>,
-    follow_symlinks: bool,
-) -> Vec<Track> {
-    let supported_extensions_vec = formats::get_supported_extensions();
-    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
-
-    let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
-
-    if let Some(depth) = max_depth {
-        walkdir = walkdir.max_depth(depth + 1);
-    }
-
-    let mut tracks = Vec::new();
-
-    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
-        let path = entry.path();
-
-        // Skip symlinks to files unless follow_symlinks is true
-        if let Ok(metadata) = path.symlink_metadata() {
-            if metadata.file_type().is_symlink() {
-                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
-                continue;
-            }
-        }
-
-        if path.is_file() {
-            if is_supported_audio_file(path, &supported_extensions) {
-                // Check file validity
-                if let Err(e) = check_file_validity(path) {
-                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
-                    continue;
-                }
-
-                let inferred_artist = infer_artist_from_path(path)
-                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-
-                let inferred_album = infer_album_from_path(path)
-                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
-
-                // If album inference failed and we have a reasonable filename, try to extract album from filename
-                let final_album = if inferred_album.is_none() {
-                    if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
-                        if let Some(album) = extract_album_from_filename(filename) {
-                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
-                        } else {
-                            // Fallback: use cleaned filename as album name
-                            let cleaned = clean_filename_as_album(filename);
-                            if !cleaned.is_empty() {
-                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
-                            } else {
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    inferred_album
-                };
-
-                let format = path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("unknown")
-                    .to_lowercase();
-
-                let metadata = TrackMetadata {
-                    title: None,
-                    artist: inferred_artist,
-                    album: final_album,
-                    album_artist: None,
-                    track_number: None,
-                    disc_number: None,
-                    year: None,
-                    genre: None,
-                    duration: None,
-                    format,
-                    path: path.to_path_buf(),
-                };
-
-                let track = Track::new(path.to_path_buf(), metadata);
-                tracks.push(track);
-            }
-        }
-    }
-
-    tracks.sort_by(|a, b| {
-        let file_a = a.file_path.file_name().unwrap_or_default();
-        let file_b = b.file_path.file_name().unwrap_or_default();
-        file_a.cmp(&file_b)
-    });
-
-    tracks
-}
-
-/// Scan directory with full options including depth limit, symlink handling, and exclude patterns.
-/// Supports glob patterns for exclusion (e.g., "*.tmp", "temp_*", "backup/*")
-pub fn scan_dir_with_options(
-    base: &Path,
-    max_depth: Option<usize>,
-    follow_symlinks: bool,
-    exclude_patterns: Vec<String>,
-) -> Vec<Track> {
-    scan_dir_with_options_impl(base, max_depth, follow_symlinks, exclude_patterns, false)
-}
-
-/// Internal implementation of scan_dir_with_options that supports verbose output
-fn scan_dir_with_options_impl(
-    base: &Path,
-    max_depth: Option<usize>,
-    follow_symlinks: bool,
-    exclude_patterns: Vec<String>,
-    verbose: bool,
-) -> Vec<Track> {
-    let supported_extensions_vec = formats::get_supported_extensions();
-    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
-
-    let mut tracks = Vec::new();
-    let mut processed_files = 0;
-    let mut supported_files = 0;
-    let mut unsupported_files = 0; // Changed to be used
-    let mut processed_album_dirs: HashSet<PathBuf> = HashSet::new(); // Track dirs processed by CUE
-
-    // First pass: identify and process CUE files in album directories
-    let mut walkdir_first_pass = WalkDir::new(base).follow_links(follow_symlinks);
-    if let Some(depth) = max_depth {
-        walkdir_first_pass = walkdir_first_pass.max_depth(depth + 1);
-    }
-
-    for entry in walkdir_first_pass.into_iter().filter_map(|e| e.ok()) {
-        let path = entry.path();
-
-        // Apply exclusion patterns to directories and files
-        if matches_pattern(path, &exclude_patterns) {
-            debug!(target: "music_chore", "Skipping excluded path: {}", path.display());
-            continue;
-        }
-
-        if path.is_dir() {
-            // Check for .cue files in this directory
-            if let Some(cue_file_path) = std::fs::read_dir(path).ok().and_then(|entries| {
-                entries.filter_map(|e| e.ok())
-                       .find(|e| e.path().extension().map_or(false, |ext| ext.eq_ignore_ascii_case("cue")))
-                       .map(|e| e.path())
-            }) {
-                debug!(target: "music_chore", "Found CUE file: {}", cue_file_path.display());
-                match parse_cue_file(&cue_file_path) {
-                    Ok(cue_file) => {
-                        let album_dir = path.to_path_buf();
-                        let inferred_artist_from_dir = infer_artist_from_path(&album_dir)
-                            .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-                        let inferred_album_from_path_from_dir = infer_album_from_path(&album_dir)
-                            .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
-
-                        for cue_track in cue_file.tracks {
-                            if let Some(audio_file_name) = cue_track.file {
-                                let audio_file_path = album_dir.join(&audio_file_name);
-
-                                // Get basic info (duration, format) from the actual audio file
-                                let basic_info_metadata = match read_basic_info(&audio_file_path) {
-                                    Ok(m) => Some(m),
-                                    Err(e) => {
-                                        warn!(target: "music_chore", "Could not read basic info for CUE-referenced file {}: {}", audio_file_path.display(), e);
-                                        None
-                                    }
-                                };
-
-                                let title = cue_track.title.map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE title is high confidence
-                                let artist = cue_track.performer.map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE performer is high confidence
-                                let track_number = Some(MetadataValue::cue_inferred(cue_track.number, 1.0));
-
-                                let metadata = TrackMetadata {
-                                    title,
-                                    artist: artist.or_else(|| inferred_artist_from_dir.clone()), // Fallback to folder inferred artist
-                                    album: inferred_album_from_path_from_dir.clone(),
-                                    album_artist: cue_file.performer.clone().map(|s| MetadataValue::cue_inferred(s, 1.0)),
-                                    track_number,
-                                    disc_number: None, // CUE files typically don't specify disc number per track
-                                    year: cue_file.date.clone().and_then(|s| s.parse::<u32>().ok()).map(|y| MetadataValue::cue_inferred(y, 1.0)),
-                                    genre: cue_file.genre.clone().map(|s| MetadataValue::cue_inferred(s, 1.0)),
-                                    duration: basic_info_metadata.as_ref().and_then(|m| m.duration.clone()),
-                                    format: basic_info_metadata.map_or("unknown".to_string(), |m| m.format),
-                                    path: audio_file_path.clone(),
-                                };
-                                tracks.push(Track::new(audio_file_path.clone(), metadata));
-                            } else {
-                                warn!(target: "music_chore", "CUE track {} in {} has no associated audio file.", cue_track.number, cue_file_path.display());
-                            }
-                        }
-                        processed_album_dirs.insert(album_dir);
-                    }
-                    Err(e) => {
-                        error!(target: "music_chore", "Failed to parse CUE file {}: {}", cue_file_path.display(), e);
-                    }
-                }
-            }
-        }
-    }
-
-    // Second pass: process individual files, skipping those in CUE-handled directories
-    let mut walkdir_second_pass = WalkDir::new(base).follow_links(follow_symlinks);
-    if let Some(depth) = max_depth {
-        walkdir_second_pass = walkdir_second_pass.max_depth(depth + 1);
-    }
-    
-    for entry in walkdir_second_pass.into_iter().filter_map(|e| e.ok()) {
-        let path = entry.path();
-
-        // Apply exclusion patterns to directories and files
-        if matches_pattern(path, &exclude_patterns) {
-            debug!(target: "music_chore", "Skipping excluded path: {}", path.display());
-            continue;
-        }
-
-        if path.is_file() {
-            // If the parent directory was processed by a CUE file, skip this file
-            if let Some(parent_dir) = path.parent() {
-                if processed_album_dirs.contains(parent_dir) {
-                    debug!(target: "music_chore", "Skipping file {} as its directory was processed by a CUE file.", path.display());
-                    continue;
-                }
-            }
-
-            processed_files += 1;
-
-            if verbose && processed_files % 100 == 0 {
-                eprintln!("Processed {} files...", processed_files);
-            }
-
-            if is_supported_audio_file(path, &supported_extensions) {
-                supported_files += 1;
-
-                // Check basic file validity
                 if let Err(e) = check_file_validity(path) {
                     error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
                     continue;
@@ -760,7 +446,373 @@ fn scan_dir_with_options_impl(
                 let track = Track::new(path.to_path_buf(), metadata);
                 tracks.push(track);
             } else if has_audio_extension(path) {
-                unsupported_files += 1;
+                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", "));
+            }
+        }
+    }
+
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        file_a.cmp(&file_b)
+    });
+
+    tracks
+}
+
+/// Scan directory with optional max depth limit and symlink handling.
+/// If follow_symlinks is true, symbolic links to files are followed.
+/// None = unlimited depth (full recursion)
+/// Some(0) = immediate files only (like ls)
+/// Some(1) = base dir + 1 level deep
+/// Some(2) = base dir + 2 levels deep, etc.
+pub fn scan_dir_with_depth_and_symlinks(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+) -> Vec<Track> {
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
+
+    let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
+
+    if let Some(depth) = max_depth {
+        walkdir = walkdir.max_depth(depth + 1);
+    }
+
+    let mut tracks = Vec::new();
+
+    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Skip symlinks to files unless follow_symlinks is true
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+        }
+
+        if path.is_file() {
+            if is_supported_audio_file(path, &supported_extensions) {
+                // Check file validity
+                if let Err(e) = check_file_validity(path) {
+                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
+                    continue;
+                }
+
+                let inferred_artist = infer_artist_from_path(path)
+                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+
+                let inferred_album = infer_album_from_path(path)
+                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+                // If album inference failed and we have a reasonable filename, try to extract album from filename
+                let final_album = if inferred_album.is_none() {
+                    if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
+                        if let Some(album) = extract_album_from_filename(filename) {
+                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
+                        } else {
+                            let cleaned = clean_filename_as_album(filename);
+                            if !cleaned.is_empty() {
+                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
+                            } else {
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    inferred_album
+                };
+
+                let format = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("unknown")
+                    .to_lowercase();
+
+                let metadata = TrackMetadata {
+                    title: None,
+                    artist: inferred_artist,
+                    album: final_album,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format,
+                    path: path.to_path_buf(),
+                };
+
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
+                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", "));
+            }
+        }
+    }
+
+    tracks.sort_by(|a, b| {
+        let file_a = a.file_path.file_name().unwrap_or_default();
+        let file_b = b.file_path.file_name().unwrap_or_default();
+        file_a.cmp(&file_b)
+    });
+
+    tracks
+}
+
+/// Scan directory with full options including depth limit, symlink handling, and exclude patterns.
+/// Supports glob patterns for exclusion (e.g., "*.tmp", "temp_*", "backup/*")
+pub fn scan_dir_with_options(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude_patterns: Vec<String>,
+) -> Vec<Track> {
+    scan_dir_with_options_impl(base, max_depth, follow_symlinks, exclude_patterns, false)
+}
+
+/// Internal implementation of scan_dir_with_options that supports verbose output
+fn scan_dir_with_options_impl(
+    base: &Path,
+    max_depth: Option<usize>,
+    follow_symlinks: bool,
+    exclude_patterns: Vec<String>,
+    verbose: bool,
+) -> Vec<Track> {
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
+
+    let mut tracks = Vec::new();
+    let mut processed_files = 0;
+    let mut supported_files = 0;
+    let unsupported_files = 0;
+    let mut processed_album_dirs: HashSet<PathBuf> = HashSet::new(); // Track dirs processed by CUE
+
+    // First pass: identify and process CUE files in album directories
+    let mut walkdir_first_pass = WalkDir::new(base).follow_links(follow_symlinks);
+
+    if let Some(depth) = max_depth {
+        walkdir_first_pass = walkdir_first_pass.max_depth(depth + 1);
+    }
+
+    for entry in walkdir_first_pass.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Apply exclusion patterns to directories and files
+        if matches_pattern(path, &exclude_patterns) {
+            warn!(target: "music_chore", "Skipping excluded path: {}", path.display());
+            continue;
+        }
+
+        if path.is_dir() {
+            // Check for .cue files in this directory
+            if let Some(cue_file_path) = std::fs::read_dir(path).ok().and_then(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .find(|e| {
+                        e.path()
+                            .extension()
+                            .map_or(false, |ext| ext.eq_ignore_ascii_case("cue"))
+                    })
+                    .map(|e| e.path())
+            }) {
+                match parse_cue_file(&cue_file_path) {
+                    Ok(cue_file) => {
+                        let album_dir = path.to_path_buf();
+                        let inferred_artist_from_dir =
+                            infer_artist_from_path(&album_dir).map(|artist| {
+                                MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE)
+                            });
+                        let inferred_album_from_path_from_dir = infer_album_from_path(&album_dir)
+                            .map(|album| {
+                                MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE)
+                            });
+
+                        let cue_performer =
+                            cue_file.performer.map(|s| MetadataValue::inferred(s, 1.0));
+                        let cue_album = cue_file.title.map(|s| MetadataValue::inferred(s, 1.0));
+
+                        let album = cue_album.or_else(|| inferred_album_from_path_from_dir.clone());
+
+                        for cue_track in cue_file.tracks {
+                            if let Some(audio_file_name) = cue_track.file {
+                                let audio_file_path = album_dir.join(&audio_file_name);
+
+                                // Get basic info (duration, format) from the actual audio file
+                                let basic_info_metadata = match read_basic_info(&audio_file_path) {
+                                    Ok(m) => Some(m),
+                                    Err(e) => {
+                                        warn!(target: "music_chore", "Could not read basic info for CUE-referenced file {}: {}", audio_file_path.display(), e);
+                                        None
+                                    }
+                                };
+
+                                let title =
+                                    cue_track.title.map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE title is high confidence
+                                let artist = cue_track
+                                    .performer
+                                    .map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE performer is high confidence
+                                let track_number =
+                                    Some(MetadataValue::cue_inferred(cue_track.number, 1.0));
+                                let artist = artist
+                                    .or_else(|| cue_performer.clone())
+                                    .or_else(|| inferred_artist_from_dir.clone());
+                                let metadata = TrackMetadata {
+                                    title,
+                                    artist, // Fallback to folder inferred artist
+                                    album: album.clone(),
+                                    album_artist: cue_performer.clone(),
+                                    track_number,
+                                    disc_number: None, // CUE files typically don't specify disc number per track
+                                    year: cue_file
+                                        .date
+                                        .clone()
+                                        .and_then(|s| s.parse::<u32>().ok())
+                                        .map(|y| MetadataValue::cue_inferred(y, 1.0)),
+                                    genre: cue_file
+                                        .genre
+                                        .clone()
+                                        .map(|s| MetadataValue::cue_inferred(s, 1.0)),
+                                    duration: basic_info_metadata
+                                        .as_ref()
+                                        .and_then(|m| m.duration.clone()),
+                                    format: basic_info_metadata
+                                        .map_or("unknown".to_string(), |m| m.format),
+                                    path: audio_file_path.clone(),
+                                };
+                                tracks.push(Track::new(audio_file_path.clone(), metadata));
+                            } else {
+                                warn!(target: "music_chore", "CUE track {} in {} has no associated audio file.", cue_track.number, cue_file_path.display());
+                            }
+                        }
+                        processed_album_dirs.insert(album_dir);
+                    }
+                    Err(e) => {
+                        error!(target: "music_chore", "Failed to parse CUE file {}: {}", cue_file_path.display(), e);
+                    }
+                }
+            }
+        }
+    }
+
+    // Second pass: process individual files, skipping those in CUE-handled directories
+    let mut walkdir_second_pass = WalkDir::new(base).follow_links(follow_symlinks);
+    if let Some(depth) = max_depth {
+        walkdir_second_pass = walkdir_second_pass.max_depth(depth + 1);
+    }
+
+    for entry in walkdir_second_pass.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Apply exclusion patterns to directories and files
+        if matches_pattern(path, &exclude_patterns) {
+            warn!(target: "music_chore", "Skipping excluded path: {}", path.display());
+            continue;
+        }
+
+        if path.is_file() {
+            // If the parent directory was processed by a CUE file, skip this file
+            if let Some(parent_dir) = path.parent() {
+                if processed_album_dirs.contains(parent_dir) {
+                    info!(target: "music_chore", "Skipping file {} as its directory was processed by a CUE file.", path.display());
+                    continue;
+                }
+            }
+
+            processed_files += 1;
+
+            if verbose && processed_files % 100 == 0 {
+                println!("Processed {} files...", processed_files);
+            }
+
+            if is_supported_audio_file(path, &supported_extensions) {
+                supported_files += 1;
+
+                // Check basic file validity
+                if let Err(e) = check_file_validity(path) {
+                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
+                    continue;
+                }
+
+                // Attempt to read embedded metadata first
+                let mut full_embedded_track_info: Option<Track> = None;
+                if let Ok(track) = formats::read_metadata(path) {
+                    full_embedded_track_info = Some(track);
+                } else {
+                    warn!(target: "music_chore", "Could not read embedded metadata for {}. Falling back to folder inference and filename.", path.display());
+                }
+
+                let mut metadata = TrackMetadata {
+                    title: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.title.clone()),
+                    artist: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.artist.clone()),
+                    album: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.album.clone()),
+                    album_artist: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.album_artist.clone()),
+                    track_number: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.track_number.clone()),
+                    disc_number: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.disc_number.clone()),
+                    year: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.year.clone()),
+                    genre: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.genre.clone()),
+                    duration: full_embedded_track_info
+                        .as_ref()
+                        .and_then(|t| t.metadata.duration.clone()),
+                    format: path
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .unwrap_or("unknown")
+                        .to_lowercase(),
+                    path: path.to_path_buf(),
+                };
+
+                // Apply folder inference only if corresponding embedded metadata is missing
+                if metadata.artist.is_none() {
+                    metadata.artist = infer_artist_from_path(path)
+                        .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+                }
+
+                // Album inference: prioritize embedded, then folder-inferred from path, then from filename
+                if metadata.album.is_none() {
+                    let inferred_album_from_path = infer_album_from_path(path)
+                        .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+                    metadata.album = if inferred_album_from_path.is_some() {
+                        inferred_album_from_path
+                    } else if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
+                        if let Some(album) = extract_album_from_filename(filename) {
+                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
+                        } else {
+                            let cleaned = clean_filename_as_album(filename);
+                            if !cleaned.is_empty() {
+                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
+                            } else {
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                }
+
+                let track = Track::new(path.to_path_buf(), metadata);
+                tracks.push(track);
+            } else if has_audio_extension(path) {
                 warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", "));
             }
         }

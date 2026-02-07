@@ -146,8 +146,12 @@ pub fn handle_scan(
             }
         }
     } else {
-        for track in tracks {
-            println!("{}", track.file_path.display());
+        match crate::core::services::scanner::scan_tracks(path, json) {
+            Ok(output_str) => println!("{}", output_str),
+            Err(e) => {
+                eprintln!("Error scanning tracks: {}", e);
+                return Err(1);
+            }
         }
     }
 
@@ -517,7 +521,7 @@ mod tests {
         
         // Create a dummy audio file to ensure scan finds something
         let audio_file = test_path.join("test.flac");
-        fs::write(&audio_file, b"dummy flac content").unwrap();
+        fs::copy("tests/fixtures/flac/simple/track1.flac", &audio_file).unwrap();
         
         let result = handle_scan(
             test_path,

@@ -1,5 +1,6 @@
 //! Cue file generation and parsing services.
 
+use std::collections::HashSet;
 use crate::core::domain::models::{AlbumNode, MetadataValue, TrackNode};
 use crate::core::services::normalization::to_title_case;
 use std::path::{Path, PathBuf};
@@ -301,10 +302,16 @@ pub fn generate_cue_for_path(
         })
         .collect();
 
+    // New: collect file paths for the AlbumNode
+    let album_files: HashSet<PathBuf> = track_nodes.iter()
+        .map(|track_node| track_node.file_path.clone())
+        .collect();
+
     let album = AlbumNode {
         title: album_name.clone(),
         year: None,
         tracks: track_nodes,
+        files: album_files, // Populated here
         path: path.to_path_buf(),
     };
 
@@ -331,6 +338,7 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
     for (line_num, line) in content.lines().enumerate() {
         let trimmed = line.trim();
         let is_track_level = line.starts_with("  ") || line.starts_with("\t");
+
 
         if trimmed.starts_with("PERFORMER") && !is_track_level {
             cue_file.performer = Some(
@@ -560,10 +568,14 @@ mod tests {
         _genre: Option<&str>,
         tracks: Vec<TrackNode>,
     ) -> AlbumNode {
+        let album_files: HashSet<PathBuf> = tracks.iter()
+            .map(|track_node| track_node.file_path.clone())
+            .collect();
         AlbumNode {
             title: title.to_string(),
             year,
             tracks,
+            files: album_files, // Populated here
             path: PathBuf::from("/test"),
         }
     }

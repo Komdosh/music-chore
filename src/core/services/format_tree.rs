@@ -2,14 +2,15 @@ use crate::core::domain::with_schema_version;
 use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
 use crate::{build_library_hierarchy, Library, MetadataSource, Track, TrackNode};
 use serde_json::to_string_pretty;
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashSet};
+use std::path::{Path, PathBuf};
 
 /// Directory tree node
 #[derive(Debug)]
 struct DirNode {
     name: String,
     subdirs: BTreeMap<String, DirNode>,
+    files: HashSet<PathBuf>,
     tracks: Vec<Track>,
 }
 
@@ -21,11 +22,14 @@ fn build_dir_tree(base_path: &Path, tracks: Vec<Track>) -> DirNode {
             .and_then(|n| n.to_str())
             .unwrap_or("root")
             .to_string(),
+        files: HashSet::new(),
         subdirs: BTreeMap::new(),
         tracks: Vec::new(),
     };
 
     for track in tracks {
+        let filepath = track.file_path.clone();
+
         let rel_path = track
             .file_path
             .strip_prefix(base_path)
@@ -47,6 +51,7 @@ fn build_dir_tree(base_path: &Path, tracks: Vec<Track>) -> DirNode {
                             name: dir.to_string(),
                             subdirs: BTreeMap::new(),
                             tracks: Vec::new(),
+                            files: HashSet::new(),
                         },
                     );
                 }
@@ -54,7 +59,10 @@ fn build_dir_tree(base_path: &Path, tracks: Vec<Track>) -> DirNode {
             }
 
             current.tracks.push(track);
+        } else {
+            root.tracks.push(track);
         }
+        root.files.insert(filepath);
     }
 
     root
@@ -145,12 +153,7 @@ fn format_track_info_for_dir(track: &Track) -> String {
 
     if let Some(title_metadata_value) = track.metadata.title.as_ref() {
         // If title metadata exists, use its source for the icon
-        determined_source_icon = match title_metadata_value.source {
-            MetadataSource::Embedded => "🎯",
-            MetadataSource::FolderInferred => "🤖",
-            MetadataSource::CueInferred => "📄",
-            MetadataSource::UserEdited => "👤",
-        };
+        determined_source_icon = get_metadata_source_icon(&title_metadata_value.source);
 
         // If title is CUE-inferred, use it as the primary display name
         if title_metadata_value.source == MetadataSource::CueInferred {
@@ -170,23 +173,22 @@ fn format_track_info_for_dir(track: &Track) -> String {
         // No title metadata. Determine source icon from other metadata if available,
         // otherwise default to FolderInferred ("🤖") which is already set.
         if let Some(artist_meta) = track.metadata.artist.as_ref() {
-            determined_source_icon = match artist_meta.source {
-                MetadataSource::Embedded => "🎯",
-                MetadataSource::FolderInferred => "🤖",
-                MetadataSource::CueInferred => "📄",
-                MetadataSource::UserEdited => "👤",
-            };
+            determined_source_icon = get_metadata_source_icon(&artist_meta.source);
         } else if let Some(album_meta) = track.metadata.album.as_ref() {
-            determined_source_icon = match album_meta.source {
-                MetadataSource::Embedded => "🎯",
-                MetadataSource::FolderInferred => "🤖",
-                MetadataSource::CueInferred => "📄",
-                MetadataSource::UserEdited => "👤",
-            };
+            determined_source_icon = get_metadata_source_icon(&album_meta.source);
         }
     }
 
     format!("{} [{}] {}", display_name, determined_source_icon, info_parts.join(" | "))
+}
+
+fn get_metadata_source_icon(source: &MetadataSource) -> &str {
+    match source {
+        MetadataSource::Embedded => "🎯",
+        MetadataSource::FolderInferred => "🤖",
+        MetadataSource::CueInferred => "📄",
+        MetadataSource::UserEdited => "👤",
+    }
 }
 
 /// Print library tree in human-readable format (preserving directory structure)
@@ -197,7 +199,8 @@ pub fn format_tree_output(base_path: &Path) -> String {
 
     // Print summary
     output.push_str("📊 Library Summary:\n");
-    output.push_str(&format!("   Files: {}\n", count_tracks_in_tree(&dir_tree)));
+    output.push_str(&format!("   Files: {}\n", dir_tree.files.len()));
+    output.push_str(&format!("   Tracks: {}\n", count_tracks_in_tree(&dir_tree)));
     output.push_str(&format!("   Folders: {}\n", count_dirs_in_tree(&dir_tree)));
 
     output
@@ -255,6 +258,7 @@ pub fn format_library_output(library: &Library) -> String {
     output.push_str("📊 Library Summary:\n");
     output.push_str(&format!("   Artists: {}\n", library.total_artists));
     output.push_str(&format!("   Albums: {}\n", library.total_albums));
+    output.push_str(&format!("   Files: {}\n", library.total_files));
     output.push_str(&format!("   Tracks: {}\n", library.total_tracks));
 
     output
@@ -285,13 +289,13 @@ fn format_track_info(track: &TrackNode) -> String {
         .title
         .as_ref()
         .map(|t| &t.source)
-        .unwrap_or(&MetadataSource::FolderInferred)
-    {
+        .unwrap_or(&MetadataSource::FolderInferred) {
         MetadataSource::Embedded => "🎯",
         MetadataSource::FolderInferred => "🤖",
         MetadataSource::CueInferred => "📄",
         MetadataSource::UserEdited => "👤",
     };
+
 
     format!("[{}] {}", source, info.join(" | "))
 }
@@ -303,6 +307,7 @@ pub fn emit_structured_output(library: &Library) -> String {
     out.push_str("=== MUSIC LIBRARY METADATA ===\n");
     out.push_str(&format!("Total Artists: {}\n", library.total_artists));
     out.push_str(&format!("Total Albums: {}\n", library.total_albums));
+    out.push_str(&format!("Total Files: {}\n\n", library.total_files));
     out.push_str(&format!("Total Tracks: {}\n\n", library.total_tracks));
 
     for artist in &library.artists {

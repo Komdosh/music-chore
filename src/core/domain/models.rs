@@ -1,5 +1,6 @@
 //! Core domain models for music library representation.
 
+use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -137,6 +138,7 @@ pub struct AlbumNode {
     pub title: String,
     pub year: Option<u32>,
     pub tracks: Vec<TrackNode>,
+    pub files: HashSet<PathBuf>,
     pub path: PathBuf,
 }
 
@@ -161,6 +163,7 @@ pub struct Library {
     pub total_tracks: usize,
     pub total_artists: usize,
     pub total_albums: usize,
+    pub total_files: usize,
 }
 
 /// Result of a normalization operation
@@ -190,6 +193,7 @@ impl Library {
         self.total_albums += artist.albums.len();
         for album in &artist.albums {
             self.total_tracks += album.tracks.len();
+            self.total_files += album.files.len();
         }
         self.artists.push(artist);
     }

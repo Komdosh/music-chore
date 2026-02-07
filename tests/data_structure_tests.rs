@@ -2,6 +2,7 @@ use music_chore::{
     AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, Track, TrackMetadata, TrackNode,
 };
 use serde_json;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -184,7 +185,12 @@ mod tests {
         let album_node = AlbumNode {
             title: "Test Album".to_string(),
             year: Some(2023),
-            tracks: vec![track_node],
+            tracks: vec![track_node.clone()],
+            files: {
+                let mut files_set = std::collections::HashSet::new();
+                files_set.insert(track_node.file_path.clone());
+                files_set
+            },
             path: PathBuf::from("/test/album"),
         };
 
@@ -200,6 +206,7 @@ mod tests {
             title: "Artist Album".to_string(),
             year: None,
             tracks: vec![],
+            files: std::collections::HashSet::new(),
             path: PathBuf::from("/test/artist_album"),
         };
 
@@ -262,6 +269,12 @@ mod tests {
                             },
                         },
                     ],
+                    files: {
+                        let mut files_set = std::collections::HashSet::new();
+                        files_set.insert(PathBuf::from("/album1/track1.flac"));
+                        files_set.insert(PathBuf::from("/album1/track2.flac"));
+                        files_set
+                    },
                     path: PathBuf::from("/album1"),
                 },
                 AlbumNode {
@@ -283,6 +296,11 @@ mod tests {
                             path: PathBuf::from("/album2/track1.flac"),
                         },
                     }],
+                    files: {
+                        let mut files_set = std::collections::HashSet::new();
+                        files_set.insert(PathBuf::from("/album2/track1.flac"));
+                        files_set
+                    },
                     path: PathBuf::from("/album2"),
                 },
             ],
