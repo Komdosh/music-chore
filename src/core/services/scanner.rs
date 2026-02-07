@@ -290,6 +290,56 @@ pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
     (tracks_with_checksums, duplicates)
 }
 
+/// Helper function to format track display name for non-JSON output
+fn format_track_display_name(track: &Track) -> String {
+    let mut display_name = track
+        .file_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string(); // Default to filename
+
+    let mut determined_source_icon = "🤖"; // Default source icon
+
+    if let Some(title_metadata_value) = track.metadata.title.as_ref() {
+        determined_source_icon = match title_metadata_value.source {
+            MetadataSource::Embedded => "🎯",
+            MetadataSource::FolderInferred => "🤖",
+            MetadataSource::CueInferred => "📄",
+            MetadataSource::UserEdited => "👤",
+        };
+
+        if title_metadata_value.source == MetadataSource::CueInferred {
+            display_name = format!(
+                "{} ({})",
+                title_metadata_value.value,
+                track.file_path.file_name().unwrap_or_default().to_string_lossy()
+            );
+        } else if !title_metadata_value.value.is_empty() {
+            display_name = title_metadata_value.value.clone();
+        }
+    } else {
+        if let Some(artist_meta) = track.metadata.artist.as_ref() {
+            determined_source_icon = match artist_meta.source {
+                MetadataSource::Embedded => "🎯",
+                MetadataSource::FolderInferred => "🤖",
+                MetadataSource::CueInferred => "📄",
+                MetadataSource::UserEdited => "👤",
+            };
+        } else if let Some(album_meta) = track.metadata.album.as_ref() {
+            determined_source_icon = match album_meta.source {
+                MetadataSource::Embedded => "🎯",
+                MetadataSource::FolderInferred => "🤖",
+                MetadataSource::CueInferred => "📄",
+                MetadataSource::UserEdited => "👤",
+            };
+        }
+    }
+
+    format!("{} [{}]", display_name, determined_source_icon)
+}
+
+
 pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
     let tracks = scan_dir(&path);
 
@@ -309,7 +359,7 @@ pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
         let mut out = String::new();
 
         for track in tracks {
-            out.push_str(&format!("{}\n", track.file_path.display()));
+            out.push_str(&format!("{}\n", format_track_display_name(&track)));
         }
 
         Ok(out)
@@ -573,7 +623,7 @@ fn scan_dir_with_options_impl(
                         let album_dir = path.to_path_buf();
                         let inferred_artist_from_dir = infer_artist_from_path(&album_dir)
                             .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-                        let inferred_album_from_dir = infer_album_from_path(&album_dir)
+                        let inferred_album_from_path_from_dir = infer_album_from_path(&album_dir)
                             .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
 
                         for cue_track in cue_file.tracks {
@@ -596,7 +646,7 @@ fn scan_dir_with_options_impl(
                                 let metadata = TrackMetadata {
                                     title,
                                     artist: artist.or_else(|| inferred_artist_from_dir.clone()), // Fallback to folder inferred artist
-                                    album: inferred_album_from_dir.clone(),
+                                    album: inferred_album_from_path_from_dir.clone(),
                                     album_artist: cue_file.performer.clone().map(|s| MetadataValue::cue_inferred(s, 1.0)),
                                     track_number,
                                     disc_number: None, // CUE files typically don't specify disc number per track

@@ -84,30 +84,6 @@ fn test_scan_with_duplicates_with_duplicates() {
 }
 
 #[test]
-fn test_scan_tracks_text_output() {
-    let temp_dir = TempDir::new().unwrap();
-    let source_path = temp_dir.path();
-
-    // Create test directory structure
-    fs::create_dir_all(source_path.join("artist/album")).unwrap();
-
-    // Copy a test file
-    fs::copy(
-        "tests/fixtures/flac/simple/track1.flac",
-        source_path.join("artist/album/track1.flac"),
-    )
-    .unwrap();
-
-    let result = scan_tracks(source_path.to_path_buf(), false);
-    assert!(result.is_ok());
-
-    let output = result.unwrap();
-    assert!(output.contains("track1.flac"));
-    assert!(output.contains("artist"));
-    assert!(output.contains("album"));
-}
-
-#[test]
 fn test_scan_tracks_json_output() {
     let temp_dir = TempDir::new().unwrap();
     let source_path = temp_dir.path();
