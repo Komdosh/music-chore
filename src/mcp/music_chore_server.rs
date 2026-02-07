@@ -1,9 +1,9 @@
 use crate::mcp::params::{
     CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
-    NormalizeTitlesParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
+    NormalizeTitlesParams, NormalizeGenresParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
 
-use log;
+// Removed `log` import as all `log::info!` are removed
 use rmcp::{
     ErrorData as McpError,
     handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
@@ -18,7 +18,7 @@ use crate::build_library_hierarchy;
 use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::emit_by_path;
-use crate::core::services::normalization::normalize;
+use crate::core::services::normalization::{normalize, normalize_genres_in_library};
 use crate::core::services::scanner::{scan_dir, scan_tracks};
 use crate::presentation::cli::commands::validate_path;
 
@@ -64,8 +64,6 @@ impl MusicChoreServer {
         let tracks = scan_dir(&path);
         let library = build_library_hierarchy(tracks);
 
-        log::info!("get_library_tree called with path: {}", path.display());
-
         let result = serde_json::to_string_pretty(&library).map_err(|e| {
             McpError::invalid_params(format!("JSON serialization error: {}", e), None)
         })?;
@@ -79,11 +77,6 @@ impl MusicChoreServer {
         params: Parameters<ReadFileMetadataParams>,
     ) -> Result<CallToolResult, McpError> {
         let file = PathBuf::from(params.0.file_path);
-
-        log::info!(
-            "read_file_metadata called with file_path: {}",
-            file.display()
-        );
 
         match read_metadata(&file) {
             Ok(track) => {
@@ -105,19 +98,28 @@ impl MusicChoreServer {
         params: Parameters<NormalizeTitlesParams>,
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
-        let dry_run = params.0.dry_run.unwrap_or(false);
+        let json_output = params.0.json_output.unwrap_or(false);
 
-        log::info!(
-            "normalize_titles called with path: {}, dry_run: {}",
-            path.display(),
-            dry_run
-        );
-
-        match normalize(path, dry_run) {
+        match normalize(path, json_output) {
             Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
             Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
+
+    #[tool(description = "Normalize genres in music files")]
+    async fn normalize_genres( // New tool function
+        &self,
+        params: Parameters<NormalizeGenresParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = PathBuf::from(params.0.path);
+        let json_output = params.0.json_output.unwrap_or(false);
+
+        match normalize_genres_in_library(&path, json_output) {
+            Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
 
     #[tool(description = "Emit library metadata in structured format")]
     async fn emit_library_metadata(
@@ -126,8 +128,6 @@ impl MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
-
-        log::info!("emit_library_metadata called with path: {}", path.display());
 
         match emit_by_path(&path, json_output) {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
@@ -143,8 +143,6 @@ impl MusicChoreServer {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
 
-        log::info!("validate_library called with path: {}", path.display());
-
         return match validate_path(&path, json_output) {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
             Err(result) => Ok(CallToolResult::error(vec![Content::text(result)])),
@@ -158,8 +156,6 @@ impl MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
-
-        log::info!("find_duplicates called with path: {}", path.display());
 
         return match find_duplicates(&path, json_output) {
             Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
@@ -175,14 +171,6 @@ impl MusicChoreServer {
         let force = params.0.force.unwrap_or(false);
         let audio_dir = params.0.audio_dir.map(PathBuf::from);
         let json_output = params.0.json_output.unwrap_or(false);
-
-        log::info!(
-            "cue_file called with path: {}, operation: {}, dry_run: {}, force: {}",
-            path.display(),
-            operation,
-            dry_run,
-            force
-        );
 
         match operation.as_str() {
             "generate" => {

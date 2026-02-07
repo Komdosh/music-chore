@@ -2,9 +2,29 @@
 
 use crate::MetadataValue;
 use crate::adapters::audio_formats as formats;
-use crate::core::domain::models::{OperationResult, Track};
+use crate::core::domain::models::Track; // Ensure Track is imported
 use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
+use serde::{Deserialize, Serialize}; // Added for report structs
 use std::path::{Path, PathBuf};
+
+// Define new structs for reporting normalization outcomes
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TitleNormalizationReport {
+    pub original_path: PathBuf,
+    pub original_title: Option<String>,
+    pub normalized_title: Option<String>,
+    pub changed: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenreNormalizationReport {
+    pub original_path: PathBuf,
+    pub original_genre: Option<String>,
+    pub normalized_genre: Option<String>,
+    pub changed: bool,
+    pub error: Option<String>,
+}
 
 pub const STANDARD_GENRES: &[&str] = &[
     "Acoustic",
@@ -99,13 +119,7 @@ const GENRE_ALIASES: &[(&[&str], &str)] = &[
         "Blues",
     ),
     (
-        &[
-            "country",
-            "country music",
-            "country & western",
-            "c&w",
-            "nashville",
-        ],
+        &["country", "country music", "country & western", "c&w", "nashville"],
         "Country",
     ),
     (
@@ -247,9 +261,7 @@ pub fn normalize_genre(genre: &str) -> Option<String> {
     }
 }
 
-pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String, String> {
-    let mut out = String::new();
-
+pub fn normalize_genres_in_library(path: &Path, json: bool) -> Result<String, String> {
     let tracks = if path.is_file() {
         vec![
             formats::read_metadata(path)
@@ -261,71 +273,77 @@ pub fn normalize_genres_in_library(path: &Path, dry_run: bool) -> Result<String,
         return Err(format!("Path does not exist: {}", path.display()));
     };
 
-    let mut updated_count = 0;
-    let mut no_change_count = 0;
-    let mut error_count = 0;
+    let mut reports = Vec::new();
 
     for track in tracks {
-        if let Some(ref genre) = track.metadata.genre {
-            let normalized = normalize_genre(&genre.value);
-
-            match normalized {
-                Some(ref new_genre) if new_genre != &genre.value => {
-                    if dry_run {
-                        out.push_str(&format!(
-                            "DRY RUN: Would normalize '{}' -> '{}' in {}\n",
-                            genre.value,
-                            new_genre,
-                            track.file_path.display()
-                        ));
-                    } else {
-                        let mut updated_metadata = track.metadata.clone();
-                        updated_metadata.genre = Some(MetadataValue::user_set(new_genre.clone()));
-
-                        match formats::write_metadata(&track.file_path, &updated_metadata) {
-                            Ok(()) => {
-                                out.push_str(&format!(
-                                    "NORMALIZED: '{}' -> '{}' in {}\n",
-                                    genre.value,
-                                    new_genre,
-                                    track.file_path.display()
-                                ));
-                            }
-                            Err(e) => {
-                                out.push_str(&format!(
-                                    "ERROR: {} in {}\n",
-                                    e,
-                                    track.file_path.display()
-                                ));
-                                error_count += 1;
-                                continue;
-                            }
-                        }
+        let original_path = track.file_path.clone();
+        let original_genre = track.metadata.genre.as_ref().map(|v| v.value.clone());
+        let mut changed = false;
+        let mut error = None;
+        let normalized_genre = if let Some(ref genre_value) = original_genre {
+            match normalize_genre(genre_value) {
+                Some(new_genre) => {
+                    if new_genre != *genre_value {
+                        changed = true;
                     }
-                    updated_count += 1;
-                }
-                Some(_) => {
-                    no_change_count += 1;
+                    Some(new_genre)
                 }
                 None => {
-                    out.push_str(&format!(
-                        "ERROR: Could not normalize genre '{}' in {}\n",
-                        genre.value,
-                        track.file_path.display()
-                    ));
-                    error_count += 1;
+                    error = Some(format!("Could not normalize genre '{}'", genre_value));
+                    None
                 }
             }
-        }
+        } else {
+            error = Some("No genre found".to_string());
+            None
+        };
+
+        reports.push(GenreNormalizationReport {
+            original_path,
+            original_genre,
+            normalized_genre,
+            changed,
+            error,
+        });
     }
 
-    out.push_str(&format!(
-        "\nSummary: {} normalized, {} no change, {} errors\n",
-        updated_count, no_change_count, error_count
-    ));
+    if json {
+        serde_json::to_string_pretty(&reports).map_err(|e| format!("Error serializing reports to JSON: {}", e))
+    } else {
+        let mut out = String::new();
+        let mut updated_count = 0;
+        let mut no_change_count = 0;
+        let mut error_count = 0;
 
-    Ok(out)
+        for report in reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Genre '{}' -> '{}' in {}\n",
+                    report.original_genre.unwrap_or_default(),
+                    report.normalized_genre.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Genre '{}' already normalized in {}\n",
+                    report.original_genre.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "\nSummary: {} normalized, {} no change, {} errors\n",
+            updated_count, no_change_count, error_count
+        ));
+        Ok(out)
+    }
 }
+
 pub fn to_title_case(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut capitalize_next = true;
@@ -350,172 +368,141 @@ pub fn to_title_case(input: &str) -> String {
 }
 
 /// Normalize track titles to title case with options
-pub fn normalize(path: PathBuf, dry_run: bool) -> Result<String, String> {
-    let mut out = String::new();
-
-    match normalize_track_titles_with_options(&path, dry_run) {
-        Ok(results) => {
-            for result in results {
-                match result {
-                    OperationResult::Updated {
-                        track,
-                        old_title,
-                        new_title,
-                    } => {
-                        if dry_run {
-                            out.push_str(&format!(
-                                "DRY RUN: Would normalize '{}' -> '{}' in {}\n",
-                                track.file_path.display(),
-                                old_title,
-                                new_title
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "NORMALIZED: '{}' -> '{}' in {}\n",
-                                track.file_path.display(),
-                                old_title,
-                                new_title
-                            ));
-                        }
-                    }
-
-                    OperationResult::NoChange { track } => {
-                        if !dry_run {
-                            out.push_str(&format!(
-                                "NO CHANGE: Title already title case in {}\n",
-                                track.file_path.display()
-                            ));
-                        }
-                    }
-
-                    OperationResult::Error { track, error } => {
-                        out.push_str(&format!(
-                            "ERROR: {} in {}\n",
-                            error,
-                            track.file_path.display()
-                        ));
-                    }
-                }
-            }
-
-            Ok(out)
-        }
-
-        Err(e) => Err(format!("Error normalizing titles: {}\n", e)),
-    }
-}
-fn normalize_track_titles_with_options(
-    path: &Path,
-    dry_run: bool,
-) -> Result<Vec<OperationResult>, String> {
-    let mut results = Vec::new();
+pub fn normalize(path: PathBuf, json: bool) -> Result<String, String> {
+    let mut reports = Vec::new();
 
     // Check if path is a file or directory
     if path.is_file() {
         // Single file
-        let track = formats::read_metadata(path)
-            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-        results.push(normalize_single_track(track, dry_run));
+        match formats::read_metadata(&path) {
+            Ok(track) => reports.push(normalize_single_track(track)),
+            Err(e) => reports.push(TitleNormalizationReport {
+                original_path: path.clone(),
+                original_title: None,
+                normalized_title: None,
+                changed: false,
+                error: Some(format!("Failed to read {}: {}", path.display(), e)),
+            }),
+        }
     } else if path.is_dir() {
         // Directory - scan for supported audio files
-        let tracks = scan_dir_with_metadata(path);
+        let tracks = scan_dir_with_metadata(&path);
         match tracks {
             Ok(tracks) => {
                 for track in tracks {
-                    let result = normalize_single_track(track, dry_run);
-                    results.push(result);
+                    reports.push(normalize_single_track(track));
                 }
             }
             Err(e) => {
-                eprintln!("Warning: Failed to scan directory: {}", e);
+                // If scanning fails for a directory, report an overall error
+                return Err(format!("Error scanning directory {}: {}", path.display(), e));
             }
         }
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     }
 
-    Ok(results)
+    if json {
+        serde_json::to_string_pretty(&reports).map_err(|e| format!("Error serializing reports to JSON: {}", e))
+    } else {
+        let mut out = String::new();
+        let mut updated_count = 0;
+        let mut no_change_count = 0;
+        let mut error_count = 0;
+
+        for report in reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Title '{}' -> '{}' in {}\n",
+                    report.original_title.unwrap_or_default(),
+                    report.normalized_title.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Title '{}' already normalized in {}\n",
+                    report.original_title.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "\nSummary: {} normalized, {} no change, {} errors\n",
+            updated_count, no_change_count, error_count
+        ));
+        Ok(out)
+    }
 }
 
 /// Normalize a single track's title
-fn normalize_single_track(track: Track, dry_run: bool) -> OperationResult {
-    let current_title = match &track.metadata.title {
-        Some(title) => &title.value,
-        None => {
-            // If no embedded title, try to extract from filename
-            if let Some(file_stem) = track.file_path.file_stem().and_then(|s| s.to_str()) {
-                // Extract title from filename patterns like "01 - Title" or "Title"
-                let extracted_title = if let Some(pos) = file_stem.find(" - ") {
-                    // Pattern: "01 - Title" or "Artist - Title"
-                    let title_part = &file_stem[pos + 3..];
-                    let title_trimmed = title_part.trim();
-                    if !title_trimmed.is_empty() {
-                        title_trimmed
-                    } else {
-                        // If after " - " is empty, use the whole filename
-                        file_stem
-                    }
-                } else {
-                    // No " - " pattern, use the whole filename stem
-                    file_stem
-                };
+fn normalize_single_track(track: Track) -> TitleNormalizationReport {
+    let original_path = track.file_path.clone();
+    let original_title_from_metadata = track.metadata.title.as_ref().map(|v| v.value.clone());
 
-                if !extracted_title.is_empty() {
-                    extracted_title
-                } else {
-                    return OperationResult::Error {
-                        track,
-                        error: "No title found".to_string(),
-                    };
-                }
-            } else {
-                return OperationResult::Error {
-                    track,
-                    error: "No title found".to_string(),
+    let current_title_string_value = if let Some(title) = original_title_from_metadata.as_ref() {
+        title.clone() // Clone here to own the string
+    } else {
+        if let Some(file_stem_str) = original_path.file_stem().and_then(|s| s.to_str()) {
+            // Check if file_stem is empty or just an extension
+            if file_stem_str.is_empty() || file_stem_str.starts_with('.') {
+                return TitleNormalizationReport {
+                    original_path,
+                    original_title: original_title_from_metadata, // This is None
+                    normalized_title: None,
+                    changed: false,
+                    error: Some("No meaningful title found in metadata or filename".to_string()),
                 };
             }
+
+            let extracted_title = if let Some(pos) = file_stem_str.find(" - ") {
+                let title_part = &file_stem_str[pos + 3..];
+                let title_trimmed = title_part.trim();
+                if !title_trimmed.is_empty() {
+                    title_trimmed
+                } else {
+                    file_stem_str
+                }
+            } else {
+                file_stem_str
+            };
+            extracted_title.to_string() // Own the string
+        } else {
+            // This branch handles cases where file_stem() is truly None (e.g., just "/dir/").
+            // For ".flac", file_stem() returns ".flac", which is handled by the starts_with('.') check above.
+            return TitleNormalizationReport {
+                original_path,
+                original_title: original_title_from_metadata,
+                normalized_title: None,
+                changed: false,
+                error: Some("No title found in metadata or filename".to_string()),
+            };
         }
     };
+    
+    let original_title_for_report = Some(current_title_string_value.clone()); // Store for reporting
 
-    let normalized_title = to_title_case(current_title);
-    let old_title = current_title.to_string();
+    let normalized_title_value = to_title_case(&current_title_string_value); // Borrow `current_title_string_value`
+    let changed = current_title_string_value != normalized_title_value;
 
-    // Check if title needs to be changed
-    if current_title == &normalized_title {
-        return OperationResult::NoChange { track };
-    }
-
-    if dry_run {
-        // Just return what would be changed
-        OperationResult::Updated {
-            track,
-            old_title,
-            new_title: normalized_title,
-        }
-    } else {
-        // Actually update the metadata
-        let mut updated_metadata = track.metadata.clone();
-        updated_metadata.title = Some(crate::core::domain::models::MetadataValue::user_set(
-            normalized_title,
-        ));
-
-        match formats::write_metadata(&track.file_path, &updated_metadata) {
-            Ok(()) => OperationResult::Updated {
-                track,
-                old_title,
-                new_title: updated_metadata.title.unwrap().value,
-            },
-            Err(e) => OperationResult::Error {
-                track,
-                error: format!("Failed to write metadata: {}", e),
-            },
-        }
+    TitleNormalizationReport {
+        original_path, // Move `original_path` here, no active borrows
+        original_title: original_title_for_report,
+        normalized_title: Some(normalized_title_value),
+        changed,
+        error: None,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::domain::models::TrackMetadata;
+    use crate::core::domain::models::MetadataSource;
 
     #[test]
     fn test_to_title_case() {
@@ -598,5 +585,78 @@ mod tests {
         assert_eq!(normalize_genre("smooth jazz"), Some("Jazz".to_string()));
         assert_eq!(normalize_genre("bebop"), Some("Jazz".to_string()));
         assert_eq!(normalize_genre("swing"), Some("Jazz".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_single_track_title_casing() {
+        let track = Track {
+            file_path: PathBuf::from("/music/artist/album/track.flac"),
+            metadata: TrackMetadata {
+                title: Some(MetadataValue::user_set("a test title".to_string())),
+                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+            },
+            checksum: None,
+        };
+        let report = normalize_single_track(track);
+        assert!(report.changed);
+        assert_eq!(report.original_title, Some("a test title".to_string()));
+        assert_eq!(report.normalized_title, Some("A Test Title".to_string()));
+        assert!(report.error.is_none());
+    }
+
+    #[test]
+    fn test_normalize_single_track_no_change() {
+        let track = Track {
+            file_path: PathBuf::from("/music/artist/album/track.flac"),
+            metadata: TrackMetadata {
+                title: Some(MetadataValue::user_set("Already Normalized".to_string())),
+                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+            },
+            checksum: None,
+        };
+        let report = normalize_single_track(track);
+        assert!(!report.changed);
+        assert_eq!(report.original_title, Some("Already Normalized".to_string()));
+        assert_eq!(report.normalized_title, Some("Already Normalized".to_string()));
+        assert!(report.error.is_none());
+    }
+
+    #[test]
+    fn test_normalize_single_track_title_inferred_from_filename() {
+        let track = Track {
+            file_path: PathBuf::from("/music/file_without_title.flac"),
+            metadata: TrackMetadata {
+                title: None, // Explicitly no title in metadata
+                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+            },
+            checksum: None,
+        };
+        let report = normalize_single_track(track);
+        assert!(report.changed); // Expect change because "file_without_title" is normalized
+        assert_eq!(report.original_title, Some("file_without_title".to_string())); // This is the title derived from filename that was processed
+        assert_eq!(report.normalized_title, Some("File_Without_Title".to_string())); // Normalized value
+        assert!(report.error.is_none());
+    }
+
+    // Add a new test case for when literally no title can be found (e.g., empty file_stem)
+    #[test]
+    fn test_normalize_single_track_no_title_at_all() {
+        let track = Track {
+            file_path: PathBuf::from("/music/.flac"), // File with no stem
+            metadata: TrackMetadata {
+                title: None,
+                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+            },
+            checksum: None,
+        };
+        let report = normalize_single_track(track);
+        assert!(!report.changed);
+        assert_eq!(report.original_title, None);
+        assert_eq!(report.normalized_title, None);
+        assert!(report.error.is_some());
+        assert_eq!(
+            report.error.unwrap(),
+            "No meaningful title found in metadata or filename".to_string()
+        );
     }
 }

@@ -92,7 +92,7 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 8);
+    assert_eq!(tools.len(), 9); // Updated count
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
@@ -100,6 +100,7 @@ async fn test_tools_list() -> Result<()> {
         "get_library_tree",
         "read_file_metadata",
         "normalize_titles",
+        "normalize_genres", // Added
         "emit_library_metadata",
         "validate_library",
         "find_duplicates",
@@ -191,7 +192,7 @@ async fn test_normalize_titles() -> Result<()> {
         "normalize_titles",
         object!({
             "path": "tests/fixtures/cue",
-            "dry_run": true
+            "json_output": false
         }),
     )
     .await?;
@@ -200,10 +201,32 @@ async fn test_normalize_titles() -> Result<()> {
 
     let text = text_content(&result);
     assert!(
-        text.is_empty(),
-        "Expected empty output for directory with no audio files, got: {}",
+        text.contains("\nSummary: 0 normalized, 0 no change, 0 errors\n"),
+        "Expected summary for no audio files, got: {}",
         text
     );
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_normalize_titles_json() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let result = call_tool(
+        &client,
+        "normalize_titles",
+        object!({
+            "path": "tests/fixtures/cue",
+            "json_output": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert_eq!(text.trim(), "[]", "Expected empty JSON array for no audio files, got: {}", text);
 
     shutdown(client).await
 }

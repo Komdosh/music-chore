@@ -18,7 +18,13 @@ pub struct ReadFileMetadataParams {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct NormalizeTitlesParams {
     pub(crate) path: String,
-    pub(crate) dry_run: Option<bool>,
+    pub(crate) json_output: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct NormalizeGenresParams {
+    pub(crate) path: String,
+    pub(crate) json_output: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

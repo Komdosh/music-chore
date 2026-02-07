@@ -54,16 +54,15 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         Commands::Normalize {
             path,
             genres,
-            title: _,
-            dry_run,
+            json,
         } => {
             if genres {
-                match handle_normalize_genres(path, dry_run) {
+                match handle_normalize_genres(path, json) {
                     Ok(()) => Ok(()),
                     Err(code) => Err(code),
                 }
             } else {
-                match handle_normalize(path, dry_run) {
+                match handle_normalize(path, json) {
                     Ok(()) => Ok(()),
                     Err(code) => Err(code),
                 }
@@ -225,13 +224,13 @@ pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool)
     Ok(())
 }
 
-pub fn handle_normalize(path: PathBuf, dry_run: bool) -> Result<(), i32> {
+pub fn handle_normalize(path: PathBuf, json: bool) -> Result<(), i32> {
     if !path.exists() {
         eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
-    match normalize(path, dry_run) {
+    match normalize(path, json) {
         Ok(result) => {
             println!("{}", result);
             Ok(())
@@ -243,13 +242,13 @@ pub fn handle_normalize(path: PathBuf, dry_run: bool) -> Result<(), i32> {
     }
 }
 
-pub fn handle_normalize_genres(path: PathBuf, dry_run: bool) -> Result<(), i32> {
+pub fn handle_normalize_genres(path: PathBuf, json: bool) -> Result<(), i32> {
     if !path.exists() {
         eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
-    match normalize_genres_in_library(&path, dry_run) {
+    match normalize_genres_in_library(&path, json) {
         Ok(result) => {
             println!("{}", result);
             Ok(())
@@ -575,14 +574,14 @@ mod tests {
     #[test]
     fn test_handle_normalize_with_nonexistent_path() {
         let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_normalize(nonexistent_path, true);
+        let result = handle_normalize(nonexistent_path, false); // Changed to json: false
         assert_eq!(result, Err(1));
     }
 
     #[test]
     fn test_handle_normalize_genres_with_nonexistent_path() {
         let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_normalize_genres(nonexistent_path, true);
+        let result = handle_normalize_genres(nonexistent_path, false); // Changed to json: false
         assert_eq!(result, Err(1));
     }
 

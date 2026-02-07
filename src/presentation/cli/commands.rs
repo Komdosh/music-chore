@@ -71,17 +71,14 @@ pub enum Commands {
     },
     /// Normalize track titles to title case, or normalize genres with --genres.
     Normalize {
-        /// Path to the file to normalize.
+        /// Path to the file or directory to normalize.
         path: PathBuf,
         /// Normalize genres instead of titles.
         #[arg(long)]
         genres: bool,
-        /// Normalize titles (default behavior).
+        /// Output JSON instead of a human-readable format.
         #[arg(long)]
-        title: bool,
-        /// Show what would be changed without actually modifying files.
-        #[arg(long)]
-        dry_run: bool,
+        json: bool,
     },
     /// Emit library metadata in structured JSON format.
     Emit {
