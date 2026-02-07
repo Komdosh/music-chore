@@ -145,6 +145,7 @@ fn format_track_info_for_dir(track: &Track) -> String {
     {
         MetadataSource::Embedded => "🎯",
         MetadataSource::FolderInferred => "🤖",
+        MetadataSource::CueInferred => "📄",
         MetadataSource::UserEdited => "👤",
     };
 
@@ -251,6 +252,7 @@ fn format_track_info(track: &TrackNode) -> String {
     {
         MetadataSource::Embedded => "🎯",
         MetadataSource::FolderInferred => "🤖",
+        MetadataSource::CueInferred => "📄",
         MetadataSource::UserEdited => "👤",
     };
 

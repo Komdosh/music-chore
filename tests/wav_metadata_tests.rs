@@ -72,6 +72,9 @@ mod wav_metadata_tests {
                             // This shouldn't happen in tests, but handle it
                             println!("Found user-edited artist: {}", artist.value);
                         }
+                        music_chore::core::domain::models::MetadataSource::CueInferred => {
+                            panic!("Unexpected MetadataSource::CueInferred for artist in WAV test");
+                        }
                     }
                 }
 
@@ -86,6 +89,9 @@ mod wav_metadata_tests {
                         music_chore::core::domain::models::MetadataSource::UserEdited => {
                             // This shouldn't happen in tests, but handle it
                             println!("Found user-edited album: {}", album.value);
+                        }
+                        music_chore::core::domain::models::MetadataSource::CueInferred => {
+                            panic!("Unexpected MetadataSource::CueInferred for album in WAV test");
                         }
                     }
                 }

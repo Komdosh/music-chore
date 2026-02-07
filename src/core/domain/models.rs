@@ -10,6 +10,8 @@ pub enum MetadataSource {
     Embedded,
     /// Inferred from directory structure
     FolderInferred,
+    /// Inferred from CUE file
+    CueInferred,
     /// Explicitly set by user
     UserEdited,
 }
@@ -46,6 +48,14 @@ impl<T> MetadataValue<T> {
             value,
             source: MetadataSource::UserEdited,
             confidence: 1.0,
+        }
+    }
+
+    pub fn cue_inferred(value: T, confidence: f32) -> Self {
+        Self {
+            value,
+            source: MetadataSource::CueInferred,
+            confidence,
         }
     }
 }

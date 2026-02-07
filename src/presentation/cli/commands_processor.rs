@@ -121,7 +121,7 @@ pub fn handle_scan(
         return Err(1);
     }
 
-    let tracks = crate::core::services::scanner::scan_dir_with_options_verbose(&path, max_depth, follow_symlinks, exclude, verbose);
+    let tracks = crate::core::services::scanner::scan_dir_with_options(&path, max_depth, follow_symlinks, exclude);
 
     if tracks.is_empty() {
         if path.is_file() {

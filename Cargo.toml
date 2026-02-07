@@ -36,6 +36,9 @@ glob = "0.3"
 dsf="0.2.2"
 id3 = "1.16.4"
 
+[lints.rust]
+unused_imports = "allow"
+
 [dev-dependencies]
 tempfile = "3"
 anyhow = "1"

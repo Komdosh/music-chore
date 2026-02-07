@@ -1,16 +1,18 @@
 //! Enhanced directory scanner with improved error handling and edge cases.
-
+#[allow(unused_imports)]
 use crate::adapters::audio_formats as formats;
 use crate::core::domain::models::{
-    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata,
+    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata, MetadataSource,
 };
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
+use crate::core::services::cue::{parse_cue_file, CueFile, CueTrack}; // Added Cue imports
 use glob::Pattern;
 use log::{debug, error, warn};
 use serde_json::to_string_pretty;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet}; // Added HashSet
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+use crate::adapters::audio_formats::{read_basic_info, BasicAudioInfo}; // Added this import
 
 /// Recursively scan `base` for supported music files with enhanced error handling.
 ///
@@ -24,103 +26,38 @@ use walkdir::WalkDir;
 /// Uses deterministic ordering: sorted by filename for consistent output.
 /// Logs warnings for unsupported file types and errors for problematic files.
 pub fn scan_dir(base: &Path) -> Vec<Track> {
-    let mut tracks = Vec::new();
-    let supported_extensions = formats::get_supported_extensions();
+    scan_dir_with_options_impl(base, None, false, Vec::new(), false)
+}
 
-    for entry in WalkDir::new(base)
-        .follow_links(false) // Don't follow symlinks for determinism
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let path = entry.path();
+/// Helper function to determine if a file is a supported audio file based on its extension.
+fn is_supported_audio_file(path: &Path, supported_extensions: &HashSet<String>) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map_or(false, |ext| supported_extensions.contains(&ext.to_lowercase()))
+}
 
-        // Skip symlinks to files (but not directories - handled by walkdir)
-        if let Ok(metadata) = path.symlink_metadata() {
-            if metadata.file_type().is_symlink() {
-                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
-                continue;
-            }
-        }
+/// Helper function to determine if a file has an audio extension (supported or not).
+fn has_audio_extension(path: &Path) -> bool {
+    let audio_extensions = ["mp3", "flac", "wav", "dsf", "wv"];
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map_or(false, |ext| audio_extensions.contains(&ext.to_lowercase().as_str()))
+}
 
-        if path.is_file() {
-            if is_supported_audio_file(path, &supported_extensions) {
-                // Check if file is empty or corrupted before processing
-                if let Err(e) = check_file_validity(path) {
-                    error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
-                    continue;
-                }
-
-                // Infer basic info from directory structure first (faster than full metadata read)
-                let inferred_artist = infer_artist_from_path(path)
-                    .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
-
-                let inferred_album = infer_album_from_path(path)
-                    .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
-
-                // If album inference failed and we have a reasonable filename, try to extract album from filename
-                let final_album = if inferred_album.is_none() {
-                    if let Some(filename) = path.file_stem().and_then(|n| n.to_str()) {
-                        if let Some(album) = extract_album_from_filename(filename) {
-                            Some(MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE))
-                        } else {
-                            // Fallback: use cleaned filename as album name
-                            let cleaned = clean_filename_as_album(filename);
-                            if !cleaned.is_empty() {
-                                Some(MetadataValue::inferred(cleaned, FOLDER_INFERRED_CONFIDENCE))
-                            } else {
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    inferred_album
-                };
-
-                // Get file extension for format identification
-                let format = path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("unknown")
-                    .to_lowercase();
-
-                let metadata = TrackMetadata {
-                    title: None,
-                    artist: inferred_artist,
-                    album: final_album,
-                    album_artist: None,
-                    track_number: None,
-                    disc_number: None,
-                    year: None,
-                    genre: None,
-                    duration: None,
-                    format,
-                    path: path.to_path_buf(),
-                };
-
-                let track = Track::new(path.to_path_buf(), metadata);
-                tracks.push(track);
-            } else if has_audio_extension(path) {
-                // File has an audio extension but format is not supported
-                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
-            }
-        }
-    }
-
-    // Sort by filename for deterministic ordering
-    tracks.sort_by(|a, b| {
-        let file_a = a.file_path.file_name().unwrap_or_default();
-        let file_b = b.file_path.file_name().unwrap_or_default();
-        debug!(target: "music_chore", "Comparing files: {:?} vs {:?}", file_a, file_b);
-        file_a.cmp(&file_b)
-    });
-
-    tracks
+/// Helper function to check if a path matches any of the given glob patterns.
+fn matches_pattern(path: &Path, patterns: &[String]) -> bool {
+    patterns.iter().any(|pattern| {
+        Pattern::new(pattern)
+            .map(|p| p.matches_path(path))
+            .unwrap_or_else(|e| {
+                error!(target: "music_chore", "Invalid glob pattern: {} - {}", pattern, e);
+                false
+            })
+    })
 }
 
 /// Check if a file is valid (not empty, readable, etc.)
-fn check_file_validity(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn check_file_validity(path: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let file_size = std::fs::metadata(path)?.len();
 
     if file_size == 0 {
@@ -204,7 +141,8 @@ fn clean_filename_as_album(filename: &str) -> String {
 /// Scan and return basic file paths only (for simple operations)
 pub fn scan_dir_paths(base: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    let supported_extensions = formats::get_supported_extensions();
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
 
     for entry in WalkDir::new(base)
         .follow_links(false)
@@ -239,7 +177,8 @@ pub fn scan_dir_paths(base: &Path) -> Vec<PathBuf> {
 /// Scan only the immediate directory level (non-recursive) for music files.
 pub fn scan_dir_immediate(base: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    let supported_extensions = formats::get_supported_extensions();
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
 
     if !base.exists() || !base.is_dir() {
         return paths;
@@ -383,7 +322,8 @@ pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
 /// Some(1) = base dir + 1 level deep
 /// Some(2) = base dir + 2 levels deep, etc.
 pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> {
-    let supported_extensions = formats::get_supported_extensions();
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
 
     let mut walkdir = WalkDir::new(base).follow_links(false);
 
@@ -461,8 +401,6 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
 
                 let track = Track::new(path.to_path_buf(), metadata);
                 tracks.push(track);
-            } else if has_audio_extension(path) {
-                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
             }
         }
     }
@@ -470,7 +408,6 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
     tracks.sort_by(|a, b| {
         let file_a = a.file_path.file_name().unwrap_or_default();
         let file_b = b.file_path.file_name().unwrap_or_default();
-        debug!(target: "music_chore", "Comparing files: {:?} vs {:?}", file_a, file_b);
         file_a.cmp(&file_b)
     });
 
@@ -488,7 +425,8 @@ pub fn scan_dir_with_depth_and_symlinks(
     max_depth: Option<usize>,
     follow_symlinks: bool,
 ) -> Vec<Track> {
-    let supported_extensions = formats::get_supported_extensions();
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
 
     let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
 
@@ -502,12 +440,10 @@ pub fn scan_dir_with_depth_and_symlinks(
         let path = entry.path();
 
         // Skip symlinks to files unless follow_symlinks is true
-        if !follow_symlinks {
-            if let Ok(metadata) = path.symlink_metadata() {
-                if metadata.file_type().is_symlink() {
-                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
-                    continue;
-                }
+        if let Ok(metadata) = path.symlink_metadata() {
+            if metadata.file_type().is_symlink() {
+                debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
+                continue;
             }
         }
 
@@ -568,8 +504,6 @@ pub fn scan_dir_with_depth_and_symlinks(
 
                 let track = Track::new(path.to_path_buf(), metadata);
                 tracks.push(track);
-            } else if has_audio_extension(path) {
-                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
             }
         }
     }
@@ -602,52 +536,115 @@ fn scan_dir_with_options_impl(
     exclude_patterns: Vec<String>,
     verbose: bool,
 ) -> Vec<Track> {
-    let supported_extensions = formats::get_supported_extensions();
-
-    let mut walkdir = WalkDir::new(base).follow_links(follow_symlinks);
-
-    if let Some(depth) = max_depth {
-        walkdir = walkdir.max_depth(depth + 1);
-    }
+    let supported_extensions_vec = formats::get_supported_extensions();
+    let supported_extensions: HashSet<String> = supported_extensions_vec.into_iter().collect();
 
     let mut tracks = Vec::new();
     let mut processed_files = 0;
     let mut supported_files = 0;
-    let mut unsupported_files = 0;
+    let mut unsupported_files = 0; // Changed to be used
+    let mut processed_album_dirs: HashSet<PathBuf> = HashSet::new(); // Track dirs processed by CUE
 
-    for entry in walkdir.into_iter().filter_map(|e| e.ok()) {
+    // First pass: identify and process CUE files in album directories
+    let mut walkdir_first_pass = WalkDir::new(base).follow_links(follow_symlinks);
+    if let Some(depth) = max_depth {
+        walkdir_first_pass = walkdir_first_pass.max_depth(depth + 1);
+    }
+
+    for entry in walkdir_first_pass.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
 
-        // Skip symlinks to files unless follow_symlinks is true
-        if !follow_symlinks {
-            if let Ok(metadata) = path.symlink_metadata() {
-                if metadata.file_type().is_symlink() {
-                    debug!(target: "music_chore", "Skipping symlink to file: {}", path.display());
-                    continue;
-                }
-            }
+        // Apply exclusion patterns to directories and files
+        if matches_pattern(path, &exclude_patterns) {
+            debug!(target: "music_chore", "Skipping excluded path: {}", path.display());
+            continue;
         }
 
-        // Check exclude patterns
-        let mut excluded = false;
-        if !exclude_patterns.is_empty() {
-            let path_str = path.to_string_lossy();
-            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                for pattern in &exclude_patterns {
-                    if matches_pattern(filename, pattern) || matches_pattern(&path_str, pattern) {
-                        debug!(target: "music_chore", "Skipping excluded file: {} (pattern: {})", path.display(), pattern);
-                        excluded = true;
-                        break;
+        if path.is_dir() {
+            // Check for .cue files in this directory
+            if let Some(cue_file_path) = std::fs::read_dir(path).ok().and_then(|entries| {
+                entries.filter_map(|e| e.ok())
+                       .find(|e| e.path().extension().map_or(false, |ext| ext.eq_ignore_ascii_case("cue")))
+                       .map(|e| e.path())
+            }) {
+                debug!(target: "music_chore", "Found CUE file: {}", cue_file_path.display());
+                match parse_cue_file(&cue_file_path) {
+                    Ok(cue_file) => {
+                        let album_dir = path.to_path_buf();
+                        let inferred_artist_from_dir = infer_artist_from_path(&album_dir)
+                            .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
+                        let inferred_album_from_dir = infer_album_from_path(&album_dir)
+                            .map(|album| MetadataValue::inferred(album, FOLDER_INFERRED_CONFIDENCE));
+
+                        for cue_track in cue_file.tracks {
+                            if let Some(audio_file_name) = cue_track.file {
+                                let audio_file_path = album_dir.join(&audio_file_name);
+
+                                // Get basic info (duration, format) from the actual audio file
+                                let basic_info_metadata = match read_basic_info(&audio_file_path) {
+                                    Ok(m) => Some(m),
+                                    Err(e) => {
+                                        warn!(target: "music_chore", "Could not read basic info for CUE-referenced file {}: {}", audio_file_path.display(), e);
+                                        None
+                                    }
+                                };
+
+                                let title = cue_track.title.map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE title is high confidence
+                                let artist = cue_track.performer.map(|s| MetadataValue::cue_inferred(s, 1.0)); // CUE performer is high confidence
+                                let track_number = Some(MetadataValue::cue_inferred(cue_track.number, 1.0));
+
+                                let metadata = TrackMetadata {
+                                    title,
+                                    artist: artist.or_else(|| inferred_artist_from_dir.clone()), // Fallback to folder inferred artist
+                                    album: inferred_album_from_dir.clone(),
+                                    album_artist: cue_file.performer.clone().map(|s| MetadataValue::cue_inferred(s, 1.0)),
+                                    track_number,
+                                    disc_number: None, // CUE files typically don't specify disc number per track
+                                    year: cue_file.date.clone().and_then(|s| s.parse::<u32>().ok()).map(|y| MetadataValue::cue_inferred(y, 1.0)),
+                                    genre: cue_file.genre.clone().map(|s| MetadataValue::cue_inferred(s, 1.0)),
+                                    duration: basic_info_metadata.as_ref().and_then(|m| m.duration.clone()),
+                                    format: basic_info_metadata.map_or("unknown".to_string(), |m| m.format),
+                                    path: audio_file_path.clone(),
+                                };
+                                tracks.push(Track::new(audio_file_path.clone(), metadata));
+                            } else {
+                                warn!(target: "music_chore", "CUE track {} in {} has no associated audio file.", cue_track.number, cue_file_path.display());
+                            }
+                        }
+                        processed_album_dirs.insert(album_dir);
+                    }
+                    Err(e) => {
+                        error!(target: "music_chore", "Failed to parse CUE file {}: {}", cue_file_path.display(), e);
                     }
                 }
             }
         }
+    }
 
-        if excluded {
+    // Second pass: process individual files, skipping those in CUE-handled directories
+    let mut walkdir_second_pass = WalkDir::new(base).follow_links(follow_symlinks);
+    if let Some(depth) = max_depth {
+        walkdir_second_pass = walkdir_second_pass.max_depth(depth + 1);
+    }
+    
+    for entry in walkdir_second_pass.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Apply exclusion patterns to directories and files
+        if matches_pattern(path, &exclude_patterns) {
+            debug!(target: "music_chore", "Skipping excluded path: {}", path.display());
             continue;
         }
 
         if path.is_file() {
+            // If the parent directory was processed by a CUE file, skip this file
+            if let Some(parent_dir) = path.parent() {
+                if processed_album_dirs.contains(parent_dir) {
+                    debug!(target: "music_chore", "Skipping file {} as its directory was processed by a CUE file.", path.display());
+                    continue;
+                }
+            }
+
             processed_files += 1;
 
             if verbose && processed_files % 100 == 0 {
@@ -662,10 +659,6 @@ fn scan_dir_with_options_impl(
                     error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
                     continue;
                 }
-
-                // For the scanner, we don't need to fully validate content during scanning
-                // Just check that it has the right extension. Content validation happens during read operations.
-                // This preserves the original behavior for exclude patterns and file counting.
 
                 let inferred_artist = infer_artist_from_path(path)
                     .map(|artist| MetadataValue::inferred(artist, FOLDER_INFERRED_CONFIDENCE));
@@ -718,7 +711,7 @@ fn scan_dir_with_options_impl(
                 tracks.push(track);
             } else if has_audio_extension(path) {
                 unsupported_files += 1;
-                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.join(", "));
+                warn!(target: "music_chore", "Unsupported audio format: {} (supported: {})", path.display(), supported_extensions.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", "));
             }
         }
     }
@@ -737,311 +730,4 @@ fn scan_dir_with_options_impl(
     });
 
     tracks
-}
-
-/// Scan directory with full options including depth limit, symlink handling, exclude patterns, and verbose output.
-/// Supports glob patterns for exclusion (e.g., "*.tmp", "temp_*", "backup/*")
-pub fn scan_dir_with_options_verbose(
-    base: &Path,
-    max_depth: Option<usize>,
-    follow_symlinks: bool,
-    exclude_patterns: Vec<String>,
-    verbose: bool,
-) -> Vec<Track> {
-    scan_dir_with_options_impl(base, max_depth, follow_symlinks, exclude_patterns, verbose)
-}
-
-/// Check if a string matches a glob-like pattern.
-/// Supports: * (any characters), ? (single character)
-fn matches_pattern(s: &str, pattern: &str) -> bool {
-    // Try to match as a glob pattern
-    if let Ok(glob_pattern) = Pattern::new(pattern) {
-        if glob_pattern.matches(s) {
-            return true;
-        }
-    }
-
-    // Also check simple substring match for patterns without wildcards
-    s.contains(pattern)
-}
-
-/// Check if a file has a supported extension (does not validate content)
-fn is_supported_audio_file(path: &Path, supported_extensions: &[String]) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| supported_extensions.contains(&ext.to_lowercase()))
-        .unwrap_or(false)
-}
-
-/// Check if a file has an audio extension (regardless of support)
-fn has_audio_extension(path: &Path) -> bool {
-    const AUDIO_EXTENSIONS: &[&str] = &[
-        "flac", "mp3", "wav", "ogg", "m4a", "aac", "wma", "aiff", "dsf", "opus", "webm",
-    ];
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| AUDIO_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
-        .unwrap_or(false)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_check_file_validity_empty_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let empty_file = temp_dir.path().join("empty.flac");
-        std::fs::File::create(&empty_file).unwrap();
-
-        assert!(check_file_validity(&empty_file).is_err());
-    }
-
-    #[test]
-    fn test_check_file_validity_valid_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let valid_file = temp_dir.path().join("valid.flac");
-        let mut file = std::fs::File::create(&valid_file).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        assert!(check_file_validity(&valid_file).is_ok());
-    }
-
-    #[test]
-    fn test_extract_album_from_filename_artist_album_track() {
-        assert_eq!(
-            extract_album_from_filename("Artist - Album - Track.flac"),
-            Some("Album".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_album_from_filename_album_track() {
-        assert_eq!(
-            extract_album_from_filename("Album - Track.flac"),
-            Some("Album".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_album_from_filename_track_album() {
-        assert_eq!(
-            extract_album_from_filename("Track (Album).flac"),
-            Some("Album".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_album_from_filename_album_track_number() {
-        assert_eq!(
-            extract_album_from_filename("Album - 01 - Track.flac"),
-            Some("Album".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_album_from_filename_no_album() {
-        assert_eq!(extract_album_from_filename("Track.flac"), None);
-    }
-
-    #[test]
-    fn test_clean_filename_as_album() {
-        assert_eq!(clean_filename_as_album("01 - Track.flac"), "Track");
-        assert_eq!(clean_filename_as_album("Track.flac"), "Track");
-        assert_eq!(clean_filename_as_album("track.flac"), "track");
-    }
-
-    #[test]
-    fn test_scan_dir_with_empty_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let empty_file = temp_dir.path().join("empty.flac");
-        std::fs::File::create(&empty_file).unwrap();
-
-        let tracks = scan_dir(temp_dir.path());
-        assert!(tracks.is_empty());
-    }
-
-    #[test]
-    fn test_scan_dir_with_valid_and_invalid_files() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create valid file
-        let valid_file = temp_dir.path().join("valid.flac");
-        let mut file = std::fs::File::create(&valid_file).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Create empty file
-        let empty_file = temp_dir.path().join("empty.flac");
-        std::fs::File::create(&empty_file).unwrap();
-
-        let tracks = scan_dir(temp_dir.path());
-        assert_eq!(tracks.len(), 1);
-        assert_eq!(tracks[0].file_path, valid_file);
-    }
-
-    #[test]
-    fn test_infer_album_from_filename_with_pattern() {
-        // When there's no proper directory structure, extract album from filename
-        let temp_dir = TempDir::new().unwrap();
-        let subdir = temp_dir.path().join("music");
-        std::fs::create_dir(&subdir).unwrap();
-        let file = subdir.join("Artist - Album - Track.flac");
-
-        // Create the file with some content
-        let mut file_handle = std::fs::File::create(&file).unwrap();
-        file_handle.write_all(b"some data").unwrap();
-
-        let tracks = scan_dir(&subdir);
-        assert_eq!(tracks.len(), 1);
-
-        // Should have inferred album from filename pattern "Artist - Album - Track"
-        // The parent directory is "music" which doesn't look like an album name with proper structure
-        // So it should fall back to extracting from filename
-        assert!(tracks[0].metadata.album.is_some());
-    }
-
-    #[test]
-    fn test_infer_album_from_filename_simple() {
-        // When there's no proper directory structure and simple filename, use filename as album
-        let temp_dir = TempDir::new().unwrap();
-        let subdir = temp_dir.path().join("music");
-        std::fs::create_dir(&subdir).unwrap();
-        let file = subdir.join("Track.flac");
-
-        // Create the file with some content
-        let mut file_handle = std::fs::File::create(&file).unwrap();
-        file_handle.write_all(b"some data").unwrap();
-
-        let tracks = scan_dir(&subdir);
-        assert_eq!(tracks.len(), 1);
-
-        // Should have used filename "Track" as album fallback
-        assert!(tracks[0].metadata.album.is_some());
-    }
-
-    #[test]
-    fn test_scan_dir_skips_symlinks_by_default() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create a valid file
-        let real_file = temp_dir.path().join("real.flac");
-        let mut file = std::fs::File::create(&real_file).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Create a symlink to the file
-        let symlink_file = temp_dir.path().join("link.flac");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(&real_file, &symlink_file).unwrap();
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(&real_file, &symlink_file).unwrap();
-
-        // Without follow_symlinks, should only find the real file
-        let tracks = scan_dir_with_depth_and_symlinks(temp_dir.path(), None, false);
-        assert_eq!(tracks.len(), 1);
-        assert_eq!(tracks[0].file_path, real_file);
-    }
-
-    #[test]
-    fn test_scan_dir_follows_symlinks_when_enabled() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create a subdirectory
-        let subdir = temp_dir.path().join("music");
-        std::fs::create_dir(&subdir).unwrap();
-
-        // Create a valid file in subdirectory
-        let real_file = subdir.join("real.flac");
-        let mut file = std::fs::File::create(&real_file).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Create a symlink to the file in the root
-        let symlink_file = temp_dir.path().join("link.flac");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(&real_file, &symlink_file).unwrap();
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(&real_file, &symlink_file).unwrap();
-
-        // With follow_symlinks, should find both the real file and the symlink
-        let tracks = scan_dir_with_depth_and_symlinks(temp_dir.path(), None, true);
-        assert_eq!(tracks.len(), 2);
-    }
-
-    #[test]
-    fn test_scan_dir_with_exclude_pattern() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create files that should be included
-        let include_file1 = temp_dir.path().join("track1.flac");
-        let mut file = std::fs::File::create(&include_file1).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        let include_file2 = temp_dir.path().join("track2.flac");
-        let mut file = std::fs::File::create(&include_file2).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Create a file that should be excluded
-        let exclude_file = temp_dir.path().join("temp_track.flac");
-        let mut file = std::fs::File::create(&exclude_file).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Scan with exclude pattern
-        let tracks =
-            scan_dir_with_options(temp_dir.path(), None, false, vec!["temp_*".to_string()]);
-        assert_eq!(tracks.len(), 2);
-        assert!(tracks.iter().any(|t| t.file_path == include_file1));
-        assert!(tracks.iter().any(|t| t.file_path == include_file2));
-        assert!(!tracks.iter().any(|t| t.file_path == exclude_file));
-    }
-
-    #[test]
-    fn test_scan_dir_with_multiple_exclude_patterns() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create files
-        let track1 = temp_dir.path().join("song.flac");
-        let mut file = std::fs::File::create(&track1).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        let track2 = temp_dir.path().join("backup.flac");
-        let mut file = std::fs::File::create(&track2).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        let track3 = temp_dir.path().join("temp.flac");
-        let mut file = std::fs::File::create(&track3).unwrap();
-        file.write_all(b"some data").unwrap();
-
-        // Scan with multiple exclude patterns
-        let tracks = scan_dir_with_options(
-            temp_dir.path(),
-            None,
-            false,
-            vec!["backup*".to_string(), "temp*".to_string()],
-        );
-        assert_eq!(tracks.len(), 1);
-        assert_eq!(tracks[0].file_path, track1);
-    }
-
-    #[test]
-    fn test_matches_pattern_simple() {
-        assert!(matches_pattern("temp_file.flac", "temp_*"));
-        assert!(matches_pattern("file.tmp", "*.tmp"));
-        assert!(!matches_pattern("file.flac", "*.tmp"));
-        assert!(matches_pattern("backup_2023.flac", "backup_*"));
-    }
-
-    #[test]
-    fn test_matches_pattern_question_mark() {
-        assert!(matches_pattern("track1.flac", "track?.flac"));
-        assert!(matches_pattern("trackA.flac", "track?.flac"));
-        assert!(!matches_pattern("track12.flac", "track?.flac"));
-    }
-
-    #[test]
-    fn test_matches_pattern_substring() {
-        // Patterns without wildcards should match as substring
-        assert!(matches_pattern("my_backup_file.flac", "backup"));
-        assert!(!matches_pattern("my_file.flac", "backup"));
-    }
 }

@@ -1,6 +1,7 @@
 //! Audio format registry and factory.
-
+#[allow(unused_imports)]
 use crate::core::domain::traits::{AudioFileError, AudioFileRegistry};
+use crate::core::domain::models::{TrackMetadata, MetadataValue};
 use crate::adapters::audio_formats::dsf::DsfHandler;
 use crate::adapters::audio_formats::flac::FlacHandler;
 use crate::adapters::audio_formats::mp3::Mp3Handler;
@@ -13,6 +14,13 @@ pub mod flac;
 pub mod mp3;
 pub mod wav;
 pub mod wavpack;
+
+/// Basic audio information extracted for CUE file processing.
+#[derive(Debug, Clone)]
+pub struct BasicAudioInfo {
+    pub duration: Option<MetadataValue<f64>>,
+    pub format: String,
+}
 
 /// Create a new audio file registry with all supported format handlers
 pub fn create_audio_registry() -> AudioFileRegistry {
@@ -48,6 +56,20 @@ pub fn read_metadata(path: &Path) -> Result<crate::core::domain::models::Track, 
 
     Ok(track)
 }
+
+/// Read basic metadata (duration, format) from a file.
+/// This is used primarily for CUE sheet processing where full metadata is not needed.
+pub fn read_basic_info(path: &Path) -> Result<BasicAudioInfo, AudioFileError> {
+    let registry = create_audio_registry();
+    let handler = registry.find_handler(path)?;
+    let track = handler.read_metadata(path)?; // Temporarily read full metadata
+
+    Ok(BasicAudioInfo {
+        duration: track.metadata.duration,
+        format: track.metadata.format,
+    })
+}
+
 
 /// Write metadata to a file using the appropriate format handler
 pub fn write_metadata(
