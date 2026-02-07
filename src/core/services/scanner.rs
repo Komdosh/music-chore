@@ -341,7 +341,7 @@ fn format_track_display_name(track: &Track) -> String {
 
 
 pub fn scan_tracks(path: PathBuf, json: bool) -> Result<String, String> {
-    let tracks = scan_dir(&path);
+    let tracks = scan_dir_with_metadata(&path)?; // Changed from scan_dir(&path)
 
     if tracks.is_empty() {
         return Err(format!(
