@@ -46,12 +46,12 @@ FILE "{}" WAVE
         // Assertions:
         // Check for the presence of the CUE-inferred symbol "📄"
         assert!(
-            output.contains("Track One CUE [📄]"),
+            output.contains("Track One CUE (01 - Track One.flac) [📄]"),
             "Output did not contain CUE-inferred track one. Full output:
 {}", output
         );
         assert!(
-            output.contains("Track Two CUE [📄]"),
+            output.contains("Track Two CUE (02 - Track Two.wav) [📄]"),
             "Output did not contain CUE-inferred track two. Full output:
 {}", output
         );

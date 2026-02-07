@@ -113,14 +113,10 @@ fn format_dir_tree(node: &DirNode, indent: &str, is_last: bool) -> String {
             format!("{}├─── 🎵", child_indent)
         };
 
-        let track_info = format_track_info_for_dir(track);
-        let filename = track
-            .file_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy();
+        // Get the full formatted track information string, including name, source, and other details
+        let full_track_display_string = format_track_info_for_dir(track);
 
-        output.push_str(&format!("{}   {} {}\n", track_prefix, filename, track_info));
+        output.push_str(&format!("{} {}\n", track_prefix, full_track_display_string));
     }
 
     output
@@ -128,28 +124,69 @@ fn format_dir_tree(node: &DirNode, indent: &str, is_last: bool) -> String {
 
 /// Format track info for directory tree view
 fn format_track_info_for_dir(track: &Track) -> String {
-    let mut info = Vec::new();
+    let mut info_parts = Vec::new();
 
+    // Add format
     if let Some(format_str) = track.metadata.format.strip_prefix(".") {
-        info.push(format_str.to_uppercase());
+        info_parts.push(format_str.to_uppercase());
     } else {
-        info.push(track.metadata.format.to_uppercase());
+        info_parts.push(track.metadata.format.to_uppercase());
     }
 
-    let source = match track
-        .metadata
-        .title
-        .as_ref()
-        .map(|t| &t.source)
-        .unwrap_or(&MetadataSource::FolderInferred)
-    {
-        MetadataSource::Embedded => "🎯",
-        MetadataSource::FolderInferred => "🤖",
-        MetadataSource::CueInferred => "📄",
-        MetadataSource::UserEdited => "👤",
-    };
+    // Determine the display name and source icon
+    let mut display_name = track
+        .file_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string(); // Default to filename
 
-    format!("[{}] {}", source, info.join(" | "))
+    let mut determined_source_icon = "🤖"; // Default source icon
+
+    if let Some(title_metadata_value) = track.metadata.title.as_ref() {
+        // If title metadata exists, use its source for the icon
+        determined_source_icon = match title_metadata_value.source {
+            MetadataSource::Embedded => "🎯",
+            MetadataSource::FolderInferred => "🤖",
+            MetadataSource::CueInferred => "📄",
+            MetadataSource::UserEdited => "👤",
+        };
+
+        // If title is CUE-inferred, use it as the primary display name
+        if title_metadata_value.source == MetadataSource::CueInferred {
+            display_name = format!(
+                "{} ({})",
+                title_metadata_value.value,
+                track.file_path.file_name().unwrap_or_default().to_string_lossy()
+            );
+        } else if !title_metadata_value.value.is_empty() {
+            // For non-CUE-inferred titles, use the title if it exists and is not empty
+            // This prioritizes embedded or user-edited titles over the filename.
+            display_name = title_metadata_value.value.clone();
+        }
+        // If title exists but is empty, or not CUE-inferred, and not embedded/user-edited,
+        // it falls back to the original filename as initialized for `display_name`.
+    } else {
+        // No title metadata. Determine source icon from other metadata if available,
+        // otherwise default to FolderInferred ("🤖") which is already set.
+        if let Some(artist_meta) = track.metadata.artist.as_ref() {
+            determined_source_icon = match artist_meta.source {
+                MetadataSource::Embedded => "🎯",
+                MetadataSource::FolderInferred => "🤖",
+                MetadataSource::CueInferred => "📄",
+                MetadataSource::UserEdited => "👤",
+            };
+        } else if let Some(album_meta) = track.metadata.album.as_ref() {
+            determined_source_icon = match album_meta.source {
+                MetadataSource::Embedded => "🎯",
+                MetadataSource::FolderInferred => "🤖",
+                MetadataSource::CueInferred => "📄",
+                MetadataSource::UserEdited => "👤",
+            };
+        }
+    }
+
+    format!("{} [{}] {}", display_name, determined_source_icon, info_parts.join(" | "))
 }
 
 /// Print library tree in human-readable format (preserving directory structure)
