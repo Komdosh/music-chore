@@ -29,33 +29,11 @@ Design a CLI-only Rust program that:
 - **.mp3** files ✅ (ID3v2 tag support)
 - **.wav** files ✅ (INFO chunk support)
 
-### v1 (Future Scope)
-- .dsf
-
-## Versioned Feature Scope
-
-### v1 — Foundation ✅ COMPLETED
-- Recursive directory scanning ✅
-- Artist → Album → Track hierarchy inference ✅
-- CLI command to display a tree structure ✅
-  * Artist
-    * Album
-      * Tracks
-- CLI command to read metadata from .flac file ✅
-- CLI command to write/update metadata in .flac file ✅
-- Internals designed to support multiple formats later ✅
-
-### v0.1.9 — MP3 Support ✅ COMPLETED
-- MP3 format support with ID3v2 tag reading/writing ✅
-- Multi-format architecture working ✅
-- All CLI commands work with both FLAC and MP3 ✅
-- Format-agnostic scanner and metadata processing ✅
-
-### v0.2.1 — WAV Support ✅ COMPLETED
-- WAV format support with INFO chunk reading/writing ✅
-- Multi-format architecture extended to three formats ✅
-- All CLI commands work with FLAC, MP3, and WAV ✅
-- Format-agnostic scanner and metadata processing ✅
+### v0.2.2 — DSF Support ✅ COMPLETED
+- DSF format support with ID3 tag reading (read-only) ✅
+- Multi-format architecture extended to four formats ✅
+- All CLI commands work with FLAC, MP3, WAV, and DSF (read operations) ✅
+- Writing DSF metadata is NOT supported.
 
 ### v2 — AI Agent Integration ✅ COMPLETED
 **✅ COMPLETED in v1.1**:
@@ -67,7 +45,6 @@ Design a CLI-only Rust program that:
 - ✅ Comprehensive MCP test coverage (18 tests)
 
 **Planned for future versions**:
-- Support additional audio formats (DSF)
 - Generate a .cue file for an album folder using track metadata
 - Advanced metadata operations
 

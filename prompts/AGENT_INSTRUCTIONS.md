@@ -25,16 +25,13 @@ Run the following commands in order:
     # 3. Read authoritative specification
     cat prompts/APP_SPEC.md
 
-    # 4. Review feature tracking
-    cat prompts/feature_list.yml | tail -n 120 | head -n 50
-
-    # 5. Review current progress from agent-progress.txt
+    # 4. Review current progress from agent-progress.txt
     cat agent-progress.txt || true
 
-    # 6. Inspect recent git history
+    # 5. Inspect recent git history
     git log --oneline -20
 
-    # 7. Check current implementation state
+    # 6. Check current implementation state
     cargo test --quiet && echo "✅ Tests passing" || echo "❌ Tests failing"
 
 Understanding @prompts/APP_SPEC.md is critical.
@@ -126,7 +123,7 @@ STEP 5: IMPLEMENT THE FEATURE
 
 Implement feature according to @prompts/APP_SPEC.md:
 
-1. Add or modify code in correct layer:
+1. Add or modify code in the correct layer:
    - CLI: argument parsing, output formatting (src/cli/)
    - Services: orchestration and business logic (src/services/)
    - Domain: pure logic, models, traits (src/domain/)

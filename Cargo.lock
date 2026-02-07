@@ -305,6 +305,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dsf"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20f4ff4c128f14b36300e5ae44abf881c33e8fc131c7c183cafdf7c2b09abecd"
+dependencies = [
+ "id3",
+ "sampled_data_duration",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -525,6 +535,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "id3"
+version = "1.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965c5e6a62a241f2f673df956ea5f52c27780bc1031855890a551ed9b869e2d1"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "flate2",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -683,12 +704,14 @@ dependencies = [
 
 [[package]]
 name = "music-chore"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "clap",
+ "dsf",
  "env_logger",
  "glob",
+ "id3",
  "lofty",
  "log",
  "rmcp",
@@ -975,6 +998,12 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "sampled_data_duration"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1c52ae966a8693b8d564a1dee9f2139907c9e375ee9544276bf61b5d97841ce"
 
 [[package]]
 name = "schemars"
