@@ -14,6 +14,7 @@ use rmcp::{
 use std::borrow::Cow;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use music_chore::core::services::normalization::{CombinedNormalizationReport, TitleNormalizationReport, GenreNormalizationReport}; // Added CombinedNormalizationReport
 
 /* ----------------------------- Shared helpers ----------------------------- */
 
@@ -92,15 +93,14 @@ async fn test_tools_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 9); // Updated count
+    assert_eq!(tools.len(), 8); // Updated count
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
         "scan_directory",
         "get_library_tree",
         "read_file_metadata",
-        "normalize_titles",
-        "normalize_genres", // Added
+        "normalize", // Changed from normalize_titles
         "emit_library_metadata",
         "validate_library",
         "find_duplicates",
@@ -184,12 +184,12 @@ async fn test_read_file_metadata() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_normalize_titles() -> Result<()> {
+async fn test_normalize_human_output() -> Result<()> { // Renamed
     let client = spawn_client().await?;
 
     let result = call_tool(
         &client,
-        "normalize_titles",
+        "normalize", // Changed tool name
         object!({
             "path": "tests/fixtures/cue",
             "json_output": false
@@ -201,8 +201,13 @@ async fn test_normalize_titles() -> Result<()> {
 
     let text = text_content(&result);
     assert!(
-        text.contains("\nSummary: 0 normalized, 0 no change, 0 errors\n"),
-        "Expected summary for no audio files, got: {}",
+        text.contains("Title Summary: 0 normalized, 0 no change, 0 errors"), // Updated assertion
+        "Expected title summary for no audio files, got: {}",
+        text
+    );
+    assert!(
+        text.contains("Genre Summary: 0 normalized, 0 no change, 0 errors"), // Updated assertion
+        "Expected genre summary for no audio files, got: {}",
         text
     );
 
@@ -210,12 +215,12 @@ async fn test_normalize_titles() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_normalize_titles_json() -> Result<()> {
+async fn test_normalize_json_output() -> Result<()> { // Renamed
     let client = spawn_client().await?;
 
     let result = call_tool(
         &client,
-        "normalize_titles",
+        "normalize", // Changed tool name
         object!({
             "path": "tests/fixtures/cue",
             "json_output": true
@@ -225,8 +230,12 @@ async fn test_normalize_titles_json() -> Result<()> {
 
     assert_ok(&result);
 
-    let text = text_content(&result);
-    assert_eq!(text.trim(), "[]", "Expected empty JSON array for no audio files, got: {}", text);
+    let json_text = text_content(&result);
+    // Expecting an empty CombinedNormalizationReport if no files are found
+    let combined_report: CombinedNormalizationReport = serde_json::from_str(json_text)?;
+    assert!(combined_report.title_reports.is_empty());
+    assert!(combined_report.genre_reports.is_empty());
+    assert_eq!(combined_report.summary, "Combined normalization report".to_string());
 
     shutdown(client).await
 }
@@ -786,7 +795,6 @@ async fn test_cue_file_generate_dry_run() -> Result<()> {
     std::fs::create_dir_all(&album_dir)?;
 
     let track1 = album_dir.join("01. Track One.flac");
-    let track2 = album_dir.join("02. Track Two.flac");
     std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
     std::fs::copy("tests/fixtures/flac/simple/track2.flac", &track2)?;
 

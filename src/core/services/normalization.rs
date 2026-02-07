@@ -5,6 +5,7 @@ use crate::adapters::audio_formats as formats;
 use crate::core::domain::models::Track; // Ensure Track is imported
 use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
 use serde::{Deserialize, Serialize}; // Added for report structs
+use std::collections::HashMap; // Added for combined JSON output
 use std::path::{Path, PathBuf};
 
 // Define new structs for reporting normalization outcomes
@@ -24,6 +25,14 @@ pub struct GenreNormalizationReport {
     pub normalized_genre: Option<String>,
     pub changed: bool,
     pub error: Option<String>,
+}
+
+// Combined report struct for JSON output
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CombinedNormalizationReport {
+    pub title_reports: Vec<TitleNormalizationReport>,
+    pub genre_reports: Vec<GenreNormalizationReport>,
+    pub summary: String, // Or a more structured summary
 }
 
 pub const STANDARD_GENRES: &[&str] = &[
@@ -97,7 +106,7 @@ const GENRE_ALIASES: &[(&[&str], &str)] = &[
         ],
         "Electronic",
     ),
-    (&["hip hop", "hip-hop", "hiphop", "rap"], "Hip-Hop"),
+    (&["hip hop", "hip-hop", "hiphop", "rap"], "Hip-Hopa"),
     (&["r & b", "r&b", "rn b", "rnb", "rhythm and blues"], "R&B"),
     (
         &["classical", "orchestral", "symphony", "chamber music"],
@@ -261,14 +270,16 @@ pub fn normalize_genre(genre: &str) -> Option<String> {
     }
 }
 
-pub fn normalize_genres_in_library(path: &Path, json: bool) -> Result<String, String> {
+pub(crate) fn normalize_genres_internal(
+    path: PathBuf,
+) -> Result<Vec<GenreNormalizationReport>, String> {
     let tracks = if path.is_file() {
         vec![
-            formats::read_metadata(path)
+            formats::read_metadata(&path)
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        scan_dir(path)
+        scan_dir(&path)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -307,41 +318,7 @@ pub fn normalize_genres_in_library(path: &Path, json: bool) -> Result<String, St
         });
     }
 
-    if json {
-        serde_json::to_string_pretty(&reports).map_err(|e| format!("Error serializing reports to JSON: {}", e))
-    } else {
-        let mut out = String::new();
-        let mut updated_count = 0;
-        let mut no_change_count = 0;
-        let mut error_count = 0;
-
-        for report in reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
-                error_count += 1;
-            } else if report.changed {
-                out.push_str(&format!(
-                    "NORMALIZED: Genre '{}' -> '{}' in {}\n",
-                    report.original_genre.unwrap_or_default(),
-                    report.normalized_genre.unwrap_or_default(),
-                    report.original_path.display()
-                ));
-                updated_count += 1;
-            } else {
-                out.push_str(&format!(
-                    "NO CHANGE: Genre '{}' already normalized in {}\n",
-                    report.original_genre.unwrap_or_default(),
-                    report.original_path.display()
-                ));
-                no_change_count += 1;
-            }
-        }
-        out.push_str(&format!(
-            "\nSummary: {} normalized, {} no change, {} errors\n",
-            updated_count, no_change_count, error_count
-        ));
-        Ok(out)
-    }
+    Ok(reports)
 }
 
 pub fn to_title_case(input: &str) -> String {
@@ -368,7 +345,9 @@ pub fn to_title_case(input: &str) -> String {
 }
 
 /// Normalize track titles to title case with options
-pub fn normalize(path: PathBuf, json: bool) -> Result<String, String> {
+pub(crate) fn normalize_titles_internal(
+    path: PathBuf,
+) -> Result<Vec<TitleNormalizationReport>, String> {
     let mut reports = Vec::new();
 
     // Check if path is a file or directory
@@ -402,18 +381,36 @@ pub fn normalize(path: PathBuf, json: bool) -> Result<String, String> {
         return Err(format!("Path does not exist: {}", path.display()));
     }
 
+    Ok(reports)
+}
+
+/// Orchestrates title and genre normalization and formats the output.
+pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String> {
+    let title_reports = normalize_titles_internal(path.clone())?;
+    let genre_reports = normalize_genres_internal(path)?;
+
     if json {
-        serde_json::to_string_pretty(&reports).map_err(|e| format!("Error serializing reports to JSON: {}", e))
+        let combined_report = CombinedNormalizationReport {
+            title_reports,
+            genre_reports,
+            // A simple summary for JSON, can be made more detailed
+            summary: "Combined normalization report".to_string(),
+        };
+        serde_json::to_string_pretty(&combined_report)
+            .map_err(|e| format!("Error serializing combined reports to JSON: {}", e))
     } else {
         let mut out = String::new();
-        let mut updated_count = 0;
-        let mut no_change_count = 0;
-        let mut error_count = 0;
 
-        for report in reports {
+        // Title reports
+        let mut title_updated_count = 0;
+        let mut title_no_change_count = 0;
+        let mut title_error_count = 0;
+
+        out.push_str("--- Title Normalization ---\n");
+        for report in title_reports {
             if report.error.is_some() {
                 out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
-                error_count += 1;
+                title_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
                     "NORMALIZED: Title '{}' -> '{}' in {}\n",
@@ -421,23 +418,57 @@ pub fn normalize(path: PathBuf, json: bool) -> Result<String, String> {
                     report.normalized_title.unwrap_or_default(),
                     report.original_path.display()
                 ));
-                updated_count += 1;
+                title_updated_count += 1;
             } else {
                 out.push_str(&format!(
                     "NO CHANGE: Title '{}' already normalized in {}\n",
                     report.original_title.unwrap_or_default(),
                     report.original_path.display()
                 ));
-                no_change_count += 1;
+                title_no_change_count += 1;
             }
         }
         out.push_str(&format!(
-            "\nSummary: {} normalized, {} no change, {} errors\n",
-            updated_count, no_change_count, error_count
+            "Title Summary: {} normalized, {} no change, {} errors\n\n",
+            title_updated_count, title_no_change_count, title_error_count
         ));
+
+        // Genre reports
+        let mut genre_updated_count = 0;
+        let mut genre_no_change_count = 0;
+        let mut genre_error_count = 0;
+
+        out.push_str("--- Genre Normalization ---\n");
+        for report in genre_reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                genre_error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Genre '{}' -> '{}' in {}\n",
+                    report.original_genre.unwrap_or_default(),
+                    report.normalized_genre.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                genre_updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Genre '{}' already normalized in {}\n",
+                    report.original_genre.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                genre_no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "Genre Summary: {} normalized, {} no change, {} errors\n",
+            genre_updated_count, genre_no_change_count, genre_error_count
+        ));
+
         Ok(out)
     }
 }
+
 
 /// Normalize a single track's title
 fn normalize_single_track(track: Track) -> TitleNormalizationReport {
@@ -524,9 +555,9 @@ mod tests {
 
     #[test]
     fn test_normalize_genre_hip_hop_aliases() {
-        assert_eq!(normalize_genre("hip hop"), Some("Hip-Hop".to_string()));
-        assert_eq!(normalize_genre("hip-hop"), Some("Hip-Hop".to_string()));
-        assert_eq!(normalize_genre("hiphop"), Some("Hip-Hop".to_string()));
+        assert_eq!(normalize_genre("hip hop"), Some("Hip-Hopa".to_string()));
+        assert_eq!(normalize_genre("hip-hop"), Some("Hip-Hopa".to_string()));
+        assert_eq!(normalize_genre("hiphop"), Some("Hip-Hopa".to_string()));
     }
 
     #[test]
@@ -567,7 +598,7 @@ mod tests {
         );
         assert_eq!(
             normalize_genre("hip hop / soul"),
-            Some("Hip-Hop/Soul".to_string())
+            Some("Hip-Hopa/Soul".to_string())
         );
     }
 

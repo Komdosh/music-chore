@@ -1,6 +1,6 @@
 use crate::mcp::params::{
     CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
-    NormalizeTitlesParams, NormalizeGenresParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
+    NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
 
 // Removed `log` import as all `log::info!` are removed
@@ -18,7 +18,7 @@ use crate::build_library_hierarchy;
 use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError, CueValidationResult};
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::emit_by_path;
-use crate::core::services::normalization::{normalize, normalize_genres_in_library};
+use crate::core::services::normalization::normalize_and_format;
 use crate::core::services::scanner::{scan_dir, scan_tracks};
 use crate::presentation::cli::commands::validate_path;
 
@@ -92,33 +92,21 @@ impl MusicChoreServer {
         }
     }
 
-    #[tool(description = "Normalize track titles to title case")]
-    async fn normalize_titles(
+    #[tool(description = "Normalize track titles and genres")] // Updated description
+    async fn normalize( // Renamed from normalize_titles
         &self,
-        params: Parameters<NormalizeTitlesParams>,
+        params: Parameters<NormalizeParams>, // Updated param type
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
 
-        match normalize(path, json_output) {
+        match normalize_and_format(path, json_output) { // Call new combined function
             Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
             Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
 
-    #[tool(description = "Normalize genres in music files")]
-    async fn normalize_genres( // New tool function
-        &self,
-        params: Parameters<NormalizeGenresParams>,
-    ) -> Result<CallToolResult, McpError> {
-        let path = PathBuf::from(params.0.path);
-        let json_output = params.0.json_output.unwrap_or(false);
-
-        match normalize_genres_in_library(&path, json_output) {
-            Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
-        }
-    }
+    // Removed normalize_genres tool function
 
 
     #[tool(description = "Emit library metadata in structured format")]

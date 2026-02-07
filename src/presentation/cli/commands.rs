@@ -73,9 +73,6 @@ pub enum Commands {
     Normalize {
         /// Path to the file or directory to normalize.
         path: PathBuf,
-        /// Normalize genres instead of titles.
-        #[arg(long)]
-        genres: bool,
         /// Output JSON instead of a human-readable format.
         #[arg(long)]
         json: bool,

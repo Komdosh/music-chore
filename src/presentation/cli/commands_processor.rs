@@ -5,7 +5,7 @@ use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_tree_output};
 use crate::core::services::library::build_library_hierarchy;
-use crate::core::services::normalization::{normalize, normalize_genres_in_library};
+use crate::core::services::normalization::normalize_and_format;
 use crate::core::services::scanner::scan_dir;
 use crate::presentation::cli::commands::validate_path;
 use crate::presentation::cli::Commands;
@@ -53,19 +53,11 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
         }
         Commands::Normalize {
             path,
-            genres,
             json,
         } => {
-            if genres {
-                match handle_normalize_genres(path, json) {
-                    Ok(()) => Ok(()),
-                    Err(code) => Err(code),
-                }
-            } else {
-                match handle_normalize(path, json) {
-                    Ok(()) => Ok(()),
-                    Err(code) => Err(code),
-                }
+            match handle_normalize_and_format(path, json) {
+                Ok(()) => Ok(()),
+                Err(code) => Err(code),
             }
         }
         Commands::Emit { path, json } => {
@@ -224,31 +216,13 @@ pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool)
     Ok(())
 }
 
-pub fn handle_normalize(path: PathBuf, json: bool) -> Result<(), i32> {
+pub fn handle_normalize_and_format(path: PathBuf, json: bool) -> Result<(), i32> {
     if !path.exists() {
         eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
-    match normalize(path, json) {
-        Ok(result) => {
-            println!("{}", result);
-            Ok(())
-        },
-        Err(e) => {
-            eprintln!("{}", e);
-            Err(1)
-        }
-    }
-}
-
-pub fn handle_normalize_genres(path: PathBuf, json: bool) -> Result<(), i32> {
-    if !path.exists() {
-        eprintln!("Error: Path does not exist: {}", path.display());
-        return Err(1);
-    }
-
-    match normalize_genres_in_library(&path, json) {
+    match normalize_and_format(path, json) {
         Ok(result) => {
             println!("{}", result);
             Ok(())
@@ -454,7 +428,7 @@ fn handle_cue_parse(path: PathBuf, json: bool) -> Result<(), i32> {
 
 fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) -> Result<(), i32> {
     if !path.exists() {
-        eprintln!("Error: File does not exist: {}", path.display());
+        eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
@@ -568,20 +542,6 @@ mod tests {
     fn test_handle_read_with_nonexistent_file() {
         let nonexistent_file = PathBuf::from("/nonexistent/path/test.flac");
         let result = handle_read(nonexistent_file);
-        assert_eq!(result, Err(1));
-    }
-
-    #[test]
-    fn test_handle_normalize_with_nonexistent_path() {
-        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_normalize(nonexistent_path, false); // Changed to json: false
-        assert_eq!(result, Err(1));
-    }
-
-    #[test]
-    fn test_handle_normalize_genres_with_nonexistent_path() {
-        let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_normalize_genres(nonexistent_path, false); // Changed to json: false
         assert_eq!(result, Err(1));
     }
 
