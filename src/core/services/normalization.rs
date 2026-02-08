@@ -27,11 +27,41 @@ pub struct GenreNormalizationReport {
     pub error: Option<String>,
 }
 
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtistNormalizationReport {
+    pub original_path: PathBuf,
+    pub original_artist: Option<String>,
+    pub normalized_artist: Option<String>,
+    pub changed: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AlbumNormalizationReport {
+    pub original_path: PathBuf,
+    pub original_album: Option<String>,
+    pub normalized_album: Option<String>,
+    pub changed: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct YearNormalizationReport {
+    pub original_path: PathBuf,
+    pub original_year: Option<u32>,
+    pub normalized_year: Option<u32>,
+    pub changed: bool,
+    pub error: Option<String>,
+}
+
 // Combined report struct for JSON output
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CombinedNormalizationReport {
     pub title_reports: Vec<TitleNormalizationReport>,
     pub genre_reports: Vec<GenreNormalizationReport>,
+    pub artist_reports: Vec<ArtistNormalizationReport>,
+    pub album_reports: Vec<AlbumNormalizationReport>,
+    pub year_reports: Vec<YearNormalizationReport>,
     pub summary: String, // Or a more structured summary
 }
 
@@ -321,6 +351,137 @@ pub(crate) fn normalize_genres_internal(
     Ok(reports)
 }
 
+pub(crate) fn normalize_artists_internal(
+    path: PathBuf,
+) -> Result<Vec<ArtistNormalizationReport>, String> {
+    let tracks = if path.is_file() {
+        vec![
+            formats::read_metadata(&path)
+                .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
+        ]
+    } else if path.is_dir() {
+        scan_dir(&path)
+    } else {
+        return Err(format!("Path does not exist: {}", path.display()));
+    };
+
+    let mut reports = Vec::new();
+
+    for track in tracks {
+        let original_path = track.file_path.clone();
+        let original_artist = track.metadata.artist.as_ref().map(|v| v.value.clone());
+        let mut changed = false;
+        let mut error = None;
+        let normalized_artist = if let Some(ref artist_value) = original_artist {
+            let normalized = to_title_case(artist_value);
+            if normalized != *artist_value {
+                changed = true;
+            }
+            Some(normalized)
+        } else {
+            error = Some("No artist found".to_string());
+            None
+        };
+
+        reports.push(ArtistNormalizationReport {
+            original_path,
+            original_artist,
+            normalized_artist,
+            changed,
+            error,
+        });
+    }
+
+    Ok(reports)
+}
+
+pub(crate) fn normalize_albums_internal(
+    path: PathBuf,
+) -> Result<Vec<AlbumNormalizationReport>, String> {
+    let tracks = if path.is_file() {
+        vec![
+            formats::read_metadata(&path)
+                .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
+        ]
+    } else if path.is_dir() {
+        scan_dir(&path)
+    } else {
+        return Err(format!("Path does not exist: {}", path.display()));
+    };
+
+    let mut reports = Vec::new();
+
+    for track in tracks {
+        let original_path = track.file_path.clone();
+        let original_album = track.metadata.album.as_ref().map(|v| v.value.clone());
+        let mut changed = false;
+        let mut error = None;
+        let normalized_album = if let Some(ref album_value) = original_album {
+            let normalized = to_title_case(album_value);
+            if normalized != *album_value {
+                changed = true;
+            }
+            Some(normalized)
+        } else {
+            error = Some("No album found".to_string());
+            None
+        };
+
+        reports.push(AlbumNormalizationReport {
+            original_path,
+            original_album,
+            normalized_album,
+            changed,
+            error,
+        });
+    }
+
+    Ok(reports)
+}
+
+pub(crate) fn normalize_years_internal(
+    path: PathBuf,
+) -> Result<Vec<YearNormalizationReport>, String> {
+    let tracks = if path.is_file() {
+        vec![
+            formats::read_metadata(&path)
+                .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
+        ]
+    } else if path.is_dir() {
+        scan_dir(&path)
+    } else {
+        return Err(format!("Path does not exist: {}", path.display()));
+    };
+
+    let mut reports = Vec::new();
+
+    for track in tracks {
+        let original_path = track.file_path.clone();
+        let original_year = track.metadata.year.as_ref().map(|v| v.value);
+        let changed = false;
+        let mut error = None;
+        let normalized_year = if let Some(year_value) = original_year {
+            Some(year_value)
+        } else {
+            error = Some("No year found".to_string());
+            None
+        };
+
+        reports.push(YearNormalizationReport {
+            original_path,
+            original_year,
+            normalized_year,
+            changed,
+            error,
+        });
+    }
+
+    Ok(reports)
+}
+
+
+
+
 pub fn to_title_case(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut capitalize_next = true;
@@ -387,13 +548,18 @@ pub(crate) fn normalize_titles_internal(
 /// Orchestrates title and genre normalization and formats the output.
 pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String> {
     let title_reports = normalize_titles_internal(path.clone())?;
-    let genre_reports = normalize_genres_internal(path)?;
+    let genre_reports = normalize_genres_internal(path.clone())?;
+    let artist_reports = normalize_artists_internal(path.clone())?;
+    let album_reports = normalize_albums_internal(path.clone())?;
+    let year_reports = normalize_years_internal(path)?;
 
     if json {
         let combined_report = CombinedNormalizationReport {
             title_reports,
             genre_reports,
-            // A simple summary for JSON, can be made more detailed
+            artist_reports,
+            album_reports,
+            year_reports,
             summary: "Combined normalization report".to_string(),
         };
         serde_json::to_string_pretty(&combined_report)
@@ -461,8 +627,104 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
             }
         }
         out.push_str(&format!(
-            "Genre Summary: {} normalized, {} no change, {} errors\n",
+            "Genre Summary: {} normalized, {} no change, {} errors\n\n",
             genre_updated_count, genre_no_change_count, genre_error_count
+        ));
+
+        // Artist reports
+        let mut artist_updated_count = 0;
+        let mut artist_no_change_count = 0;
+        let mut artist_error_count = 0;
+
+        out.push_str("--- Artist Normalization ---\n");
+        for report in artist_reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                artist_error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Artist '{}' -> '{}' in {}\n",
+                    report.original_artist.unwrap_or_default(),
+                    report.normalized_artist.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                artist_updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Artist '{}' already normalized in {}\n",
+                    report.original_artist.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                artist_no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "Artist Summary: {} normalized, {} no change, {} errors\n\n",
+            artist_updated_count, artist_no_change_count, artist_error_count
+        ));
+
+        // Album reports
+        let mut album_updated_count = 0;
+        let mut album_no_change_count = 0;
+        let mut album_error_count = 0;
+
+        out.push_str("--- Album Normalization ---\n");
+        for report in album_reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                album_error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Album '{}' -> '{}' in {}\n",
+                    report.original_album.unwrap_or_default(),
+                    report.normalized_album.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                album_updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Album '{}' already normalized in {}\n",
+                    report.original_album.unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                album_no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "Album Summary: {} normalized, {} no change, {} errors\n\n",
+            album_updated_count, album_no_change_count, album_error_count
+        ));
+
+        // Year reports
+        let mut year_updated_count = 0;
+        let mut year_no_change_count = 0;
+        let mut year_error_count = 0;
+
+        out.push_str("--- Year Normalization ---\n");
+        for report in year_reports {
+            if report.error.is_some() {
+                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+                year_error_count += 1;
+            } else if report.changed {
+                out.push_str(&format!(
+                    "NORMALIZED: Year '{}' -> '{}' in {}\n",
+                    report.original_year.map(|y| y.to_string()).unwrap_or_default(),
+                    report.normalized_year.map(|y| y.to_string()).unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                year_updated_count += 1;
+            } else {
+                out.push_str(&format!(
+                    "NO CHANGE: Year '{}' already normalized in {}\n",
+                    report.original_year.map(|y| y.to_string()).unwrap_or_default(),
+                    report.original_path.display()
+                ));
+                year_no_change_count += 1;
+            }
+        }
+        out.push_str(&format!(
+            "Year Summary: {} normalized, {} no change, {} errors\n",
+            year_updated_count, year_no_change_count, year_error_count
         ));
 
         Ok(out)
