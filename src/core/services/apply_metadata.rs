@@ -1,15 +1,16 @@
 use crate::adapters::audio_formats::{read_metadata, write_metadata};
 use std::fmt::Write;
 use std::path::Path;
+use crate::core::errors::MusicChoreError;
 
 pub fn write_metadata_by_path(
     file: &Path,
     set: Vec<String>,
     apply: bool,
     dry_run: bool,
-) -> Result<String, String> {
+) -> Result<String, MusicChoreError> {
     if apply && dry_run {
-        return Err("Error: Cannot use both --apply and --dry-run flags simultaneously".into());
+        return Err(MusicChoreError::Other("Cannot use both --apply and --dry-run flags simultaneously".to_string()));
     }
 
     // If neither flag is provided, default to dry-run behavior for safety
@@ -22,25 +23,22 @@ pub fn write_metadata_by_path(
 
     // Check if file exists (we need it for both apply and dry-run modes to read current metadata)
     if !file.exists() {
-        return Err(format!("Error: File does not exist: {}", file.display()));
+        return Err(MusicChoreError::FileNotFound(file.display().to_string()));
     }
 
     if effective_apply && !crate::adapters::audio_formats::is_format_supported(file) {
-        return Err(format!(
-            "Error: Unsupported file format: {}",
-            file.display()
-        ));
+        return Err(MusicChoreError::UnsupportedAudioFormat(file.display().to_string()));
     }
 
     // Read current metadata
     let mut track = match read_metadata(file) {
         Ok(track) => track,
         Err(e) => {
-            return Err(format!(
-                "Error: Unsupported file format: {}, error: {}",
+            return Err(MusicChoreError::MetadataParseError(format!(
+                "Unsupported file format: {}, error: {}",
                 file.display(),
                 e
-            ));
+            )));
         }
     };
 
@@ -57,14 +55,14 @@ pub fn write_metadata_by_path(
                     }
                 }
                 Err(e) => {
-                    return Err(format!("Error parsing metadata '{}': {}", metadata_item, e));
+                    return Err(MusicChoreError::Other(format!("Error parsing metadata '{}': {}", metadata_item, e)));
                 }
             }
         } else {
-            return Err(format!(
-                "Error: Unsupported metadata format: {}",
-                metadata_item
-            ));
+            return Err(MusicChoreError::InvalidMetadataField { 
+                field: "format".to_string(), 
+                value: metadata_item 
+            });
         }
     }
 
@@ -78,7 +76,7 @@ pub fn write_metadata_by_path(
             writeln!(out, "Successfully updated metadata: {}", file.display()).unwrap();
             Ok(out)
         }
-        Err(e) => Err(format!("Error writing metadata: {}", e)),
+        Err(e) => Err(MusicChoreError::Other(format!("Error writing metadata: {}", e))),
     }
 }
 
@@ -87,7 +85,7 @@ fn apply_metadata_update(
     metadata: &mut crate::TrackMetadata,
     key: &str,
     value: &str,
-) -> Result<(), String> {
+) -> Result<(), MusicChoreError> {
     use crate::core::domain::models::MetadataValue;
 
     match key.to_lowercase().as_str() {
@@ -106,26 +104,38 @@ fn apply_metadata_update(
         "tracknumber" | "track_number" => {
             let num = value
                 .parse::<u32>()
-                .map_err(|_| format!("Invalid track number: {}", value))?;
+                .map_err(|_| MusicChoreError::InvalidMetadataField { 
+                    field: key.to_string(), 
+                    value: value.to_string() 
+                })?;
             metadata.track_number = Some(MetadataValue::user_set(num));
         }
         "discnumber" | "disc_number" => {
             let num = value
                 .parse::<u32>()
-                .map_err(|_| format!("Invalid disc number: {}", value))?;
+                .map_err(|_| MusicChoreError::InvalidMetadataField { 
+                    field: key.to_string(), 
+                    value: value.to_string() 
+                })?;
             metadata.disc_number = Some(MetadataValue::user_set(num));
         }
         "year" => {
             let year = value
                 .parse::<u32>()
-                .map_err(|_| format!("Invalid year: {}", value))?;
+                .map_err(|_| MusicChoreError::InvalidMetadataField { 
+                    field: key.to_string(), 
+                    value: value.to_string() 
+                })?;
             metadata.year = Some(MetadataValue::user_set(year));
         }
         "genre" => {
             metadata.genre = Some(MetadataValue::user_set(value.to_string()));
         }
         _ => {
-            return Err(format!("Unsupported metadata field: {}", key));
+            return Err(MusicChoreError::InvalidMetadataField { 
+                field: key.to_string(), 
+                value: value.to_string() 
+            });
         }
     }
 
