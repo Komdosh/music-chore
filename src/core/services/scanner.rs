@@ -295,10 +295,10 @@ pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
     (tracks_with_checksums, duplicates)
 }
 
-/// Helper function to get the track name string for display in `scan` output.
+/// Format the track name string for display in `scan` output.
 /// It prioritizes CUE-inferred, then embedded, then folder-inferred filename.
 /// This function includes the source icon.
-pub fn get_track_name_for_scan_output(track: &Track) -> String {
+pub fn format_track_name_for_scan_output(track: &Track) -> String {
     let mut track_name = track
         .file_path
         .file_name()
@@ -598,7 +598,7 @@ pub fn scan_tracks(path: std::path::PathBuf, json_output: bool) -> Result<String
     } else {
         let mut output = String::new();
         for track in tracks {
-            let track_name_for_display = get_track_name_for_scan_output(&track);
+            let track_name_for_display = format_track_name_for_scan_output(&track);
             output.push_str(&format!(
                 "{} [{}]\n",
                 track.file_path.display(),

@@ -6,7 +6,7 @@ use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_tree_output};
 use crate::core::services::library::build_library_hierarchy;
 use crate::core::services::normalization::normalize_and_format;
-use crate::core::services::scanner::{get_track_name_for_scan_output, scan_dir, scan_dir_with_options};
+use crate::core::services::scanner::{format_track_name_for_scan_output, scan_dir, scan_dir_with_options};
 use crate::presentation::cli::commands::validate_path;
 use crate::presentation::cli::Commands;
 use serde_json::to_string_pretty;
@@ -142,7 +142,7 @@ pub fn handle_scan(
     } else {
         // Print detailed track information when not in JSON mode
         for track in &tracks {
-            let track_name_for_display = get_track_name_for_scan_output(track);
+            let track_name_for_display = format_track_name_for_scan_output(track);
             println!(
                 "{} [{}]",
                 track.file_path.display(),

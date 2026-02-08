@@ -50,7 +50,7 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
 
     // Validate numeric fields are within reasonable bounds
     if let Some(ref track_number) = metadata.track_number {
-        if track_number.value == 0 || track_number.value > 999 {
+        if track_number.value == 0 || track_number.value > crate::core::config::MAX_TRACK_NUMBER {
             return Err(ValidationError::InvalidValue(
                 "track_number".to_string(),
                 track_number.value.to_string()
@@ -59,7 +59,7 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
     }
 
     if let Some(ref disc_number) = metadata.disc_number {
-        if disc_number.value == 0 || disc_number.value > 99 {
+        if disc_number.value == 0 || disc_number.value > crate::core::config::MAX_DISC_NUMBER {
             return Err(ValidationError::InvalidValue(
                 "disc_number".to_string(),
                 disc_number.value.to_string()
@@ -69,7 +69,7 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
 
     if let Some(ref year) = metadata.year {
         // Reasonable range for years
-        if year.value < 1000 || year.value > 3000 {
+        if year.value < crate::core::config::MIN_YEAR || year.value > crate::core::config::MAX_YEAR {
             return Err(ValidationError::InvalidValue(
                 "year".to_string(),
                 year.value.to_string()
@@ -104,7 +104,7 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
 
     // Validate duration if present
     if let Some(ref duration) = metadata.duration {
-        if duration.value < 0.0 || duration.value > 36000.0 { // Max 10 hours
+        if duration.value < 0.0 || duration.value > crate::core::config::MAX_DURATION_SECONDS { // Max 10 hours
             return Err(ValidationError::InvalidValue(
                 "duration".to_string(),
                 duration.value.to_string()

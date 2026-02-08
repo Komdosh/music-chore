@@ -5,6 +5,7 @@ pub mod core {
     pub mod domain;
     pub mod services;
     pub mod errors;
+    pub mod config;
 }
 pub mod adapters;
 pub mod presentation;
