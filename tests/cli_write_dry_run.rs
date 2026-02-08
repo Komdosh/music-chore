@@ -80,7 +80,7 @@ fn test_write_apply_modifies_file() {
 }
 
 #[test]
-fn test_write_requires_apply_or_dry_run() {
+fn test_write_defaults_to_dry_run_when_no_flags_specified() {
     // Create a temporary directory with a test FLAC file
     let temp_dir = TempDir::new().unwrap();
     let flac_path = temp_dir.path().join("test.flac");
@@ -88,7 +88,10 @@ fn test_write_requires_apply_or_dry_run() {
     // Copy an existing test FLAC file to our temp directory
     std::fs::copy("tests/fixtures/flac/simple/track1.flac", &flac_path).unwrap();
 
-    // Run write command without --apply or --dry-run
+    // Get the original title
+    let original_title = get_file_title(&flac_path);
+
+    // Run write command without --apply or --dry-run (should default to dry-run)
     let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
         .arg("write")
         .arg(&flac_path)
@@ -97,12 +100,19 @@ fn test_write_requires_apply_or_dry_run() {
         .output()
         .expect("Failed to execute musicctl write command");
 
-    // Verify error message
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("Must specify either --apply or --dry-run"),
-        "Expected error message not found in: {}",
-        stderr
+    // Check command succeeded (it should succeed with dry-run behavior)
+    assert!(output.status.success(), "Command failed: {:?}", output);
+
+    // Verify dry-run output is shown in stdout
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("DRY RUN: Would set title = Test Title"));
+    assert!(stdout.contains("DRY RUN: No changes made"));
+
+    // Verify file was NOT changed by checking that the title is still the same
+    let current_title = get_file_title(&flac_path);
+    assert_eq!(
+        original_title, current_title,
+        "File was modified when it should have been in dry-run mode"
     );
 }
 

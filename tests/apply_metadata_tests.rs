@@ -6,24 +6,22 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 #[test]
-fn test_write_metadata_requires_apply_or_dry_run() {
+fn test_write_metadata_defaults_to_dry_run_when_no_flags() {
     let temp_dir = TempDir::new().unwrap();
     let test_file = temp_dir.path().join("test.flac");
     fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
 
-    // Neither apply nor dry_run - should error
+    // Neither apply nor dry_run - should default to dry-run behavior
     let result = write_metadata_by_path(
         &test_file,
         vec!["title=New Title".to_string()],
         false,
-        false,
+        false,  // Both are false, should default to dry-run
     );
-    assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .contains("Must specify either --apply or --dry-run")
-    );
+    assert!(result.is_ok());  // Should succeed with dry-run behavior
+    let output = result.unwrap();
+    assert!(output.contains("DRY RUN: Would set title = New Title"));
+    assert!(output.contains("DRY RUN: No changes made"));
 }
 
 #[test]
@@ -47,6 +45,12 @@ fn test_write_metadata_prevents_both_flags() {
 fn test_write_metadata_nonexistent_file() {
     let path = PathBuf::from("/nonexistent/path/test.flac");
 
+    // When using apply with non-existent file, should error
+    let result = write_metadata_by_path(&path, vec!["title=New Title".to_string()], true, false);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("does not exist"));
+    
+    // When using dry-run with non-existent file, should also error (since we need to read the file to show what would change)
     let result = write_metadata_by_path(&path, vec!["title=New Title".to_string()], false, true);
     assert!(result.is_err());
     assert!(result.unwrap_err().contains("does not exist"));

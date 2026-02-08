@@ -12,16 +12,20 @@ pub fn write_metadata_by_path(
         return Err("Error: Cannot use both --apply and --dry-run flags simultaneously".into());
     }
 
-    if !apply && !dry_run {
-        return Err("Error: Must specify either --apply or --dry-run flag".into());
-    }
+    // If neither flag is provided, default to dry-run behavior for safety
+    let effective_apply = apply;
+    let effective_dry_run = if !apply && !dry_run {
+        true  // Default to dry-run when neither flag is provided
+    } else {
+        dry_run
+    };
 
-    // Check if file exists and is supported
+    // Check if file exists (we need it for both apply and dry-run modes to read current metadata)
     if !file.exists() {
         return Err(format!("Error: File does not exist: {}", file.display()));
     }
 
-    if !crate::adapters::audio_formats::is_format_supported(file) {
+    if effective_apply && !crate::adapters::audio_formats::is_format_supported(file) {
         return Err(format!(
             "Error: Unsupported file format: {}",
             file.display()
@@ -47,7 +51,7 @@ pub fn write_metadata_by_path(
         if let Some((key, value)) = metadata_item.split_once('=') {
             match apply_metadata_update(&mut track.metadata, key.trim(), value.trim()) {
                 Ok(()) => {
-                    if dry_run {
+                    if effective_dry_run {
                         writeln!(out, "DRY RUN: Would set {} = {}", key.trim(), value.trim())
                             .unwrap();
                     }
@@ -64,7 +68,7 @@ pub fn write_metadata_by_path(
         }
     }
 
-    if dry_run {
+    if effective_dry_run {
         writeln!(out, "DRY RUN: No changes made to file: {}", file.display()).unwrap();
         return Ok(out);
     }

@@ -227,12 +227,8 @@ fn prompt_user_confirmation(message: &str) -> Result<bool, i32> {
 }
 
 pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
-    if !file.exists() && apply {
-        eprintln!("Error: File does not exist: {}", file.display());
-        return Err(1);
-    }
-
-    // If apply is true, we need to ask for user confirmation
+    // If neither --apply nor --dry-run is specified, the core function defaults to dry-run for safety
+    // Only ask for confirmation if --apply is explicitly specified
     if apply {
         if !prompt_user_confirmation(&format!("Apply metadata changes to {}?", file.display()))? {
             eprintln!("Operation cancelled by user.");
