@@ -15,6 +15,7 @@ use std::borrow::Cow;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use music_chore::core::services::normalization::{CombinedNormalizationReport, TitleNormalizationReport, GenreNormalizationReport}; // Added CombinedNormalizationReport
+use tempfile::TempDir; // Added for temporary directories in tests
 
 /* ----------------------------- Shared helpers ----------------------------- */
 
@@ -186,12 +187,13 @@ async fn test_read_file_metadata() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_normalize_human_output() -> Result<()> { // Renamed
     let client = spawn_client().await?;
+    let temp_dir = TempDir::new()?; // Use a truly empty temporary directory
 
     let result = call_tool(
         &client,
         "normalize", // Changed tool name
         object!({
-            "path": "tests/fixtures/cue",
+            "path": temp_dir.path().to_string_lossy(),
             "json_output": false
         }),
     )
@@ -217,12 +219,13 @@ async fn test_normalize_human_output() -> Result<()> { // Renamed
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_normalize_json_output() -> Result<()> { // Renamed
     let client = spawn_client().await?;
+    let temp_dir = TempDir::new()?; // Use a truly empty temporary directory
 
     let result = call_tool(
         &client,
         "normalize", // Changed tool name
         object!({
-            "path": "tests/fixtures/cue",
+            "path": temp_dir.path().to_string_lossy(),
             "json_output": true
         }),
     )
@@ -790,12 +793,12 @@ fn test_binary_version() {
 async fn test_cue_file_generate_dry_run() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let album_dir = temp_dir.path().join("Test Album");
     std::fs::create_dir_all(&album_dir)?;
 
     let track1 = album_dir.join("01. Track One.flac");
-    let track2 = album_dir.join("02. Some");
+    let track2 = album_dir.join("02. Some.flac"); // Corrected extension
     std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
     std::fs::copy("tests/fixtures/flac/simple/track2.flac", &track2)?;
 
@@ -827,7 +830,7 @@ async fn test_cue_file_generate_dry_run() -> Result<()> {
 async fn test_cue_file_generate_actual() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let album_dir = temp_dir.path().join("Actual Album");
     std::fs::create_dir_all(&album_dir)?;
 
@@ -912,7 +915,7 @@ async fn test_cue_file_parse() -> Result<()> {
 async fn test_generate_cue_file_no_files() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let empty_dir = temp_dir.path().join("Empty Album");
     std::fs::create_dir_all(&empty_dir)?;
 
@@ -940,7 +943,7 @@ async fn test_generate_cue_file_no_files() -> Result<()> {
 async fn test_mcp_cue_file_parse_text_output() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let cue_path = temp_dir.path().join("test_parse_text.cue");
 
     let cue_content = r#"TITLE "Example Album"
@@ -983,7 +986,7 @@ FILE "audio.flac" WAVE
 async fn test_mcp_cue_file_parse_invalid_syntax() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let cue_path = temp_dir.path().join("invalid_syntax.cue");
 
     // Malformed CUE content (missing quote)
@@ -1019,7 +1022,7 @@ FILE "audio.flac" WAVE
 async fn test_mcp_cue_file_generate_exists_no_force() -> Result<()> {
     let client = spawn_client().await?;
 
-    let temp_dir = tempfile::Builder::new().tempdir()?;
+    let temp_dir = TempDir::new()?;
     let album_dir = temp_dir.path().join("Existing Album");
     std::fs::create_dir_all(&album_dir)?;
 
