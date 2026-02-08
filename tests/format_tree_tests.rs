@@ -141,7 +141,7 @@ fn test_format_tree_output_with_real_files() {
     assert!(output.contains("Folders:"));
     assert!(output.contains("artist"));
     assert!(output.contains("album"));
-    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion
+    assert!(output.contains("Test Apply Behavior [🎯] FLAC")); // Updated assertion to match actual file content
 }
 
 #[test]
@@ -183,8 +183,8 @@ fn test_format_tree_output_nested_structure() {
     assert!(output.contains("artist2"));
     assert!(output.contains("album1"));
     assert!(output.contains("album2"));
-    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion for track1
-    assert!(output.contains("Test Song [🎯] FLAC")); // Updated assertion for track2 (since it's also track1.flac fixture)
+    assert!(output.contains("Test Apply Behavior [🎯] FLAC")); // Updated assertion to match actual file content for track1
+    assert!(output.contains("Test Apply Behavior [🎯] FLAC")); // Updated assertion to match actual file content for track2 (since it's also track1.flac fixture)
 }
 
 #[test]

@@ -3,6 +3,19 @@ use std::fmt::Write;
 use std::path::Path;
 use crate::core::errors::MusicChoreError;
 
+/// Write metadata to a file with specified updates
+/// 
+/// # Arguments
+/// * `file` - Path to the file to update
+/// * `set` - Vector of metadata updates in "field=value" format
+/// * `apply` - Whether to apply changes to the file (if false, only dry-run output is produced)
+/// * `dry_run` - Whether to only show what would change without modifying files
+/// 
+/// # Returns
+/// Formatted output string describing the changes made or that would be made
+/// 
+/// # Errors
+/// Returns MusicChoreError if the file doesn't exist, format is unsupported, or metadata parsing fails
 pub fn write_metadata_by_path(
     file: &Path,
     set: Vec<String>,
@@ -81,6 +94,17 @@ pub fn write_metadata_by_path(
 }
 
 /// Apply a metadata update to the track metadata
+/// 
+/// # Arguments
+/// * `metadata` - Mutable reference to the track metadata to update
+/// * `key` - The metadata field to update (e.g., "title", "artist", "album")
+/// * `value` - The new value for the metadata field
+/// 
+/// # Returns
+/// Ok(()) if the update was successful, or an error if the field is invalid or value is malformed
+/// 
+/// # Errors
+/// Returns MusicChoreError::InvalidMetadataField if the field is not supported or value cannot be parsed
 fn apply_metadata_update(
     metadata: &mut crate::TrackMetadata,
     key: &str,
