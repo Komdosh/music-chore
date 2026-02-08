@@ -1,6 +1,6 @@
 //! Metadata schema validation module
 
-use crate::core::domain::models::{Track, TrackMetadata};
+use crate::core::domain::models::{Track, TrackMetadata, MetadataValue};
 use std::path::Path;
 
 /// Errors that can occur during metadata validation
@@ -29,6 +29,59 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
+/// Validate track number is within acceptable bounds
+fn validate_track_number(track_number: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
+    if let Some(track_number_val) = track_number {
+        if track_number_val.value == 0 || track_number_val.value > crate::core::config::MAX_TRACK_NUMBER {
+            return Err(ValidationError::InvalidValue(
+                "track_number".to_string(),
+                track_number_val.value.to_string()
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validate disc number is within acceptable bounds
+fn validate_disc_number(disc_number: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
+    if let Some(disc_number_val) = disc_number {
+        if disc_number_val.value == 0 || disc_number_val.value > crate::core::config::MAX_DISC_NUMBER {
+            return Err(ValidationError::InvalidValue(
+                "disc_number".to_string(),
+                disc_number_val.value.to_string()
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validate year is within acceptable bounds
+fn validate_year(year: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
+    if let Some(year_val) = year {
+        // Reasonable range for years
+        if year_val.value < crate::core::config::MIN_YEAR || year_val.value > crate::core::config::MAX_YEAR {
+            return Err(ValidationError::InvalidValue(
+                "year".to_string(),
+                year_val.value.to_string()
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Validate duration is within acceptable bounds
+fn validate_duration(duration: Option<&MetadataValue<f64>>) -> Result<(), ValidationError> {
+    if let Some(duration_val) = duration {
+        if duration_val.value < 0.0 || duration_val.value > crate::core::config::MAX_DURATION_SECONDS {
+            return Err(ValidationError::InvalidValue(
+                "duration".to_string(),
+                duration_val.value.to_string()
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Validate a track's metadata against the schema
 pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
     let metadata = &track.metadata;
@@ -49,33 +102,10 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
     }
 
     // Validate numeric fields are within reasonable bounds
-    if let Some(ref track_number) = metadata.track_number {
-        if track_number.value == 0 || track_number.value > crate::core::config::MAX_TRACK_NUMBER {
-            return Err(ValidationError::InvalidValue(
-                "track_number".to_string(),
-                track_number.value.to_string()
-            ));
-        }
-    }
-
-    if let Some(ref disc_number) = metadata.disc_number {
-        if disc_number.value == 0 || disc_number.value > crate::core::config::MAX_DISC_NUMBER {
-            return Err(ValidationError::InvalidValue(
-                "disc_number".to_string(),
-                disc_number.value.to_string()
-            ));
-        }
-    }
-
-    if let Some(ref year) = metadata.year {
-        // Reasonable range for years
-        if year.value < crate::core::config::MIN_YEAR || year.value > crate::core::config::MAX_YEAR {
-            return Err(ValidationError::InvalidValue(
-                "year".to_string(),
-                year.value.to_string()
-            ));
-        }
-    }
+    validate_track_number(metadata.track_number.as_ref())?;
+    validate_disc_number(metadata.disc_number.as_ref())?;
+    validate_year(metadata.year.as_ref())?;
+    validate_duration(metadata.duration.as_ref())?;
 
     // Validate string fields are not empty when present
     if let Some(ref title) = metadata.title {

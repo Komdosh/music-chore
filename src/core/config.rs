@@ -35,3 +35,39 @@ pub const EMBEDDED_METADATA_CONFIDENCE: f32 = 1.0;
 
 /// Default confidence level for user-edited metadata
 pub const USER_EDITED_METADATA_CONFIDENCE: f32 = 1.0;
+
+/// Newtype wrapper for track titles to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TrackTitle(pub String);
+
+/// Newtype wrapper for artist names to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ArtistName(pub String);
+
+/// Newtype wrapper for album names to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AlbumName(pub String);
+
+/// Newtype wrapper for file paths to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FilePath(pub std::path::PathBuf);
+
+/// Newtype wrapper for track numbers to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TrackNumber(pub u32);
+
+/// Newtype wrapper for disc numbers to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DiscNumber(pub u32);
+
+/// Newtype wrapper for years to provide type safety
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Year(pub u32);
+
+/// Newtype wrapper for durations to provide type safety
+#[derive(Debug, Clone, PartialEq)]
+pub struct Duration(pub f64);
+
+/// Newtype wrapper for confidence values to provide type safety
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Confidence(pub f32);

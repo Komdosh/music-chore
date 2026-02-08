@@ -6,6 +6,8 @@ pub mod core {
     pub mod services;
     pub mod errors;
     pub mod config;
+    pub mod types;
+    pub mod builders;
 }
 pub mod adapters;
 pub mod presentation;
