@@ -795,6 +795,7 @@ async fn test_cue_file_generate_dry_run() -> Result<()> {
     std::fs::create_dir_all(&album_dir)?;
 
     let track1 = album_dir.join("01. Track One.flac");
+    let track2 = album_dir.join("02. Some");
     std::fs::copy("tests/fixtures/flac/simple/track1.flac", &track1)?;
     std::fs::copy("tests/fixtures/flac/simple/track2.flac", &track2)?;
 

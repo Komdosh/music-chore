@@ -24,7 +24,7 @@
 | 🔍 | Recursive directory scanning |
 | 🏷️ | Metadata extraction (FLAC, MP3, WAV, DSF, WavPack) |
 | 📂 | Artist → Album → Track inference |
-| 🔤 | Title/genre normalization |
+| 🔤 | Title and genre normalization |
 | 🌳 | Tree visualization |
 | 🔄 | Duplicate detection (SHA256) |
 | 📊 | Structured output for AI/MCP |
@@ -74,8 +74,7 @@ musicctl validate /path/to/your/music
 | `tree` | Visual library view | `musicctl tree ~/Music` |
 | `read` | Extract file metadata | `musicctl read track.flac` |
 | `write` | Update metadata | `musicctl write track.flac --title "New Title"` |
-| `normalize` | Title case normalization | `musicctl normalize ~/Music` |
-| `normalize --genres` | Genre normalization | `musicctl normalize --genres ~/Music` |
+| `normalize` | Title and genre normalization | `musicctl normalize ~/Music` |
 | `validate` | Check metadata quality | `musicctl validate ~/Music` |
 | `duplicates` | Find duplicate files | `musicctl duplicates ~/Music` |
 | `emit` | Export structured metadata | `musicctl emit ~/Music --json` |
@@ -97,15 +96,14 @@ musicctl cue --validate /path/to/album.cue
 
 ```bash
 # See what would change (no modifications)
-musicctl normalize /path/to/music --dry-run
-musicctl normalize --genres /path/to/music --dry-run
+
 ```
 
 ### Advanced Examples
 
 ```bash
-# Normalize an entire library with verbose output
-musicctl normalize ~/Music --apply --verbose
+# Normalize an entire library (outputs reports, no file modification)
+musicctl normalize ~/Music
 
 # Validate a specific album and get JSON output
 musicctl validate ~/Music/Artist/Album --json
@@ -146,15 +144,14 @@ AI agents can integrate directly with music-chore via MCP (Model Context Protoco
 claude mcp add music-chore -- musicctl-mcp
 ```
 
-### Available Tools (9 total)
+### Available Tools (8 total)
 
 | Tool | Purpose |
 |------|---------|
 | `scan_directory` | Discover music files recursively |
 | `get_library_tree` | Get hierarchical library view |
 | `read_file_metadata` | Extract metadata from audio files |
-| `normalize_titles` | Fix title capitalization |
-| `normalize_genres` | Standardize genre names |
+| `normalize` | Normalize titles and genres |
 | `emit_library_metadata` | Full library export (JSON) |
 | `validate_library` | Check metadata completeness |
 | `find_duplicates` | Detect duplicate files |

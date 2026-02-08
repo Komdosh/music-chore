@@ -6,7 +6,7 @@ The Model Context Protocol (MCP) server for Music Chore provides AI agents with 
 
 The MCP server is **fully functional and tested** with:
 - ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 9 core tools exposed and working
+- ✅ All 8 core tools exposed and working
 - ✅ Proper initialization and shutdown handling
 - ✅ Comprehensive error handling and parameter validation
 - ✅ AI-friendly structured output (JSON and text formats)
@@ -19,7 +19,7 @@ The MCP server allows AI agents to:
 - Scan directories for music files
 - Read and analyze metadata from individual files
 - Get hierarchical library tree views with format indicators
-- Normalize track titles automatically
+- Normalize track titles and genres automatically
 - Find duplicate tracks by checksum
 - Emit structured library metadata for analysis
 - Validate library metadata quality
@@ -187,29 +187,86 @@ Complete metadata object including title, artist, album, duration, format, and s
 }
 ```
 
-### 4. `normalize_titles`
+### 4. `normalize`
 
-Normalize track titles to title case (proper capitalization).
+Normalize track titles and genres. This tool reports proposed changes to track titles (to proper title case) and genres (to standardized forms) without modifying any files.
 
 **Parameters:**
 - `path` (string, required): Directory path containing music files to normalize
-- `dry_run` (boolean, optional): Preview changes without applying them. Default: true
+- `json_output` (boolean, optional): Return results as JSON (true) or human-readable summary (false). Default: false
 
 **Returns:**
-Object with processing statistics and detailed results for each track.
+If `json_output=false`: Human-readable summary of proposed title and genre normalization changes.
+If `json_output=true`: A JSON object containing `title_reports` (array of `TitleNormalizationReport` objects), `genre_reports` (array of `GenreNormalizationReport` objects), and a `summary` string.
 
-**Example:**
+**Example (Human-readable):**
 ```json
 {
-  "name": "normalize_titles",
+  "name": "normalize",
   "arguments": {
     "path": "/Users/music/FLAC",
-    "dry_run": true
+    "json_output": false
   }
 }
 ```
 
+**Example (JSON Output):**
+```json
+{
+  "name": "normalize",
+  "arguments": {
+    "path": "/Users/music/FLAC",
+    "json_output": true
+  }
+}
+```
+
+**JSON Response Example:**
+```json
+{
+  "title_reports": [
+    {
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_title": "come together",
+      "normalized_title": "Come Together",
+      "changed": true,
+      "error": null
+    }
+  ],
+  "genre_reports": [
+    {
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_genre": "rock and roll",
+      "normalized_genre": "Rock",
+      "changed": true,
+      "error": null
+    }
+  ],
+  "summary": "Combined normalization report"
+}
+```
+
 ### 5. `emit_library_metadata`
+
+Emit complete library metadata in structured format optimized for AI analysis.
+
+**Parameters:**
+- `path` (string, required): Base directory path to analyze
+- `json_output` (boolean, optional): Return results as JSON (true) or AI-friendly structured text (false). Default: false
+
+**Returns:**
+Complete library information with summary statistics and detailed track information in AI-optimized format or JSON.
+
+**Example:**
+```json
+{
+  "name": "emit_library_metadata",
+  "arguments": {
+    "path": "/Users/music/FLAC",
+    "json_output": false
+  }
+}
+```
 
 ### 6. `validate_library`
 Validate music library for common issues and inconsistencies.
@@ -293,28 +350,6 @@ If `json_output=true`:
     "valid_files": 143,
     "files_with_errors": 2,
     "files_with_warnings": 8
-  }
-}
-```
-
-### 5. `emit_library_metadata`
-
-Emit complete library metadata in structured format optimized for AI analysis.
-
-**Parameters:**
-- `path` (string, required): Base directory path to analyze
-- `json_output` (boolean, optional): Return results as JSON (true) or AI-friendly structured text (false). Default: false
-
-**Returns:**
-Complete library information with summary statistics and detailed track information in AI-optimized format or JSON.
-
-**Example:**
-```json
-{
-  "name": "emit_library_metadata",
-  "arguments": {
-    "path": "/Users/music/FLAC",
-    "format": "text"
   }
 }
 ```
@@ -505,6 +540,31 @@ All tools return responses in this format:
 }
 ```
 
+### Combined Normalization Report Object
+```json
+{
+  "title_reports": [
+    {
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_title": "come together",
+      "normalized_title": "Come Together",
+      "changed": true,
+      "error": null
+    }
+  ],
+  "genre_reports": [
+    {
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_genre": "rock and roll",
+      "normalized_genre": "Rock",
+      "changed": true,
+      "error": null
+    }
+  ],
+  "summary": "Combined normalization report"
+}
+```
+
 ## Integration Examples
 
 ### Programmatic Usage
@@ -541,7 +601,7 @@ Configure logging with the `RUST_LOG` environment variable:
 - Large directories (>10,000 files) may take several minutes to process
 - Metadata reading is I/O bound - SSD storage recommended for best performance
 - JSON responses are more compact but text responses are optimized for AI consumption
-- Use `dry_run=true` for normalization operations to preview changes
+- The `normalize` tool now processes both titles and genres in a single pass.
 
 ## Limitations
 
@@ -551,7 +611,6 @@ Configure logging with the `RUST_LOG` environment variable:
 **Planned v2 enhancements:**
 - Additional audio format support (OGG, M4A)
 - Batch metadata operations
-- Genre normalization
 - Advanced CUE file validation
 
 ## Security

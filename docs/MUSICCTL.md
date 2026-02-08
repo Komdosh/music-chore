@@ -4,9 +4,9 @@
 
 ## 📅 Last Updated
 
-- **Date**: February 4, 2026
-- **Version**: v0.2.4
-- **Features**: CLI with 11 commands + MCP server with 10 tools
+- **Date**: February 7, 2026
+- **Version**: v0.3.2 (post normalize refactor)
+- **Features**: CLI with 9 commands + MCP server with 8 tools
 
 ## 📋 Table of Contents
 
@@ -17,12 +17,10 @@
   - [tree - Display Library Hierarchy](#-tree---display-library-hierarchy)
   - [read - Extract File Metadata](#-read---extract-file-metadata)
   - [write - Update File Metadata](#-write---update-file-metadata)
-  - [normalize - Normalize Track Titles](#-normalize---normalize-track-titles)
+  - [normalize - Normalize Track Metadata](#-normalize---normalize-track-metadata)
   - [validate - Validate Metadata Completeness](#-validate---validate-metadata-completeness)
   - [duplicates - Find Duplicate Tracks](#-duplicates---find-duplicate-tracks)
-  - [cue - Generate CUE Files](#-cue---generate-cue-files)
-  - [cue-parse - Parse CUE Files](#-cue-parse---parse-cue-files)
-  - [cue-validate - Validate CUE Files](#-cue-validate---validate-cue-files)
+  - [cue - Generate, Parse, or Validate CUE Files](#-cue---generate-parse-or-validate-cue-files)
   - [emit - Export Library Metadata](#-emit---export-library-metadata)
 - [Advanced Usage](#advanced-usage)
 - [Examples](#examples)
@@ -65,13 +63,10 @@ musicctl read ~/Music/The\ Beatles/Abbey\ Road/01\ -\ Come\ Together.flac
 musicctl read ~/Music/The\ Beatles/Abbey\ Road/01\ -\ Come\ Together.flac --compact
 ```
 
-### 4. Normalize Track Titles
+### 4. Normalize Track Metadata
 
 ```bash
-# Preview changes
-musicctl normalize ~/Music --dry-run
-
-# Apply changes
+# Normalize titles and genres, outputs proposed changes (no file modification)
 musicctl normalize ~/Music
 ```
 
@@ -95,27 +90,17 @@ musicctl duplicates ~/Music
 musicctl duplicates ~/Music --json
 ```
 
-### 7. Generate CUE Files
+### 7. CUE File Operations
 
 ```bash
-# Preview CUE file generation
-musicctl cue /path/to/album --dry-run
+# Generate CUE sheet for an album (preview only)
+musicctl cue --generate /path/to/album
 
-# Generate and write CUE file
-musicctl cue /path/to/album
+# Parse existing CUE file
+musicctl cue --parse /path/to/album.cue
 
-# Overwrite existing CUE file
-musicctl cue /path/to/album --force
-```
-
-### 8. Parse CUE Files
-
-```bash
-# Human-readable output
-musicctl cue-parse /path/to/album.cue
-
-# JSON output for programmatic use
-musicctl cue-parse /path/to/album.cue --json
+# Validate CUE against audio files
+musicctl cue --validate /path/to/album.cue
 ```
 
 ---
@@ -309,16 +294,14 @@ Come Together | The Beatles | Abbey Road | 1969 | Rock | 4:19
 - Debug metadata issues
 - Prepare data for analysis
 
-### 🔤 `normalize` - Normalize Track Titles
+### 🔤 `normalize` - Normalize Track Metadata
 
-Convert track titles to proper title case formatting.
+Analyzes and reports on proposed title and genre normalization. This command will output details of recommended changes to track titles (to proper title case) and genres (to standardized forms) without modifying any files.
 
 ```bash
 musicctl normalize [OPTIONS] <PATH>
 
 Options:
-  -d, --dry-run     Preview changes without applying them
-  -v, --verbose     Show detailed changes
   -j, --json        Output results as JSON
 
 Arguments:
@@ -328,52 +311,47 @@ Arguments:
 **Output Examples:**
 
 ```
-# Dry run preview
-🔍 Preview Mode - No changes will be made
+# Human-readable output
+--- Title Normalization ---
+NORMALIZED: Title 'come together' -> 'Come Together' in /path/to/music/01 - come together.flac
+NO CHANGE: Title 'Something' already normalized in /path/to/music/02 - Something.flac
+Title Summary: 1 normalized, 1 no change, 0 errors
 
-📁 Processing: ~/Music/The Beatles/Abbey Road
-
-🔄 Changes to apply:
-  "come together" → "Come Together"
-  "SOMETHING" → "Something" 
-  "here comes the sun" → "Here Comes The Sun"
-
-📊 Summary: 3 files need normalization
-```
-
-```
-# Actual changes
-✅ Applied changes to 3 files:
-
-📁 ~/Music/The Beatles/Abbey Road
-  🎵 "come together" → "Come Together"
-  🎵 "SOMETHING" → "Something"
-  🎵 "here comes the sun" → "Here Comes The Sun"
-
-🎉 Normalization complete!
+--- Genre Normalization ---
+NORMALIZED: Genre 'rock and roll' -> 'Rock' in /path/to/music/01 - come together.flac
+NO CHANGE: Genre 'Rock' already normalized in /path/to/music/02 - Something.flac
+Genre Summary: 1 normalized, 1 no change, 0 errors
 ```
 
 **JSON Output:**
 ```json
 {
-  "processed_files": 3,
-  "changed_files": 3,
-  "changes": [
+  "title_reports": [
     {
-      "file": "/music/The Beatles/Abbey Road/01 - come together.flac",
-      "old_title": "come together",
-      "new_title": "Come Together"
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_title": "come together",
+      "normalized_title": "Come Together",
+      "changed": true,
+      "error": null
     }
   ],
-  "dry_run": false
+  "genre_reports": [
+    {
+      "original_path": "/path/to/music/01 - come together.flac",
+      "original_genre": "rock and roll",
+      "normalized_genre": "Rock",
+      "changed": true,
+      "error": null
+    }
+  ],
+  "summary": "Combined normalization report"
 }
 ```
 
 **Use Cases:**
-- Fix inconsistent capitalization
-- Standardize track naming
-- Prepare files for display
-- Clean up messy metadata
+- Preview title and genre normalization changes
+- Identify tracks with inconsistent metadata
+- Generate reports for library cleanup efforts
 
 ### 🔍 `duplicates` - Find Duplicate Tracks
 
@@ -461,23 +439,28 @@ musicctl duplicates ~/Music --json > duplicates.json
 - Results are deterministic - same input always produces same output
 - JSON output includes full metadata for each duplicate file
 
-### 💿 `cue` - Generate CUE Files
+### 💿 `cue` - Generate, Parse, or Validate CUE Files
 
-Generate standard CUE sheet files for album disc images.
+Performs various operations on CUE sheet files. This command replaces the separate `cue-parse` and `cue-validate` commands.
 
 ```bash
 musicctl cue [OPTIONS] <PATH>
 
 Arguments:
-  <PATH>              Album directory to process (required)
+  <PATH>              Path to the album directory or .cue file (required)
 
 Options:
-  -o, --output <PATH>  Output path for .cue file
-  -d, --dry-run         Preview without writing
-  -f, --force           Overwrite existing .cue file
+  --generate          Generate a CUE sheet from an album directory.
+  --parse             Parse an existing CUE file.
+  --validate          Validate a CUE file against its referenced audio files.
+  -o, --output <PATH> Output path for generated .cue file (--generate only).
+  --audio-dir <PATH>  Directory containing audio files (--validate only, defaults to CUE file directory).
+  -d, --dry-run       Preview changes without writing (--generate only).
+  -f, --force         Overwrite existing .cue file (--generate only).
+  -j, --json          Output results as JSON (--parse and --validate only).
 ```
 
-**Output Examples:**
+**Output Examples (Generate Dry Run):**
 
 ```
 # Dry run preview
@@ -498,38 +481,9 @@ FILE "01. Track One.flac" WAVE
     INDEX 01 00:03:00
 ```
 
-**CUE Generation Features:**
-- Extracts metadata from FLAC, MP3, WAV, DSF, and WavPack files
-- Generates standard CUE sheets compatible with most audio players
-- Supports multiple files per album (one FILE entry per track)
-- Includes genre and year from track metadata
-- Normalizes text to title case
-- Embeds album artist if available (takes precedence over track artist)
-
-**Use Cases:**
-- Create disc images for burning or virtual drives
-- Generate playlists for audio software
-- Archive album metadata in standard format
-- Share album tracklists with precise timing information
-
-### 📖 `cue-parse` - Parse CUE Files
-
-Parse and display contents of existing CUE sheet files.
-
-```bash
-musicctl cue-parse [OPTIONS] <CUE_PATH>
-
-Arguments:
-  <CUE_PATH>          Path to .cue file (required)
-
-Options:
-  -j, --json           Output as JSON
-```
-
-**Output Examples:**
+**Output Examples (Parse Human-readable):**
 
 ```
-# Human-readable output
 Cue File: /music/Album/Album.cue
   Performer: Kai Engel
   Title: Meanings
@@ -541,7 +495,7 @@ Cue File: /music/Album/Album.cue
     Track 02: Time Goes On [02. Time Goes On.flac]
 ```
 
-**JSON Output:**
+**Output Examples (Parse JSON):**
 ```json
 {
   "performer": "Kai Engel",
@@ -564,34 +518,7 @@ Cue File: /music/Album/Album.cue
 }
 ```
 
-**CUE Parsing Features:**
-- Parses album-level metadata (performer, title, genre, date, files)
-- Parses track-level metadata (number, title, performer, index)
-- Handles multi-file CUE sheets correctly
-- JSON output for automation and AI agents
-
-**Use Cases:**
-- Verify CUE file contents before burning
-- Extract tracklist information
-- Integrate with automated workflows
-- Parse CUE files for AI analysis
-
-### 🔍 `cue-validate` - Validate CUE Files
-
-Validate CUE sheet files against their referenced audio files.
-
-```bash
-musicctl cue-validate [OPTIONS] <CUE_PATH>
-
-Arguments:
-  <CUE_PATH>          Path to .cue file (required)
-
-Options:
-  --audio-dir <PATH>  Directory containing audio files (defaults to CUE file directory)
-  -j, --json          Output as JSON
-```
-
-**Output Examples:**
+**Output Examples (Validate Human-readable):**
 
 ```
 # Valid CUE file
@@ -599,14 +526,7 @@ Options:
   All referenced files exist and track count matches.
 ```
 
-```
-# Validation failed
-✗ CUE file validation failed:
-  - Referenced audio file(s) missing
-  - Track count mismatch between CUE and audio files
-```
-
-**JSON Output:**
+**Output Examples (Validate JSON):**
 ```json
 {
   "is_valid": false,
@@ -616,6 +536,20 @@ Options:
 }
 ```
 
+**CUE Generation Features:**
+- Extracts metadata from FLAC, MP3, WAV, DSF, and WavPack files
+- Generates standard CUE sheets compatible with most audio players
+- Supports multiple files per album (one FILE entry per track)
+- Includes genre and year from track metadata
+- Normalizes text to title case
+- Embeds album artist if available (takes precedence over track artist)
+
+**CUE Parsing Features:**
+- Parses album-level metadata (performer, title, genre, date, files)
+- Parses track-level metadata (number, title, performer, index)
+- Handles multi-file CUE sheets correctly
+- JSON output for automation and AI agents
+
 **CUE Validation Features:**
 - Checks that referenced audio files exist in the directory
 - Validates track count consistency between CUE and audio files
@@ -623,6 +557,14 @@ Options:
 - Parsing errors are reported as validation failures
 
 **Use Cases:**
+- Create disc images for burning or virtual drives
+- Generate playlists for audio software
+- Archive album metadata in standard format
+- Share album tracklists with precise timing information
+- Verify CUE file contents before burning
+- Extract tracklist information
+- Integrate with automated workflows
+- Parse CUE files for AI analysis
 - Verify CUE file integrity before burning discs
 - Check that all referenced audio files are present
 - Validate CUE files in automated workflows
@@ -636,8 +578,7 @@ Export structured library data for analysis or AI processing.
 musicctl emit [OPTIONS] <PATH>
 
 Options:
-  -f, --format <FORMAT>    Output format [default: text] [possible values: text, json]
-  -v, --verbose            Include additional metadata
+  -j, --json             Output results as JSON
 
 Arguments:
   <PATH>                   Directory to scan (required)
@@ -726,7 +667,7 @@ musicctl tree ~/Music --json | jq -r '.children[].albums[].tracks[].file_path'
 # Normalize multiple directories
 for dir in ~/Music/*/; do
   echo "Processing $dir"
-  musicctl normalize "$dir" --dry-run
+  musicctl normalize "$dir"
 done
 
 # Export metadata for each artist
@@ -762,7 +703,7 @@ musicctl emit ~/Music --json > library.json
 musicctl tree ~/Music/Rock --json
 
 # Verbose mode for debugging
-musicctl normalize ~/Music --verbose --dry-run
+musicctl scan ~/Music --verbose
 ```
 
 ---
@@ -784,14 +725,9 @@ musicctl scan ~/Music | while read file; do
   fi
 done
 
-# 3. Normalize titles
-echo "=== NORMALIZING TITLES ==="
-musicctl normalize ~/Music --dry-run
-read -p "Apply these changes? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  musicctl normalize ~/Music
-fi
+# 3. Normalize titles and genres
+echo "=== NORMALIZING TITLES AND GENRES ==="
+musicctl normalize ~/Music
 
 # 4. Generate report
 echo "=== LIBRARY REPORT ==="
@@ -814,7 +750,7 @@ musicctl tree "$BASE_DIR"
 musicctl emit "$BASE_DIR" --json > "${ARTIST}_metadata.json"
 
 # Normalize artist's tracks
-musicctl normalize "$BASE_DIR" --dry-run
+musicctl normalize "$BASE_DIR"
 ```
 
 ### Quality Assurance
@@ -824,20 +760,30 @@ musicctl normalize "$BASE_DIR" --dry-run
 echo "=== QUALITY CHECK ==="
 
 # 1. Files with no metadata
-musicctl emit ~/Music --text | grep "No metadata" || echo "✅ All files have metadata"
-
-# 2. Inconsistent capitalization
-echo "Files with lowercase titles:"
-musicctl scan ~/Music | while read file; do
-  title=$(musicctl read "$file" --json | jq -r '.metadata.title.value // empty')
-  if [[ "$title" =~ ^[a-z] ]]; then
-    echo "$file: '$title'"
-  fi
+musicctl emit ~/Music --json | jq -c '.artists[] | .albums[] | .tracks[] | select(.metadata.title.value == null or .metadata.artist.value == null or .metadata.album.value == null)' | while read track; do
+  file_path=$(echo "$track" | jq -r '.file_path')
+  echo "File missing metadata: $file_path"
 done
 
-# 3. Missing years
-echo "Files missing year:"
-musicctl emit ~/Music --json | jq -r '.artists[].albums[] | select(.year == null) | .title'
+
+# 2. Inconsistent capitalization (example: check for non-normalized titles)
+echo "Files with non-normalized titles:"
+musicctl normalize ~/Music --json | jq -c '.title_reports[] | select(.changed == true)' | while read report; do
+  file_path=$(echo "$report" | jq -r '.original_path')
+  original_title=$(echo "$report" | jq -r '.original_title')
+  normalized_title=$(echo "$report" | jq -r '.normalized_title')
+  echo "$file_path: '$original_title' -> '$normalized_title'"
+done
+
+
+# 3. Inconsistent genres
+echo "Files with non-normalized genres:"
+musicctl normalize ~/Music --json | jq -c '.genre_reports[] | select(.changed == true)' | while read report; do
+  file_path=$(echo "$report" | jq -r '.original_path')
+  original_genre=$(echo "$report" | jq -r '.original_genre')
+  normalized_genre=$(echo "$report" | jq -r '.normalized_genre')
+  echo "$file_path: '$original_genre' -> '$normalized_genre'"
+done
 ```
 
 ### Backup and Migration
@@ -940,8 +886,6 @@ musicctl normalize --help
 musicctl validate --help
 musicctl duplicates --help
 musicctl cue --help
-musicctl cue-parse --help
-musicctl cue-validate --help
 musicctl emit --help
 musicctl tree --help
 ```
@@ -969,11 +913,10 @@ musicctl --version --verbose
 
 ## 🎯 Best Practices
 
-1. **Always dry-run first**: Use `--dry-run` with normalize operations
-2. **Back up before bulk operations**: Export metadata before making changes
-3. **Use JSON for scripting**: JSON output is more reliable for automation
-4. **Process in chunks**: Large libraries benefit from incremental processing
-5. **Validate after operations**: Use read commands to verify changes
+1. **Back up before bulk operations**: Export metadata before making changes
+2. **Use JSON for scripting**: JSON output is more reliable for automation
+3. **Process in chunks**: Large libraries benefit from incremental processing
+4. **Validate after operations**: Use read commands to verify changes
 
 ---
 
