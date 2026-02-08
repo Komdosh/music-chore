@@ -208,23 +208,6 @@ pub fn handle_read(file: PathBuf) -> Result<(), i32> {
     Ok(())
 }
 
-fn prompt_user_confirmation(message: &str) -> Result<bool, i32> {
-    // Check if stdin is a terminal (TTY) to avoid issues in tests/non-interactive environments
-    if atty::is(atty::Stream::Stdin) {
-        print!("{} (y/N): ", message);
-        std::io::stdout().flush().map_err(|_| 1)?;
-
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).map_err(|_| 1)?;
-
-        let input = input.trim().to_lowercase();
-        Ok(input == "y" || input == "yes")
-    } else {
-        // If not in a TTY environment (like in tests), skip confirmation but warn
-        eprintln!("Warning: Running in non-interactive mode. Skipping confirmation for --apply.");
-        Ok(true) // Return true to continue with apply
-    }
-}
 
 pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
     // Validate that both flags are not used simultaneously

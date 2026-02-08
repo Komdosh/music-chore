@@ -377,30 +377,27 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
                 .ok_or_else(|| format!("Malformed TRACK line at line {}: {}", line_num + 1, line))?;
             new_track.file = current_file.clone();
             current_track = Some(new_track);
-        } else if trimmed.starts_with("TITLE") && is_track_level {
-            if let Some(ref mut track) = current_track {
-                track.title = Some(
-                    extract_quoted_value(trimmed)
-                        .ok_or_else(|| format!("Malformed TRACK TITLE line at line {}: {}", line_num + 1, line))?,
-                );
-            }
-        } else if trimmed.starts_with("PERFORMER") && is_track_level {
-            if let Some(ref mut track) = current_track {
-                track.performer = Some(
-                    extract_quoted_value(trimmed)
-                        .ok_or_else(|| format!("Malformed TRACK PERFORMER line at line {}: {}", line_num + 1, line))?,
-                );
-            }
-        } else if trimmed.starts_with("INDEX") && is_track_level {
-            if let Some(ref mut track) = current_track {
-                let remainder = trimmed.trim_start_matches("INDEX").trim();
-                // Expect format like "01 00:00:00"
-                let parts: Vec<&str> = remainder.split_whitespace().collect();
-                if parts.len() >= 2 && parts[0].parse::<u32>().is_ok() {
-                    track.index = Some(remainder.to_string());
-                } else {
-                    return Err(format!("Malformed INDEX line at line {}: {}", line_num + 1, line));
-                }
+        } else if trimmed.starts_with("TITLE") && is_track_level
+            && let Some(ref mut track) = current_track {
+            track.title = Some(
+                extract_quoted_value(trimmed)
+                    .ok_or_else(|| format!("Malformed TRACK TITLE line at line {}: {}", line_num + 1, line))?,
+            );
+        } else if trimmed.starts_with("PERFORMER") && is_track_level
+            && let Some(ref mut track) = current_track {
+            track.performer = Some(
+                extract_quoted_value(trimmed)
+                    .ok_or_else(|| format!("Malformed TRACK PERFORMER line at line {}: {}", line_num + 1, line))?,
+            );
+        } else if trimmed.starts_with("INDEX") && is_track_level
+            && let Some(ref mut track) = current_track {
+            let remainder = trimmed.trim_start_matches("INDEX").trim();
+            // Expect format like "01 00:00:00"
+            let parts: Vec<&str> = remainder.split_whitespace().collect();
+            if parts.len() >= 2 && parts[0].parse::<u32>().is_ok() {
+                track.index = Some(remainder.to_string());
+            } else {
+                return Err(format!("Malformed INDEX line at line {}: {}", line_num + 1, line));
             }
         }
     }

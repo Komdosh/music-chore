@@ -574,8 +574,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Title Normalization ---\n");
         for report in title_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 title_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -606,8 +606,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Genre Normalization ---\n");
         for report in genre_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 genre_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -638,8 +638,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Artist Normalization ---\n");
         for report in artist_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 artist_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -670,8 +670,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Album Normalization ---\n");
         for report in album_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 album_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -702,8 +702,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Year Normalization ---\n");
         for report in year_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 year_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
