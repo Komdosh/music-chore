@@ -2,6 +2,7 @@
 pub struct ScanDirectoryParams {
     pub(crate) path: String,
     pub(crate) json_output: Option<bool>,
+    pub(crate) skip_metadata: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

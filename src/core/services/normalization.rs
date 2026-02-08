@@ -309,7 +309,7 @@ pub(crate) fn normalize_genres_internal(
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        scan_dir(&path)
+        scan_dir(&path, false)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -360,7 +360,7 @@ pub(crate) fn normalize_artists_internal(
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        scan_dir(&path)
+        scan_dir(&path, false)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -404,7 +404,7 @@ pub(crate) fn normalize_albums_internal(
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        scan_dir(&path)
+        scan_dir(&path, false)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };
@@ -448,7 +448,7 @@ pub(crate) fn normalize_years_internal(
                 .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?,
         ]
     } else if path.is_dir() {
-        scan_dir(&path)
+        scan_dir(&path, false)
     } else {
         return Err(format!("Path does not exist: {}", path.display()));
     };

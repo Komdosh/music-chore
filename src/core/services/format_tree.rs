@@ -193,7 +193,7 @@ fn get_metadata_source_icon(source: &MetadataSource) -> &str {
 
 /// Print library tree in human-readable format (preserving directory structure)
 pub fn format_tree_output(base_path: &Path) -> String {
-    let tracks = scan_dir(base_path);
+    let tracks = scan_dir(base_path, false);
     let dir_tree = build_dir_tree(base_path, tracks);
     let mut output = format_dir_tree(&dir_tree, "", true);
 

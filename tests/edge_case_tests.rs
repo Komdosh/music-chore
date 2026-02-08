@@ -12,7 +12,7 @@ mod tests {
     #[test]
     fn test_empty_directory_scan() {
         let dir = tempdir().unwrap();
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         assert_eq!(tracks.len(), 0);
 
         let library = build_library_hierarchy(tracks);
@@ -30,7 +30,7 @@ mod tests {
         fs::write(dir.path().join("config.json"), b"{}").unwrap();
         fs::write(dir.path().join("image.jpg"), b"fake image data").unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         assert_eq!(tracks.len(), 0);
 
         let library = build_library_hierarchy(tracks);
@@ -53,7 +53,7 @@ mod tests {
             fs::copy(&fixture_path, &path).unwrap();
         }
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         // Should find all FLAC files (case insensitive)
         assert_eq!(tracks.len(), 3);
 
@@ -87,7 +87,7 @@ mod tests {
         let track_path = deep_path.join("track.flac");
         fs::copy(&fixture_path, &track_path).unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         assert_eq!(tracks.len(), 1);
 
         let library = build_library_hierarchy(tracks);
@@ -206,7 +206,7 @@ mod tests {
         fs::copy(&fixture_path, &track1_path).unwrap();
         fs::copy(&fixture_path, &track2_path).unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         assert_eq!(tracks.len(), 2);
 
         let library = build_library_hierarchy(tracks);
@@ -241,7 +241,7 @@ mod tests {
         let track_path = album_dir.join("track.flac");
         fs::copy(&fixture_path, &track_path).unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         assert_eq!(tracks.len(), 1);
 
         let library = build_library_hierarchy(tracks);

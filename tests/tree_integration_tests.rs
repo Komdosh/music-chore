@@ -113,7 +113,7 @@ mod tests {
         fs::copy(&fixture_path, &track2).unwrap();
 
         // Test scan and hierarchy building
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         let library = build_library_hierarchy(tracks);
 
         assert_eq!(library.total_tracks, 2);
@@ -137,7 +137,7 @@ mod tests {
         let orphan_file = dir.path().join("orphan.flac");
         fs::copy(&fixture_path, &orphan_file).unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         let library = build_library_hierarchy(tracks);
 
         assert_eq!(library.total_tracks, 1);
@@ -202,7 +202,7 @@ mod tests {
             }
         }
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         let library = build_library_hierarchy(tracks);
 
         assert_eq!(library.total_tracks, 8); // 2 artists * 2 albums * 2 tracks
@@ -241,7 +241,7 @@ mod tests {
         fs::copy(&untagged_fixture_path, &track3).unwrap();
         fs::copy(&untagged_fixture_path, &track4).unwrap();
 
-        let tracks = scan_dir(dir.path());
+        let tracks = scan_dir(dir.path(), false);
         let library = build_library_hierarchy(tracks);
 
         // Should find FLAC, MP3, and WAV files (case insensitive)

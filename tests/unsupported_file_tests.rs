@@ -21,7 +21,7 @@ fn test_scan_dir_warns_on_unsupported_format() {
     )
     .unwrap();
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 1);
     assert!(
@@ -67,7 +67,7 @@ fn test_scan_dir_no_warn_on_non_audio_files() {
     fs::write(source_path.join("readme.txt"), "fake txt").unwrap();
     fs::write(source_path.join("document.pdf"), "fake pdf").unwrap();
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 1);
 }
@@ -89,7 +89,7 @@ fn test_scan_dir_multiple_unsupported_formats() {
     fs::write(source_path.join("album/track.m4a"), "m4a").unwrap();
     fs::write(source_path.join("album/track.aiff"), "aiff").unwrap();
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 1);
 }
@@ -120,7 +120,7 @@ fn test_scan_dir_nested_unsupported_formats() {
     fs::write(source_path.join("album/unsupported.ogg"), "ogg").unwrap();
 
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 3);
 }
@@ -135,7 +135,7 @@ fn test_scan_dir_only_unsupported_formats() {
     fs::write(source_path.join("album/track.vvs"), "vvs").unwrap();
     fs::write(source_path.join("album/track.ogg"), "ogg").unwrap();
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 0);
 }
@@ -165,7 +165,7 @@ fn test_scan_dir_mixed_supported_and_unsupported() {
 
     fs::write(source_path.join("album/unsupported.xyz"), "xyz").unwrap();
 
-    let tracks = scan_dir(source_path);
+    let tracks = scan_dir(source_path, false);
 
     assert_eq!(tracks.len(), 3);
 }

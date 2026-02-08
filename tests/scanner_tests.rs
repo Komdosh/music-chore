@@ -8,7 +8,7 @@ fn test_scan_simple_directory() {
         return; // Skip test if fixtures don't exist
     }
 
-    let tracks = scan_dir(fixture_path);
+    let tracks = scan_dir(fixture_path, false);
 
     assert_eq!(tracks.len(), 2);
 
@@ -36,7 +36,7 @@ fn test_scan_nested_directory() {
         return; // Skip test if fixtures don't exist
     }
 
-    let tracks = scan_dir(fixture_path);
+    let tracks = scan_dir(fixture_path, false);
 
     assert_eq!(tracks.len(), 2);
 

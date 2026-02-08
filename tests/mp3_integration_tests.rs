@@ -34,7 +34,7 @@ fn test_mp3_handler_basic_functionality() {
 #[test]
 fn test_mp3_scanner_integration() {
     let mp3_dir = PathBuf::from("tests/fixtures/mp3");
-    let tracks = scan_dir(&mp3_dir);
+    let tracks = scan_dir(&mp3_dir, false);
 
     // Should find all MP3 files
     assert_eq!(tracks.len(), 5);
@@ -71,7 +71,7 @@ fn test_mp3_unicode_support() {
 fn test_mixed_format_scanning() {
     // Test scanning both MP3 and FLAC files
     let mp3_dir = PathBuf::from("tests/fixtures");
-    let tracks = scan_dir(&mp3_dir);
+    let tracks = scan_dir(&mp3_dir, false);
 
     // Count formats
     let mut mp3_count = 0;

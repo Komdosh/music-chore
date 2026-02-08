@@ -74,7 +74,7 @@ pub fn read_basic_info(path: &Path) -> Result<BasicAudioInfo, AudioFileError> {
 /// Write metadata to a file using the appropriate format handler
 pub fn write_metadata(
     path: &Path,
-    metadata: &crate::core::domain::models::TrackMetadata,
+    metadata: &TrackMetadata,
 ) -> Result<(), AudioFileError> {
     let registry = create_audio_registry();
     let handler = registry.find_handler(path)?;

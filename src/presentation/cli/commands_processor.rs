@@ -6,7 +6,7 @@ use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_tree_output};
 use crate::core::services::library::build_library_hierarchy;
 use crate::core::services::normalization::normalize_and_format;
-use crate::core::services::scanner::scan_dir;
+use crate::core::services::scanner::{get_track_name_for_scan_output, scan_dir, scan_dir_with_options};
 use crate::presentation::cli::commands::validate_path;
 use crate::presentation::cli::Commands;
 use serde_json::to_string_pretty;
@@ -22,8 +22,9 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             exclude,
             json,
             verbose,
+            skip_metadata,
         } => {
-            match handle_scan(path, max_depth, follow_symlinks, exclude, json, verbose) {
+            match handle_scan(path, max_depth, follow_symlinks, exclude, json, verbose, skip_metadata) {
                 Ok(()) => Ok(()),
                 Err(code) => Err(code),
             }
@@ -106,13 +107,14 @@ pub fn handle_scan(
     exclude: Vec<String>,
     json: bool,
     verbose: bool,
+    skip_metadata: bool,
 ) -> Result<(), i32> {
     if !path.exists() {
         eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
-    let tracks = crate::core::services::scanner::scan_dir_with_options(&path, max_depth, follow_symlinks, exclude);
+    let tracks = scan_dir_with_options(&path, max_depth, follow_symlinks, exclude, skip_metadata);
 
     if tracks.is_empty() {
         if path.is_file() {
@@ -137,12 +139,18 @@ pub fn handle_scan(
             }
         }
     } else {
-        match crate::core::services::scanner::scan_tracks(path, json) {
-            Ok(output_str) => println!("{}", output_str),
-            Err(e) => {
-                eprintln!("Error scanning tracks: {}", e);
-                return Err(1);
-            }
+        // Print detailed track information when not in JSON mode
+        for track in &tracks {
+            let track_name_for_display = get_track_name_for_scan_output(track);
+            println!(
+                "{} [{}]",
+                track.file_path.display(),
+                track_name_for_display
+            );
+        }
+        
+        if verbose {
+            eprintln!("Successfully processed {} music files.", tracks.len());
         }
     }
 
@@ -156,7 +164,7 @@ pub fn handle_tree(path: PathBuf, json: bool) -> Result<(), i32> {
     }
 
     if json {
-        let tracks = scan_dir(&path);
+        let tracks = scan_dir(&path, false);
         let library = build_library_hierarchy(tracks);
         let wrapper = with_schema_version(&library);
         match to_string_pretty(&wrapper) {
@@ -502,6 +510,7 @@ mod tests {
             false,
             vec![],
             false,
+            false,
             false
         );
         assert!(result.is_ok());
@@ -515,6 +524,7 @@ mod tests {
             None,
             false,
             vec![],
+            false,
             false,
             false
         );

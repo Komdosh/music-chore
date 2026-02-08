@@ -41,6 +41,9 @@ pub enum Commands {
         /// Emit progress output during scanning.
         #[arg(long)]
         verbose: bool,
+        /// Skip reading file metadata; rely solely on filenames.
+        #[arg(long)]
+        skip_metadata: bool,
     },
     /// Show a human‑friendly tree view.
     Tree {

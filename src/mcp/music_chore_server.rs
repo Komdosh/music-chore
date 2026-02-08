@@ -3,7 +3,6 @@ use crate::mcp::params::{
     NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
 };
 
-// Removed `log` import as all `log::info!` are removed
 use rmcp::{
     ErrorData as McpError,
     handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
@@ -19,7 +18,7 @@ use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::emit_by_path;
 use crate::core::services::normalization::normalize_and_format;
-use crate::core::services::scanner::{scan_dir, scan_tracks};
+use crate::core::services::scanner::{scan_dir, scan_dir_with_options, get_track_name_for_scan_output};
 use crate::presentation::cli::commands::validate_path;
 
 #[derive(Clone)]
@@ -48,10 +47,42 @@ impl MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
+        let skip_metadata = params.0.skip_metadata.unwrap_or(false);
 
-        match scan_tracks(path, json_output) {
-            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
-            Err(error) => Ok(CallToolResult::error(vec![Content::text(error)])),
+        let tracks = scan_dir_with_options(
+            &path,
+            None, // max_depth
+            false, // follow_symlinks
+            Vec::new(), // exclude_patterns
+            skip_metadata,
+        );
+
+        if tracks.is_empty() {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "No music files found in directory: {}",
+                path.display()
+            ))]));
+        }
+
+        if json_output {
+            match serde_json::to_string_pretty(&tracks) {
+                Ok(s) => Ok(CallToolResult::success(vec![Content::text(s)])),
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Error serializing to JSON: {}",
+                    e
+                ))])),
+            }
+        } else {
+            let mut out = String::new();
+            for track in tracks {
+                let track_name_for_display = get_track_name_for_scan_output(&track);
+                out.push_str(&format!(
+                    "{} [{}]\n",
+                    track.file_path.display(),
+                    track_name_for_display
+                ));
+            }
+            Ok(CallToolResult::success(vec![Content::text(out)]))
         }
     }
     #[tool(description = "Get hierarchical library tree view")]
@@ -61,7 +92,7 @@ impl MusicChoreServer {
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let _json_output = params.0.json_output.unwrap_or(false);
-        let tracks = scan_dir(&path);
+        let tracks = scan_dir(&path, false);
         let library = build_library_hierarchy(tracks);
 
         let result = serde_json::to_string_pretty(&library).map_err(|e| {
@@ -92,22 +123,19 @@ impl MusicChoreServer {
         }
     }
 
-    #[tool(description = "Normalize track titles and genres")] // Updated description
-    async fn normalize( // Renamed from normalize_titles
+    #[tool(description = "Normalize track titles and genres")]
+    async fn normalize(
         &self,
-        params: Parameters<NormalizeParams>, // Updated param type
+        params: Parameters<NormalizeParams>,
     ) -> Result<CallToolResult, McpError> {
         let path = PathBuf::from(params.0.path);
         let json_output = params.0.json_output.unwrap_or(false);
 
-        match normalize_and_format(path, json_output) { // Call new combined function
+        match normalize_and_format(path, json_output) {
             Ok(output) => Ok(CallToolResult::success(vec![Content::text(output)])),
             Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
         }
     }
-
-    // Removed normalize_genres tool function
-
 
     #[tool(description = "Emit library metadata in structured format")]
     async fn emit_library_metadata(

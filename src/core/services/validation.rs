@@ -36,7 +36,7 @@ pub struct ValidationSummary {
     pub files_with_warnings: usize,
 }
 pub fn validate_path(path: &PathBuf, json: bool) -> Result<String, String> {
-    let tracks = scan_dir(path);
+    let tracks = scan_dir(path, false);
     let total_scanned = tracks.len();
 
     if tracks.is_empty() {

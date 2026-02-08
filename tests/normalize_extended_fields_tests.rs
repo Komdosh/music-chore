@@ -61,33 +61,38 @@ mod tests {
         let report: CombinedNormalizationReport = serde_json::from_str(&stdout).unwrap();
 
         // Title assertions
-        assert_eq!(report.title_reports.len(), 1);
-        assert_eq!(report.title_reports[0].original_title, Some("a title".to_string()));
-        assert_eq!(report.title_reports[0].normalized_title, Some("A Title".to_string()));
-        assert!(report.title_reports[0].changed);
+        let title_reports = report.title_reports;
+        assert_eq!(title_reports.len(), 1);
+        assert_eq!(title_reports[0].original_title, Some("a title".to_string()));
+        assert_eq!(title_reports[0].normalized_title, Some("A Title".to_string()));
+        assert!(title_reports[0].changed);
 
         // Artist assertions
-        assert_eq!(report.artist_reports.len(), 1);
-        assert_eq!(report.artist_reports[0].original_artist, Some("an artist".to_string()));
-        assert_eq!(report.artist_reports[0].normalized_artist, Some("An Artist".to_string()));
-        assert!(report.artist_reports[0].changed);
+        let artist_reports_list = report.artist_reports;
+        assert_eq!(artist_reports_list.len(), 1);
+        assert_eq!(artist_reports_list[0].original_artist, Some("an artist".to_string()));
+        assert_eq!(artist_reports_list[0].normalized_artist, Some("An Artist".to_string()));
+        assert!(artist_reports_list[0].changed);
 
         // Album assertions
-        assert_eq!(report.album_reports.len(), 1);
-        assert_eq!(report.album_reports[0].original_album, Some("an album".to_string()));
-        assert_eq!(report.album_reports[0].normalized_album, Some("An Album".to_string()));
-        assert!(report.album_reports[0].changed);
+        let album_reports = report.album_reports;
+        assert_eq!(album_reports.len(), 1);
+        assert_eq!(album_reports[0].original_album, Some("an album".to_string()));
+        assert_eq!(album_reports[0].normalized_album, Some("An Album".to_string()));
+        assert!(album_reports[0].changed);
 
         // Genre assertions
-        assert_eq!(report.genre_reports.len(), 1);
-        assert_eq!(report.genre_reports[0].original_genre, Some("rock".to_string()));
-        assert_eq!(report.genre_reports[0].normalized_genre, Some("Rock".to_string()));
-        assert!(report.genre_reports[0].changed);
+        let genre_reports = report.genre_reports;
+        assert_eq!(genre_reports.len(), 1);
+        assert_eq!(genre_reports[0].original_genre, Some("rock".to_string()));
+        assert_eq!(genre_reports[0].normalized_genre, Some("Rock".to_string()));
+        assert!(genre_reports[0].changed);
 
         // Year assertions
-        assert_eq!(report.year_reports.len(), 1);
-        assert_eq!(report.year_reports[0].original_year, Some(2020));
-        assert_eq!(report.year_reports[0].normalized_year, Some(2020));
-        assert!(!report.year_reports[0].changed);
+        let year_reports = report.year_reports;
+        assert_eq!(year_reports.len(), 1);
+        assert_eq!(year_reports[0].original_year, Some(2020));
+        assert_eq!(year_reports[0].normalized_year, Some(2020));
+        assert!(!year_reports[0].changed);
     }
 }
