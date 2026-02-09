@@ -145,6 +145,9 @@ claude mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore -- musicctl-mc
 
 # Add to Gemini CLI
 gemini mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore musicctl-mcp
+
+# Add to Qwen
+qwen mcp add music-chore musicctl-mcp -e MUSIC_LIBRARY_PATH="/path/to/music"
 ```
 
 ### Environment Variables

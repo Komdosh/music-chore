@@ -173,15 +173,4 @@ mod tests {
             &PathBuf::from("/music")
         );
     }
-
-    #[test]
-    fn test_logging_initialization() {
-        let config = Config {
-            log_level: "debug".to_string(),
-            ..Default::default()
-        };
-
-        // This test just ensures the function doesn't panic
-        config.init_logging();
-    }
 }

@@ -50,6 +50,13 @@ Gemini CLI:
 gemini mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore musicctl-mcp
 ```
 
+Qwen:
+
+```bash
+# Add to Qwen
+qwen mcp add music-chore musicctl-mcp -e MUSIC_LIBRARY_PATH="/path/to/music"
+```
+
 **🎯 Why CLI Method is Better:**
 - ✅ No manual file editing required
 - ✅ Automatic path detection and validation

@@ -121,7 +121,6 @@ async fn test_prompt_list() -> Result<()> {
     assert_eq!(tools.len(), 18);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
-    println!("{:?}", names);
     for expected in [
         "library-health-check",
         "year-in-review",

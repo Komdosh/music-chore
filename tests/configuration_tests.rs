@@ -307,7 +307,7 @@ fn test_app_config_builder_edge_cases() {
         .max_file_size_mb(1)
         .build();
 
-    assert!(matches!(&result1, Ok(config)));
+    assert!(matches!(&result1, Ok(_)));
 
     // Test maximum valid values
     let result2 = AppConfigBuilder::new()
@@ -316,19 +316,19 @@ fn test_app_config_builder_edge_cases() {
         .max_file_size_mb(10000)
         .build();
 
-    assert!(matches!(&result2, Ok(config2)));
+    assert!(matches!(&result2, Ok(_)));
+}
 
-    #[test]
-    fn test_app_config_serialize_deserialize() {
-        let config = AppConfig::default();
+#[test]
+fn test_app_config_serialize_deserialize() {
+    let config = AppConfig::default();
 
-        // Serialize
-        let json = serde_json::to_string(&config).unwrap();
-        assert!(json.contains("max_recursion_depth"));
-        assert!(json.contains("follow_symlinks"));
+    // Serialize
+    let json = serde_json::to_string(&config).unwrap();
+    assert!(json.contains("max_recursion_depth"));
+    assert!(json.contains("follow_symlinks"));
 
-        // Deserialize
-        let deserialized: AppConfig = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.max_recursion_depth, config.max_recursion_depth);
-    }
+    // Deserialize
+    let deserialized: AppConfig = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized.max_recursion_depth, config.max_recursion_depth);
 }

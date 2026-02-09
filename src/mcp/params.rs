@@ -8,7 +8,6 @@ pub struct ScanDirectoryParams {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct GetLibraryTreeParams {
     pub(crate) path: Option<String>,
-    pub(crate) json_output: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

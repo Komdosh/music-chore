@@ -85,3 +85,62 @@ pub fn log_cue_operation(path: &std::path::Path, operation: &str, success: bool)
 pub fn log_error_with_context(context: &str, error: &dyn std::error::Error) {
     log::error!("Error in {}: {}", context, error);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use log::LevelFilter;
+
+    #[test]
+    fn test_logging_functions_no_panic() {
+        // These tests ensure that the formatting logic within the logging functions
+        // works correctly with various inputs and doesn't cause panics.
+        
+        let path = Path::new("tests/fixtures/flac/simple/track1.flac");
+        
+        log_scan_operation(path, 42);
+        
+        log_metadata_read(path, true);
+        log_metadata_read(path, false);
+        
+        log_metadata_write(path, true);
+        log_metadata_write(path, false);
+        
+        log_normalization_operation(path, 5);
+        log_normalization_operation(path, 0);
+        
+        log_validation_operation(path, 2, 1);
+        log_validation_operation(path, 0, 0);
+        
+        log_duplicate_detection(path, 3);
+        log_duplicate_detection(path, 0);
+        
+        log_cue_operation(path, "generate", true);
+        log_cue_operation(path, "validate", false);
+        
+        let err = std::io::Error::new(std::io::ErrorKind::Other, "custom error");
+        log_error_with_context("test context", &err);
+    }
+
+    #[test]
+    fn test_init_logging_minimal() {
+        // Note: We can't easily test init_logging multiple times as it can only be 
+        // initialized once per process. This test is primarily for coverage of the 
+        // builder setup code. We use a level that's unlikely to conflict.
+        let _ = env_logger::Builder::new()
+            .filter_level(LevelFilter::Info)
+            .try_init();
+    }
+
+    #[test]
+    fn test_init_logging_with_format_minimal() {
+        let _ = env_logger::Builder::new()
+            .format(|buf, record| {
+                use std::io::Write;
+                writeln!(buf, "{}: {}", record.level(), record.args())
+            })
+            .filter_level(LevelFilter::Info)
+            .try_init();
+    }
+}

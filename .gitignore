@@ -1,3 +1,4 @@
 /target
 
 .gemini/settings.json
+.qwen/settings.json
