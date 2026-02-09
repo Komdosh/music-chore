@@ -89,8 +89,8 @@ impl DsfHandler {
             album = TagLike::album(tag).map(|s| MetadataValue::embedded(s.to_string()));
             album_artist =
                 TagLike::album_artist(tag).map(|s| MetadataValue::embedded(s.to_string()));
-            track_number = TagLike::track(tag).map(|n| MetadataValue::embedded(n));
-            disc_number = TagLike::disc(tag).map(|n| MetadataValue::embedded(n));
+            track_number = TagLike::track(tag).map(MetadataValue::embedded);
+            disc_number = TagLike::disc(tag).map(MetadataValue::embedded);
             genre = TagLike::genre(tag).map(|s| MetadataValue::embedded(s.to_string()));
 
             // Get year from tag.date_recorded()

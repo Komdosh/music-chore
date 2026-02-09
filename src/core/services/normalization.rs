@@ -1,12 +1,13 @@
 //! Text normalization services.
 
-use crate::MetadataValue;
 use crate::adapters::audio_formats as formats;
-use crate::core::domain::models::Track; // Ensure Track is imported
+use crate::core::domain::models::Track;
+// Ensure Track is imported
 use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
-use serde::{Deserialize, Serialize}; // Added for report structs
-use std::collections::HashMap; // Added for combined JSON output
-use std::path::{Path, PathBuf};
+use crate::MetadataValue;
+use serde::{Deserialize, Serialize};
+// Added for combined JSON output
+use std::path::PathBuf;
 
 // Define new structs for reporting normalization outcomes
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -136,7 +137,7 @@ const GENRE_ALIASES: &[(&[&str], &str)] = &[
         ],
         "Electronic",
     ),
-    (&["hip hop", "hip-hop", "hiphop", "rap"], "Hip-Hopa"),
+    (&["hip hop", "hip-hop", "hiphop", "rap"], "Hip-Hop"),
     (&["r & b", "r&b", "rn b", "rnb", "rhythm and blues"], "R&B"),
     (
         &["classical", "orchestral", "symphony", "chamber music"],
@@ -574,8 +575,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Title Normalization ---\n");
         for report in title_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 title_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -606,8 +607,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Genre Normalization ---\n");
         for report in genre_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 genre_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -638,8 +639,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Artist Normalization ---\n");
         for report in artist_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 artist_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -670,8 +671,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Album Normalization ---\n");
         for report in album_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 album_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -702,8 +703,8 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
 
         out.push_str("--- Year Normalization ---\n");
         for report in year_reports {
-            if report.error.is_some() {
-                out.push_str(&format!("ERROR: {} for {}\n", report.error.unwrap(), report.original_path.display()));
+            if let Some(ref error) = report.error {
+                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
                 year_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -795,7 +796,6 @@ fn normalize_single_track(track: Track) -> TitleNormalizationReport {
 mod tests {
     use super::*;
     use crate::core::domain::models::TrackMetadata;
-    use crate::core::domain::models::MetadataSource;
 
     #[test]
     fn test_to_title_case() {
@@ -817,9 +817,9 @@ mod tests {
 
     #[test]
     fn test_normalize_genre_hip_hop_aliases() {
-        assert_eq!(normalize_genre("hip hop"), Some("Hip-Hopa".to_string()));
-        assert_eq!(normalize_genre("hip-hop"), Some("Hip-Hopa".to_string()));
-        assert_eq!(normalize_genre("hiphop"), Some("Hip-Hopa".to_string()));
+        assert_eq!(normalize_genre("hip hop"), Some("Hip-Hop".to_string()));
+        assert_eq!(normalize_genre("hip-hop"), Some("Hip-Hop".to_string()));
+        assert_eq!(normalize_genre("hiphop"), Some("Hip-Hop".to_string()));
     }
 
     #[test]
@@ -860,7 +860,7 @@ mod tests {
         );
         assert_eq!(
             normalize_genre("hip hop / soul"),
-            Some("Hip-Hopa/Soul".to_string())
+            Some("Hip-Hop/Soul".to_string())
         );
     }
 

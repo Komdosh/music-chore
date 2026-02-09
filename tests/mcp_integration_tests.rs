@@ -2,20 +2,20 @@
 //! DRY helpers, shared setup, and consistent assertions
 
 use anyhow::Result;
-use rmcp::ServiceError::McpError;
+use music_chore::core::services::normalization::CombinedNormalizationReport;
 use rmcp::model::JsonObject;
 use rmcp::service::RunningService;
+use rmcp::ServiceError::McpError;
 use rmcp::{
-    RmcpError, RoleClient, ServiceExt,
-    model::{CallToolRequestParams, ErrorCode},
-    object,
-    transport::TokioChildProcess,
+    model::{CallToolRequestParams, ErrorCode}, object, transport::TokioChildProcess,
+    RmcpError,
+    RoleClient,
+    ServiceExt,
 };
 use std::borrow::Cow;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use music_chore::core::services::normalization::{CombinedNormalizationReport, TitleNormalizationReport, GenreNormalizationReport}; // Added CombinedNormalizationReport
-use tempfile::TempDir; // Added for temporary directories in tests
+use tempfile::TempDir;
 
 /* ----------------------------- Shared helpers ----------------------------- */
 
@@ -491,13 +491,16 @@ async fn test_emit_library_metadata_text() -> Result<()> {
         "=== MUSIC LIBRARY METADATA ===",
         "Total Artists: 2",
         "Total Albums: 2",
+        "Total Files: 2",
         "Total Tracks: 2",
         "ARTIST: flac",
+        "ARTIST: Test Artist",
         "ALBUM: simple",
-        "TRACK: \"Test Song\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track1.flac",
+        "ALBUM: Test Album (2023)",
+        "TRACK: \"Test Apply Behavior\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track1.flac",
         "TRACK: \"[Unknown Title]\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track2.flac",
     ] {
-        assert!(text.contains(expected));
+        assert!(text.contains(expected), "Expected text to contain: {}", expected);
     }
 
     shutdown(client).await
@@ -1013,7 +1016,7 @@ FILE "audio.flac" WAVE
 
     let text = text_content(&result);
     assert!(text.contains("Error parsing cue file"));
-    assert!(text.contains("Malformed PERFORMER line"));
+    assert!(text.contains("Malformed PERFORMER at line"));
 
     shutdown(client).await
 }

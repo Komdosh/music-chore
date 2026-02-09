@@ -18,7 +18,7 @@ use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::emit_by_path;
 use crate::core::services::normalization::normalize_and_format;
-use crate::core::services::scanner::{scan_dir, scan_dir_with_options, get_track_name_for_scan_output};
+use crate::core::services::scanner::{scan_dir, scan_dir_with_options, format_track_name_for_scan_output};
 use crate::presentation::cli::commands::validate_path;
 
 #[derive(Clone)]
@@ -75,7 +75,7 @@ impl MusicChoreServer {
         } else {
             let mut out = String::new();
             for track in tracks {
-                let track_name_for_display = get_track_name_for_scan_output(&track);
+                let track_name_for_display = format_track_name_for_scan_output(&track);
                 out.push_str(&format!(
                     "{} [{}]\n",
                     track.file_path.display(),

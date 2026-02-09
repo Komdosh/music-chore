@@ -37,7 +37,7 @@ pub fn scan_dir(base: &Path, skip_metadata: bool) -> Vec<Track> {
 fn is_supported_audio_file(path: &Path, supported_extensions: &HashSet<String>) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map_or(false, |ext| {
+        .is_some_and(|ext| {
             supported_extensions.contains(&ext.to_lowercase())
         })
 }
@@ -47,7 +47,7 @@ fn has_audio_extension(path: &Path) -> bool {
     let audio_extensions = ["mp3", "flac", "wav", "dsf", "wv"];
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map_or(false, |ext| {
+        .is_some_and(|ext| {
             audio_extensions.contains(&ext.to_lowercase().as_str())
         })
 }
@@ -140,7 +140,7 @@ fn clean_filename_as_album(filename: &str) -> String {
     }
 
     // Clean up special characters
-    cleaned = cleaned.replace('_', " ").replace('-', " ");
+    cleaned = cleaned.replace(['_', '-'], " ");
     cleaned = cleaned.trim().to_string();
 
     cleaned
@@ -295,10 +295,10 @@ pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
     (tracks_with_checksums, duplicates)
 }
 
-/// Helper function to get the track name string for display in `scan` output.
+/// Format the track name string for display in `scan` output.
 /// It prioritizes CUE-inferred, then embedded, then folder-inferred filename.
 /// This function includes the source icon.
-pub fn get_track_name_for_scan_output(track: &Track) -> String {
+pub fn format_track_name_for_scan_output(track: &Track) -> String {
     let mut track_name = track
         .file_path
         .file_name()
@@ -450,7 +450,7 @@ pub fn scan_dir_with_depth(base: &Path, max_depth: Option<usize>) -> Vec<Track> 
     tracks.sort_by(|a, b| {
         let file_a = a.file_path.file_name().unwrap_or_default();
         let file_b = b.file_path.file_name().unwrap_or_default();
-        file_a.cmp(&file_b)
+        file_a.cmp(file_b)
     });
 
     tracks
@@ -553,7 +553,7 @@ pub fn scan_dir_with_depth_and_symlinks(
     tracks.sort_by(|a, b| {
         let file_a = a.file_path.file_name().unwrap_or_default();
         let file_b = b.file_path.file_name().unwrap_or_default();
-        file_a.cmp(&file_b)
+        file_a.cmp(file_b)
     });
 
     tracks
@@ -598,7 +598,7 @@ pub fn scan_tracks(path: std::path::PathBuf, json_output: bool) -> Result<String
     } else {
         let mut output = String::new();
         for track in tracks {
-            let track_name_for_display = get_track_name_for_scan_output(&track);
+            let track_name_for_display = format_track_name_for_scan_output(&track);
             output.push_str(&format!(
                 "{} [{}]\n",
                 track.file_path.display(),
@@ -656,7 +656,7 @@ fn scan_dir_with_options_impl(
                         .find(|e| {
                             e.path()
                                 .extension()
-                                .map_or(false, |ext| ext.eq_ignore_ascii_case("cue"))
+                                .is_some_and(|ext| ext.eq_ignore_ascii_case("cue"))
                         })
                         .map(|e| e.path())
                 }) {
@@ -976,7 +976,7 @@ fn scan_dir_with_options_impl(
     tracks.sort_by(|a, b| {
         let file_a = a.file_path.file_name().unwrap_or_default();
         let file_b = b.file_path.file_name().unwrap_or_default();
-        file_a.cmp(&file_b)
+        file_a.cmp(file_b)
     });
 
     tracks

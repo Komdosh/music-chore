@@ -21,8 +21,9 @@ fn main() {
             Ok(()) => {
                 // Command succeeded
             }
-            Err(code) => {
-                std::process::exit(code);
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
             }
         }
     } else {

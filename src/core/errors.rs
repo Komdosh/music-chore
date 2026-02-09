@@ -4,28 +4,38 @@ use serde::Serialize;
 use std::fmt;
 
 /// Main error enum for the music chore application
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum MusicChoreError {
-    /// File format is not supported by this handler
-    UnsupportedFormat(String),
-    /// File could not be read or parsed
-    InvalidFile(String),
     /// I/O error occurred
     IoError(String),
-    /// Metadata could not be written
-    WriteError(String),
-    /// Missing required field
-    MissingRequiredField(String),
-    /// Invalid value for a field
-    InvalidValue(String, String),
-    /// Format mismatch for a field
-    FormatMismatch(String, String),
-    /// Configuration error
-    ConfigError(String),
+    /// File format is not supported
+    FormatNotSupported(String),
+    /// File not found
+    FileNotFound(String),
+    /// Metadata parsing error
+    MetadataParseError(String),
+    /// Invalid metadata field
+    InvalidMetadataField { field: String, value: String },
+    /// Directory access error
+    DirectoryAccessError(String),
+    /// Permission denied
+    PermissionDenied(String),
+    /// Invalid path
+    InvalidPath(String),
+    /// Unsupported audio format
+    UnsupportedAudioFormat(String),
+    /// Invalid configuration
+    InvalidConfiguration(String),
     /// Validation error
     ValidationError(String),
-    /// Scan error
-    ScanError(String),
+    /// Processing error
+    ProcessingError(String),
+    /// Conversion error
+    ConversionError(String),
+    /// Checksum error
+    ChecksumError(String),
+    /// CUE file error
+    CueFileError(String),
     /// Other error
     Other(String),
 }
@@ -33,16 +43,21 @@ pub enum MusicChoreError {
 impl fmt::Display for MusicChoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MusicChoreError::UnsupportedFormat(msg) => write!(f, "Unsupported file format: {}", msg),
-            MusicChoreError::InvalidFile(msg) => write!(f, "Invalid file: {}", msg),
             MusicChoreError::IoError(msg) => write!(f, "I/O error: {}", msg),
-            MusicChoreError::WriteError(msg) => write!(f, "Write error: {}", msg),
-            MusicChoreError::MissingRequiredField(field) => write!(f, "Missing required field: {}", field),
-            MusicChoreError::InvalidValue(field, value) => write!(f, "Invalid value '{}' for field '{}'", value, field),
-            MusicChoreError::FormatMismatch(field, format) => write!(f, "Format mismatch for field '{}': {}", field, format),
-            MusicChoreError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
+            MusicChoreError::FormatNotSupported(msg) => write!(f, "Format not supported: {}", msg),
+            MusicChoreError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
+            MusicChoreError::MetadataParseError(msg) => write!(f, "Metadata parsing error: {}", msg),
+            MusicChoreError::InvalidMetadataField { field, value } => write!(f, "Invalid value '{}' for field '{}'", value, field),
+            MusicChoreError::DirectoryAccessError(msg) => write!(f, "Directory access error: {}", msg),
+            MusicChoreError::PermissionDenied(msg) => write!(f, "Permission denied: {}", msg),
+            MusicChoreError::InvalidPath(msg) => write!(f, "Invalid path: {}", msg),
+            MusicChoreError::UnsupportedAudioFormat(msg) => write!(f, "Unsupported audio format: {}", msg),
+            MusicChoreError::InvalidConfiguration(msg) => write!(f, "Invalid configuration: {}", msg),
             MusicChoreError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            MusicChoreError::ScanError(msg) => write!(f, "Scan error: {}", msg),
+            MusicChoreError::ProcessingError(msg) => write!(f, "Processing error: {}", msg),
+            MusicChoreError::ConversionError(msg) => write!(f, "Conversion error: {}", msg),
+            MusicChoreError::ChecksumError(msg) => write!(f, "Checksum error: {}", msg),
+            MusicChoreError::CueFileError(msg) => write!(f, "CUE file error: {}", msg),
             MusicChoreError::Other(msg) => write!(f, "Error: {}", msg),
         }
     }
@@ -59,5 +74,23 @@ impl From<std::io::Error> for MusicChoreError {
 impl From<serde_json::Error> for MusicChoreError {
     fn from(error: serde_json::Error) -> Self {
         MusicChoreError::Other(format!("JSON error: {}", error))
+    }
+}
+
+impl From<std::str::Utf8Error> for MusicChoreError {
+    fn from(error: std::str::Utf8Error) -> Self {
+        MusicChoreError::Other(format!("UTF-8 error: {}", error))
+    }
+}
+
+impl From<std::num::ParseIntError> for MusicChoreError {
+    fn from(error: std::num::ParseIntError) -> Self {
+        MusicChoreError::Other(format!("Integer parsing error: {}", error))
+    }
+}
+
+impl From<std::num::ParseFloatError> for MusicChoreError {
+    fn from(error: std::num::ParseFloatError) -> Self {
+        MusicChoreError::Other(format!("Float parsing error: {}", error))
     }
 }

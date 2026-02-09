@@ -94,11 +94,10 @@ fn clean_artist_name(name: &str) -> String {
     // Match pattern: word + space + 4-digit year
     let words: Vec<&str> = cleaned.split_whitespace().collect();
     if words.len() >= 2 {
-        if let Ok(_year) = words.last().unwrap().parse::<u32>() {
+        if let Ok(_year) = words.last().unwrap().parse::<u32>()
+            && words.last().unwrap().len() == 4 {
             // Last word is a 4-digit number (year)
-            if words.last().unwrap().len() == 4 {
-                return words[..words.len() - 1].join(" ").trim().to_string();
-            }
+            return words[..words.len() - 1].join(" ").trim().to_string();
         }
     }
 
@@ -184,13 +183,11 @@ fn clean_album_name(name: &str) -> String {
                     let after_year = &cleaned[paren_start + 4..];
 
                     // Check if we have 4 digits followed by ")"
-                    if potential_year.chars().all(|c| c.is_ascii_digit()) && after_year == ")" {
-                        if let Ok(year) = potential_year.parse::<u32>() {
-                            if year >= 1900 && year <= 2100 {
-                                // Safe to slice at open_paren_pos since we've verified it's followed by ASCII
-                                cleaned = cleaned[..open_paren_pos].trim();
-                            }
-                        }
+                    if potential_year.chars().all(|c| c.is_ascii_digit()) && after_year == ")"
+                        && let Ok(year) = potential_year.parse::<u32>()
+                        && year >= 1900 && year <= 2100 {
+                        // Safe to slice at open_paren_pos since we've verified it's followed by ASCII
+                        cleaned = cleaned[..open_paren_pos].trim();
                     }
                 }
             }
@@ -203,19 +200,16 @@ fn clean_album_name(name: &str) -> String {
 /// Infer artist name from track file path
 pub fn infer_artist_from_path(track_path: &Path) -> Option<String> {
     // Strategy 1: Try to extract artist from parent directory name (pattern: "Artist - Album")
-    if let Some(parent) = track_path.parent() {
-        if let Some(folder_name) = parent.file_name().and_then(|n| n.to_str()) {
-            if let Some(artist) = extract_artist_from_name(folder_name) {
-                return Some(artist);
-            }
-        }
+    if let Some(parent) = track_path.parent()
+        && let Some(folder_name) = parent.file_name().and_then(|n| n.to_str())
+        && let Some(artist) = extract_artist_from_name(folder_name) {
+        return Some(artist);
     }
 
     // Strategy 2: Try to extract artist from filename (pattern: "Artist - Title.ext")
-    if let Some(filename) = track_path.file_stem().and_then(|n| n.to_str()) {
-        if let Some(artist) = extract_artist_from_name(filename) {
-            return Some(artist);
-        }
+    if let Some(filename) = track_path.file_stem().and_then(|n| n.to_str())
+        && let Some(artist) = extract_artist_from_name(filename) {
+        return Some(artist);
     }
 
     // Strategy 3: Handle common organized structures like Artist/Albums/Album/track
@@ -230,11 +224,10 @@ pub fn infer_artist_from_path(track_path: &Path) -> Option<String> {
         let potential_artist = components[components.len() - 4];
 
         // If grandparent is a collection folder, use its parent as artist
-        if grandparent == "Albums" || grandparent == "Singles & EPs" || grandparent == "Singles" {
-            if !potential_artist.is_empty() {
-                let cleaned_artist = clean_artist_name(potential_artist);
-                return Some(cleaned_artist);
-            }
+        if (grandparent == "Albums" || grandparent == "Singles & EPs" || grandparent == "Singles")
+            && !potential_artist.is_empty() {
+            let cleaned_artist = clean_artist_name(potential_artist);
+            return Some(cleaned_artist);
         }
     }
 
@@ -257,18 +250,17 @@ pub fn infer_artist_from_path(track_path: &Path) -> Option<String> {
 /// Infer album name from track file path
 pub fn infer_album_from_path(track_path: &Path) -> Option<String> {
     // Strategy 1: Extract album from parent directory name
-    if let Some(parent) = track_path.parent() {
-        if let Some(folder_name) = parent.file_name().and_then(|n| n.to_str()) {
-            // Check for "Artist - Album" pattern
-            if let Some(album) = extract_album_from_name(folder_name) {
-                return Some(album);
-            }
+    if let Some(parent) = track_path.parent()
+        && let Some(folder_name) = parent.file_name().and_then(|n| n.to_str()) {
+        // Check for "Artist - Album" pattern
+        if let Some(album) = extract_album_from_name(folder_name) {
+            return Some(album);
+        }
 
-            // If no separator found, use the folder name as album (cleaned)
-            let cleaned = clean_album_name(folder_name);
-            if !cleaned.is_empty() {
-                return Some(cleaned);
-            }
+        // If no separator found, use the folder name as album (cleaned)
+        let cleaned = clean_album_name(folder_name);
+        if !cleaned.is_empty() {
+            return Some(cleaned);
         }
     }
 
@@ -285,20 +277,17 @@ pub fn infer_album_from_path(track_path: &Path) -> Option<String> {
 /// Infer year from track file path
 pub fn infer_year_from_path(track_path: &Path) -> Option<u32> {
     // Strategy 1: Look for year in parent directory name
-    if let Some(parent) = track_path.parent() {
-        if let Some(folder_name) = parent.file_name().and_then(|n| n.to_str()) {
-            // Look for year patterns: "2008 - Album", "Album (2009)", "Artist 2024 - Album"
-            if let Some(year) = extract_year_from_name(folder_name) {
-                return Some(year);
-            }
-        }
+    if let Some(parent) = track_path.parent()
+        && let Some(folder_name) = parent.file_name().and_then(|n| n.to_str())
+        && let Some(year) = extract_year_from_name(folder_name) {
+        // Look for year patterns: "2008 - Album", "Album (2009)", "Artist 2024 - Album"
+        return Some(year);
     }
 
     // Strategy 2: Look for year in filename
-    if let Some(filename) = track_path.file_name().and_then(|n| n.to_str()) {
-        if let Some(year) = extract_year_from_name(filename) {
-            return Some(year);
-        }
+    if let Some(filename) = track_path.file_name().and_then(|n| n.to_str())
+        && let Some(year) = extract_year_from_name(filename) {
+        return Some(year);
     }
 
     None

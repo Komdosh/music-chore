@@ -1,10 +1,10 @@
-use music_chore::core::services::normalization::{normalize_and_format, TitleNormalizationReport, GenreNormalizationReport, CombinedNormalizationReport};
 use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
-use music_chore::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
+use music_chore::core::domain::models::MetadataValue;
+use music_chore::core::services::normalization::{normalize_and_format, CombinedNormalizationReport};
+use serde_json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
-use serde_json;
 
 // Generic helper to create an audio file from a fixture and set its metadata
 fn create_audio_file(path: &PathBuf, fixture_path: &Path, title: Option<&str>, genre: Option<&str>) {
@@ -90,7 +90,7 @@ fn test_normalize_combined_json_output_single_file_and_no_change() {
 
     let genre_report2 = combined_report.genre_reports.iter().find(|r| r.original_path.to_str().unwrap().contains("track2.flac")).unwrap();
     assert_eq!(genre_report2.original_genre, Some("hip hop".to_string()));
-    assert_eq!(genre_report2.normalized_genre, Some("Hip-Hopa".to_string())); // Note: The genre alias might need adjusting if "Hip-Hopa" is not expected.
+    assert_eq!(genre_report2.normalized_genre, Some("Hip-Hop".to_string())); // Note: The genre alias might need adjusting if "Hip-Hopa" is not expected.
     assert!(genre_report2.changed);
     assert!(genre_report2.error.is_none());
 }
@@ -251,7 +251,7 @@ fn test_normalize_combined_human_output_different_formats() {
     assert!(output.contains("Title Summary: 3 normalized, 0 no change, 0 errors"));
 
     assert!(output.contains("NORMALIZED: Genre 'rock' -> 'Rock' in"));
-    assert!(output.contains("NORMALIZED: Genre 'hip hop' -> 'Hip-Hopa' in"));
+    assert!(output.contains("NORMALIZED: Genre 'hip hop' -> 'Hip-Hop' in"));
     assert!(output.contains("ERROR: No genre found for")); // Default WAV fixture has no genre
     assert!(output.contains("Genre Summary: 2 normalized, 0 no change, 1 errors"));
 }
@@ -281,7 +281,7 @@ fn test_normalize_combined_json_output_different_formats() {
 
     assert_eq!(combined_report.genre_reports.len(), 3);
     assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == Some("rock".to_string()) && r.normalized_genre == Some("Rock".to_string())));
-    assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == Some("hip hop".to_string()) && r.normalized_genre == Some("Hip-Hopa".to_string())));
+    assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == Some("hip hop".to_string()) && r.normalized_genre == Some("Hip-Hop".to_string())));
     assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == None && r.normalized_genre == None && r.error == Some("No genre found".to_string()))); // Default WAV fixture has no genre
 }
 
