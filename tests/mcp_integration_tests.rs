@@ -2,20 +2,20 @@
 //! DRY helpers, shared setup, and consistent assertions
 
 use anyhow::Result;
-use rmcp::ServiceError::McpError;
+use music_chore::core::services::normalization::CombinedNormalizationReport;
 use rmcp::model::JsonObject;
 use rmcp::service::RunningService;
+use rmcp::ServiceError::McpError;
 use rmcp::{
-    RmcpError, RoleClient, ServiceExt,
-    model::{CallToolRequestParams, ErrorCode},
-    object,
-    transport::TokioChildProcess,
+    model::{CallToolRequestParams, ErrorCode}, object, transport::TokioChildProcess,
+    RmcpError,
+    RoleClient,
+    ServiceExt,
 };
 use std::borrow::Cow;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use music_chore::core::services::normalization::{CombinedNormalizationReport, TitleNormalizationReport, GenreNormalizationReport}; // Added CombinedNormalizationReport
-use tempfile::TempDir; // Added for temporary directories in tests
+use tempfile::TempDir;
 
 /* ----------------------------- Shared helpers ----------------------------- */
 

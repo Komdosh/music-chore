@@ -1,13 +1,12 @@
 //! Tests for the validation module functionality.
 
 use music_chore::core::domain::models::{
-    AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, Track, TrackMetadata, TrackNode,
+    MetadataValue, Track, TrackMetadata,
 };
 use music_chore::core::services::validation::metadata_validation::{
     validate_track_metadata, ValidationError,
 };
-use music_chore::core::services::validation::{validate_path, validate_tracks};
-use std::collections::HashSet;
+use music_chore::core::services::validation::validate_path;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

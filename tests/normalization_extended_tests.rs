@@ -1,10 +1,10 @@
-use music_chore::core::services::normalization::{normalize_and_format, TitleNormalizationReport, GenreNormalizationReport, CombinedNormalizationReport};
 use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
-use music_chore::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
+use music_chore::core::domain::models::MetadataValue;
+use music_chore::core::services::normalization::{normalize_and_format, CombinedNormalizationReport};
+use serde_json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
-use serde_json;
 
 // Generic helper to create an audio file from a fixture and set its metadata
 fn create_audio_file(path: &PathBuf, fixture_path: &Path, title: Option<&str>, genre: Option<&str>) {

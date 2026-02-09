@@ -1,12 +1,11 @@
 //! Comprehensive tests for the format tree module functionality.
 
 use music_chore::core::domain::models::{
-    AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, TrackMetadata, TrackNode,
+    AlbumNode, ArtistNode, Library, MetadataValue, TrackMetadata, TrackNode,
 };
 use music_chore::core::services::format_tree::{
     emit_by_path, emit_structured_output, format_library_output, format_tree_output,
 };
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

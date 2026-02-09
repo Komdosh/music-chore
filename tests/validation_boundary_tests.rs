@@ -1,6 +1,6 @@
 //! Tests for validation module boundary conditions and edge cases
 
-use music_chore::core::domain::models::{MetadataSource, MetadataValue, Track, TrackMetadata};
+use music_chore::core::domain::models::{MetadataValue, Track, TrackMetadata};
 use music_chore::core::services::validation::validate_tracks;
 use std::path::PathBuf;
 

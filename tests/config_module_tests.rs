@@ -1,6 +1,6 @@
 //! Tests for the configuration module functionality.
 
-use music_chore::core::config::{AppConfig, AppConfigBuilder, MAX_TRACK_NUMBER, MAX_DISC_NUMBER, MIN_YEAR, MAX_YEAR, MAX_DURATION_SECONDS, FOLDER_INFERRED_CONFIDENCE};
+use music_chore::core::config::{AppConfig, AppConfigBuilder, FOLDER_INFERRED_CONFIDENCE, MAX_DISC_NUMBER, MAX_DURATION_SECONDS, MAX_TRACK_NUMBER, MAX_YEAR, MIN_YEAR};
 
 #[test]
 fn test_app_config_default_values() {
@@ -146,8 +146,6 @@ fn test_app_config_constants_exist() {
 #[test]
 fn test_app_config_save_and_load() {
     use tempfile::TempDir;
-    use std::path::PathBuf;
-    
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
     

@@ -2,7 +2,7 @@
 //! Verifies that metadata written to a file can be read back correctly
 
 use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
-use music_chore::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
+use music_chore::core::domain::models::{MetadataValue, TrackMetadata};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

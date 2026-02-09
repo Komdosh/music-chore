@@ -1,6 +1,5 @@
 //! Tests for the apply metadata module functionality.
 
-use music_chore::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
 use music_chore::core::services::apply_metadata::write_metadata_by_path;
 use std::fs;
 use std::path::PathBuf;

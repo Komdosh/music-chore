@@ -1,10 +1,8 @@
 //! Tests for the normalization module functionality.
 
-use music_chore::core::domain::models::{MetadataValue, Track, TrackMetadata};
-use music_chore::core::services::normalization::{normalize_and_format, to_title_case, normalize_genre};
+use music_chore::core::services::normalization::{normalize_and_format, normalize_genre, to_title_case};
 use std::path::PathBuf;
 use tempfile::TempDir;
-use std::fs;
 
 #[test]
 fn test_to_title_case_basic() {

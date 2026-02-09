@@ -6,7 +6,6 @@ use music_chore::core::domain::models::{
 use music_chore::core::services::format_tree::{
     emit_by_path, format_library_output, format_tree_output,
 };
-use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

@@ -1,9 +1,8 @@
 //! Tests for Library serialization/deserialization as part of the refactoring plan.
 
-use music_chore::core::domain::models::{AlbumNode, ArtistNode, Library, MetadataValue, Track, TrackMetadata, TrackNode, MetadataSource};
-use std::collections::HashSet;
-use std::path::PathBuf;
+use music_chore::core::domain::models::{AlbumNode, ArtistNode, Library, MetadataSource, MetadataValue, Track, TrackMetadata, TrackNode};
 use serde_json;
+use std::path::PathBuf;
 
 fn create_test_track(title: Option<&str>, artist: Option<&str>, album: Option<&str>, path: &str) -> Track {
     Track::new(
