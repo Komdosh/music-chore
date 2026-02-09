@@ -4,191 +4,86 @@ This document provides instructions and a recommended workflow for AI agents to 
 
 ## Goal
 
-The primary goal is to empower AI agents to perform comprehensive music library organization tasks, including scanning, metadata management, validation, and duplicate detection, leveraging `musicctl`'s specialized MCP tools.
+The primary goal is to empower AI agents to perform comprehensive music library organization tasks, including scanning, metadata management, validation, and duplicate detection, leveraging `musicctl`'s specialized MCP tools and expert prompts.
 
 ## General Principles for AI Agents
 
-*   **Prioritize Structured Output:** Always prefer `json_output: true` when available in a tool's parameters. This ensures machine-readable and parsable results for further processing.
-*   **Safety First (Dry Runs):** For any operation that modifies files (e.g., `normalize_titles`, `cue_file generate`), always perform a `dry_run: true` first to preview changes before applying them with `dry_run: false`.
-*   **Iterative Refinement:** Music library organization can be complex. Approach tasks iteratively, using validation and tree views to verify changes.
-*   **Error Handling:** Be prepared to handle `McpError` responses from tool calls and interpret the error messages for debugging or reporting.
+*   **Prioritize Structured Output:** Always prefer `json_output: true` when available in a tool's parameters. This ensures machine-readable results for further processing.
+*   **Safety First (Dry Runs):** For any operation that modifies files (e.g., `normalize`, `cue_file generate`), always perform a preview first. `musicctl` write operations are dry-runs by default.
+*   **Leverage Expert Prompts:** Use the 18 specialized prompts (e.g., `library-health-check`, `top-tracks-analysis`) to get pre-formatted analysis and action plans for complex tasks.
+*   **Error Handling:** Be prepared to handle `McpError` responses and security restrictions if you attempt to access paths outside the configured allowed paths.
 
 ---
 
 ## Recommended Workflow for Music Library Organization
 
-Here's a step-by-step approach an AI agent can follow to organize a music library:
+### Step 1: Initial Assessment
 
-### Step 1: Initial Scan and Overview
+Start by getting a comprehensive overview of the library's state.
 
-Start by scanning the target directory to discover all music files and then get a hierarchical view of the current library structure.
-
-*   **Action 1.1: Scan Directory for Tracks**
-    *   **Tool:** `scan_directory`
-    *   **Purpose:** Discover all music files within a specified path.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library` (the root directory of the library)
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON array of discovered tracks, each with basic path information.
-
-*   **Action 1.2: Get Library Tree View**
+*   **Action 1.1: Run Health Check**
+    *   **Prompt:** `library-health-check`
+    *   **Purpose:** Get a prioritized improvement plan and overall health score.
+    
+*   **Action 1.2: Get Library Tree**
     *   **Tool:** `get_library_tree`
-    *   **Purpose:** Understand the inferred Artist -> Album -> Track hierarchy.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON object representing the hierarchical structure of the library.
+    *   **Purpose:** Understand the current Artist -> Album -> Track structure.
 
-### Step 2: Validate and Identify Issues
+### Step 2: Standardization
 
-Check the library for common inconsistencies, missing metadata, and potential errors.
+Apply automated cleanup to bring metadata into a consistent state.
 
-*   **Action 2.1: Validate Library Metadata**
-    *   **Tool:** `validate_library`
-    *   **Purpose:** Identify tracks with missing or inconsistent metadata, incorrect naming conventions, etc.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON report detailing validation results (errors, warnings).
+*   **Action 2.1: Metadata Cleanup Guide**
+    *   **Prompt:** `metadata-cleanup-guide`
+    *   **Purpose:** Identify categorized issues and get specific commands to fix them.
 
-### Step 3: Normalize and Clean Metadata
+*   **Action 2.2: Normalize Titles and Genres**
+    *   **Tool:** `normalize`
+    *   **Parameters:** `path`, `json_output: true`
+    *   **Note:** Review changes before suggesting the user apply them with `musicctl normalize --apply`.
 
-Apply normalization rules to standardize metadata fields like titles and genres.
+### Step 3: Optimization
 
-*   **Action 3.1: Preview Title Normalization**
-    *   **Tool:** `normalize_titles`
-    *   **Purpose:** See what changes would be made to track titles without applying them.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `dry_run`: `true`
-    *   **Expected Output:** A text report showing proposed title changes.
+Clean up redundant data and ensure structural integrity.
 
-*   **Action 3.2: Apply Title Normalization (if preview is satisfactory)**
-    *   **Tool:** `normalize_titles`
-    *   **Purpose:** Apply the title casing and other normalization rules.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `dry_run`: `false`
-    *   **Expected Output:** A text report confirming applied changes.
+*   **Action 3.1: Duplicate Resolution**
+    *   **Prompt:** `duplicate-resolution`
+    *   **Purpose:** Find duplicates and get intelligent recommendations on which copies to keep based on quality.
 
-### Step 4: Detect and Manage Duplicates
+*   **Action 3.2: Reorganization Plan**
+    *   **Prompt:** `reorganization-plan`
+    *   **Purpose:** Get a strategic plan to move files into a standard `Artist/Year - Album/Track` hierarchy.
 
-Find and categorize duplicate audio files within the library.
+### Step 4: CUE Sheet Management
 
-*   **Action 4.1: Find Duplicate Tracks**
-    *   **Tool:** `find_duplicates`
-    *   **Purpose:** Locate identical audio files using checksums.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON array of duplicate groups, listing paths for each duplicate.
+Handle albums stored as single files or needing better track marking.
 
-### Step 5: CUE Sheet Management
-
-Handle CUE sheets for albums where a single audio file contains multiple tracks.
-
-*   **Action 5.1: Parse a CUE File**
-    *   **Tool:** `cue_file`
-    *   **Operation:** `"parse"`
-    *   **Purpose:** Extract structured information from an existing CUE sheet.
-    *   **Parameters:**
-        *   `path`: `/path/to/album/album.cue`
-        *   `operation`: `"parse"`
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON object representing the parsed CUE file structure.
-
-*   **Action 5.2: Validate a CUE File**
-    *   **Tool:** `cue_file`
-    *   **Operation:** `"validate"`
-    *   **Purpose:** Check consistency between a CUE sheet and its audio files.
-    *   **Parameters:**
-        *   `path`: `/path/to/album/album.cue`
-        *   `operation`: `"validate"`
-        *   `audio_dir`: `/path/to/album/audio_files` (optional, defaults to CUE file's parent directory)
-        *   `json_output`: `true`
-    *   **Expected Output:** A JSON report indicating validation success/failure and any discrepancies.
-
-*   **Action 5.3: Generate a CUE File (Dry Run)**
-    *   **Tool:** `cue_file`
-    *   **Operation:** `"generate"`
-    *   **Purpose:** Preview the content of a new CUE sheet for a given album directory.
-    *   **Parameters:**
-        *   `path`: `/path/to/album_directory_with_tracks`
-        *   `operation`: `"generate"`
-        *   `dry_run`: `true`
-    *   **Expected Output:** The generated CUE file content as a string.
-
-*   **Action 5.4: Generate and Save a CUE File (Apply)**
-    *   **Tool:** `cue_file`
-    *   **Operation:** `"generate"`
-    *   **Purpose:** Create and save a new CUE sheet.
-    *   **Parameters:**
-        *   `path`: `/path/to/album_directory_with_tracks`
-        *   `operation`: `"generate"`
-        *   `dry_run`: `false`
-        *   `output`: `/path/to/album/new_album.cue` (optional, defaults to `path`/album_name.cue)
-        *   `force`: `true` (optional, to overwrite existing)
-    *   **Expected Output:** Confirmation message that the CUE file was written.
-
-### Step 6: Detailed File Inspection
-
-For specific files, agents can retrieve full metadata.
-
-*   **Action 6.1: Read Individual File Metadata**
-    *   **Tool:** `read_file_metadata`
-    *   **Purpose:** Get all metadata for a single track.
-    *   **Parameters:**
-        *   `file_path`: `/path/to/music/Artist/Album/Track.flac`
-    *   **Expected Output:** A JSON object with all available metadata for the file.
-
-### Step 7: Comprehensive Metadata Extraction
-
-Generate a complete metadata dump for the entire library.
-
-*   **Action 7.1: Emit Library Metadata**
-    *   **Tool:** `emit_library_metadata`
-    *   **Purpose:** Obtain a full, structured JSON representation of the entire music library's metadata.
-    *   **Parameters:**
-        *   `path`: `/path/to/music/library`
-        *   `json_output`: `true`
-    *   **Expected Output:** A large JSON object containing all extracted library metadata.
+*   **Action 4.1: CUE Sheet Assistant**
+    *   **Prompt:** `cue-sheet-assistant`
+    *   **Purpose:** Find missing CUE files and validate existing ones.
 
 ---
 
-## Example Scenario: Standardizing an Album
+## Available Expert Prompts (18)
 
-**Task:** Organize an album located at `/media/music/new_releases/ArtistName - AlbumTitle`.
+Agents can call these prompts to perform deep-dives without manual tool chaining:
 
-1.  **Scan the album directory:**
-    ```
-    call_tool("scan_directory", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "json_output": true})
-    ```
-2.  **Get tree view of the album:**
-    ```
-    call_tool("get_library_tree", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "json_output": true})
-    ```
-3.  **Validate the album's metadata:**
-    ```
-    call_tool("validate_library", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "json_output": true})
-    ```
-    (Review output for errors/warnings and plan corrective actions if needed, e.g., using a manual `musicctl` command or noting for user intervention.)
-4.  **Preview title normalization:**
-    ```
-    call_tool("normalize_titles", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "dry_run": true})
-    ```
-5.  **Apply title normalization:**
-    ```
-    call_tool("normalize_titles", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "dry_run": false})
-    ```
-6.  **Check for duplicates within the album (unlikely but good practice):**
-    ```
-    call_tool("find_duplicates", {"path": "/media/music/new_releases/ArtistName - AlbumTitle", "json_output": true})
-    ```
-7.  **If a CUE file is present, parse and validate it:**
-    ```
-    call_tool("cue_file", {"path": "/media/music/new_releases/ArtistName - AlbumTitle/album.cue", "operation": "parse", "json_output": true})
-    call_tool("cue_file", {"path": "/media/music/new_releases/ArtistName - AlbumTitle/album.cue", "operation": "validate", "json_output": true})
-    ```
-    (If no CUE file, consider generating one if appropriate for the album's structure.)
+| Category | Prompts |
+|----------|---------|
+| **Analysis** | `top-tracks-analysis`, `genre-breakdown`, `decade-analysis`, `collection-story`, `artist-deep-dive` |
+| **Discovery** | `instrument-to-learn`, `similar-artists-discovery`, `mood-playlist`, `hidden-gems`, `album-marathon`, `concert-setlist` |
+| **Maintenance** | `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `reorganization-plan`, `format-quality-audit`, `year-in-review`, `cue-sheet-assistant` |
 
-This structured approach ensures a thorough and methodical organization process.
+---
+
+## Example Scenario: Comprehensive Cleanup
+
+**Task:** "The music folder at `/media/music` is a mess. Fix it."
+
+1.  **Analyze**: Call `library-health-check`.
+2.  **Report**: Tell the user their health score and the top 5 urgent issues.
+3.  **Deduplicate**: Call `duplicate-resolution` and suggest which files to delete.
+4.  **Standardize**: Call `normalize` (dry run) and show the user the improvements.
+5.  **Plan**: Call `reorganization-plan` to show how the folders *could* look.
+
+This workflow ensures the agent acts as an expert consultant rather than just a basic file scanner.

@@ -102,20 +102,20 @@ Based on current project state and APP_SPEC.md:
 - Identify next logical feature to implement
 - Select exactly ONE feature for this session
 
-Current implementation status (as of v0.1.9):
-✅ Multi-format support (FLAC + MP3)
-✅ Complete CLI (scan, tree, read, write, normalize, emit, validate, duplicates)
-✅ MCP server with 6 tools
+Current implementation status (as of v0.3.2):
+✅ Multi-format support (FLAC, MP3, WAV, DSF, WavPack)
+✅ Complete CLI (scan, tree, read, write, normalize, emit, validate, duplicates, cue)
+✅ MCP server with 8 tools and 18 expert prompts
 ✅ Unicode support
-✅ Duplicate detection
+✅ Duplicate detection (SHA256)
 ✅ Metadata validation
-✅ Comprehensive test coverage (67+ tests)
+✅ Comprehensive test coverage (640+ tests)
 
 Future work areas:
-- Additional audio formats (WAV, DSF)
-- CUE file support
-- Advanced metadata operations
-- Performance optimizations
+- Additional audio formats (OGG, M4A)
+- Advanced metadata operations (bulk updates)
+- Performance optimizations (parallel scanning)
+- Library-wide genre standardization mapping
 
 ------------------------------------------------------------
 STEP 5: IMPLEMENT THE FEATURE

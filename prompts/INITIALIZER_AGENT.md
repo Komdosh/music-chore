@@ -12,27 +12,27 @@ Your output defines the work surface for entire project.
 Mistakes here compound. Precision matters.
 
 ------------------------------------------------------------
-CURRENT PROJECT STATE (as of v0.1.9)
+CURRENT PROJECT STATE (as of v0.3.2)
 ------------------------------------------------------------
 
 music-chore is a PRODUCTION-READY CLI tool with:
 
 ✅ **Complete Implementation**:
-- Multi-format support (FLAC + MP3)
-- Full CLI with 9 commands
-- MCP server with 6 tools
-- 67+ comprehensive tests
+- Multi-format support (FLAC, MP3, WAV, DSF, WavPack)
+- Full CLI with 10 commands including CUE support
+- MCP server with 8 tools and 18 expert prompts
+- 640+ comprehensive tests
 - Unicode support
-- Duplicate detection
-- Metadata validation
-- Title normalization
+- Duplicate detection (SHA256)
+- Metadata validation against schema
+- Title and Genre normalization
 
 ✅ **Architecture**:
-- Clean 4-layer architecture (CLI → Services → Domain → Infrastructure)
+- Clean 4-layer architecture (CLI → Core Services → Domain → Infrastructure)
 - Format-agnostic AudioFile trait
-- Comprehensive error handling
+- Centralized logging and error handling
 - Deterministic output
-- AI-friendly structured output
+- AI-friendly structured output with security constraints
 
 ✅ **Build System**:
 - Cargo-based Rust project
