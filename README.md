@@ -141,8 +141,38 @@ AI agents can integrate directly with music-chore via MCP (Model Context Protoco
 
 ```bash
 # Add to Claude Desktop
-claude mcp add music-chore -- musicctl-mcp
+claude mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore -- musicctl-mcp
+
+# Add to Gemini CLI
+gemini mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore musicctl-mcp
 ```
+
+### Environment Variables
+
+Configure the MCP server with environment variables:
+
+```bash
+# Logging level (error, warn, info, debug, trace)
+export RUST_LOG=info
+
+# Default library path
+export MUSIC_LIBRARY_PATH=/Users/username/Music
+
+# Scan timeout in seconds
+export MUSIC_SCAN_TIMEOUT=300
+
+# Security: restrict access to specific paths
+export MUSIC_ALLOWED_PATHS=/Users/username/Music,/Volumes/Music
+
+# Run with configuration
+musicctl-mcp
+```
+
+**Key Variables:**
+- `RUST_LOG`: Control logging verbosity
+- `MUSIC_LIBRARY_PATH`: Default music directory  
+- `MUSIC_SCAN_TIMEOUT`: Directory scan timeout (default: 300s)
+- `MUSIC_ALLOWED_PATHS`: Comma-separated allowed paths for security
 
 ### Available Tools (8 total)
 

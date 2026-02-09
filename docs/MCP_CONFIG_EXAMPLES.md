@@ -16,7 +16,24 @@ This document provides configuration examples for integrating the Music Chore MC
 claude mcp add music-chore -- musicctl-mcp
 ```
 
-### Advanced Configuration
+### Basic Configuration
+
+```json
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "musicctl-mcp",
+      "args": [],
+      "env": {
+        "RUST_LOG": "info",
+        "MUSIC_LIBRARY_PATH": "/Users/username/Music"
+      }
+    }
+  }
+}
+```
+
+### Security-Enhanced Configuration
 
 ```json
 {
@@ -26,7 +43,9 @@ claude mcp add music-chore -- musicctl-mcp
       "args": ["--verbose"],
       "env": {
         "RUST_LOG": "debug",
-        "MUSIC_LIBRARY_PATH": "/Users/username/Music"
+        "MUSIC_LIBRARY_PATH": "/Users/username/Music",
+        "MUSIC_SCAN_TIMEOUT": "600",
+        "MUSIC_ALLOWED_PATHS": "/Users/username/Music,/Volumes/Music,/Backup/Music"
       }
     }
   }
@@ -60,7 +79,7 @@ claude mcp add music-chore -- musicctl-mcp
 
 ## OpenCode
 
-### 🚀 Config file
+### 🚀 Basic Configuration
 
 ```json
 {
@@ -68,7 +87,30 @@ claude mcp add music-chore -- musicctl-mcp
    "mcp": {
       "music-chore": {
          "type": "local",
-         "command": ["musicctl-mcp"]
+         "command": ["musicctl-mcp"],
+         "env": {
+            "RUST_LOG": "info",
+            "MUSIC_LIBRARY_PATH": "/Users/username/Music"
+         }
+      }
+   }
+}
+```
+
+### Security-Enhanced Configuration
+
+```json
+{
+   "$schema": "https://opencode.ai/config.json",
+   "mcp": {
+      "music-chore": {
+         "type": "local",
+         "command": ["musicctl-mcp"],
+         "env": {
+            "RUST_LOG": "debug",
+            "MUSIC_ALLOWED_PATHS": "/Users/username/Music,/Volumes/Music",
+            "MUSIC_SCAN_TIMEOUT": "300"
+         }
       }
    }
 }
@@ -110,7 +152,11 @@ import { createMcpClient } from 'mcp-client';
 const client = await createMcpClient({
   name: 'music-chore',
   command: 'musicctl-mcp',
-  args: ['--verbose']
+  args: ['--verbose'],
+  env: {
+    'RUST_LOG': 'info',
+    'MUSIC_LIBRARY_PATH': '/Users/username/Music'
+  }
 });
 
 // Scan directory
@@ -141,10 +187,14 @@ const MusicLibraryViewer = ({ libraryPath }) => {
   const [library, setLibrary] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  const musicClient = new MCPClient({
-    command: 'musicctl-mcp',
-    args: []
-  });
+   const musicClient = new MCPClient({
+     command: 'musicctl-mcp',
+     args: [],
+     env: {
+       'RUST_LOG': 'info',
+       'MUSIC_ALLOWED_PATHS': '/safe/music/directory'
+     }
+   });
 
   useEffect(() => {
     const loadLibrary = async () => {
@@ -205,8 +255,11 @@ import json
 from mcp_client import AsyncMCPClient
 
 class MusicChoreClient:
-    def __init__(self, command="musicctl-mcp"):
-        self.client = AsyncMCPClient(command)
+    def __init__(self, command="musicctl-mcp", env=None):
+        self.client = AsyncMCPClient(command, env=env or {
+            'RUST_LOG': 'info',
+            'MUSIC_LIBRARY_PATH': '/Users/username/Music'
+        })
     
     async def scan_directory(self, path, json_output=True):
         """Scan a directory for music files"""
@@ -227,7 +280,7 @@ class MusicChoreClient:
     async def read_file_metadata(self, file_path):
         """Read metadata from a specific file"""
         result = await self.client.call_tool('read_file_metadata', {
-            'file_path': file_path
+            'path': path
         })
         return json.loads(result.content[0].text)
     
@@ -267,7 +320,13 @@ class MusicChoreClient:
 
 # Usage example
 async def main():
-    client = MusicChoreClient()
+    client = MusicChoreClient(
+        env={
+            'RUST_LOG': 'debug',
+            'MUSIC_LIBRARY_PATH': '/Users/username/Music',
+            'MUSIC_ALLOWED_PATHS': '/Users/username/Music,/Backup/Music'
+        }
+    )
     
     # Scan library
     library = await client.get_library_tree('/Users/music/FLAC')

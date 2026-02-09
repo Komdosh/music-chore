@@ -3,19 +3,19 @@
 
 use anyhow::Result;
 use music_chore::core::services::normalization::CombinedNormalizationReport;
+use rmcp::ServiceError::McpError;
 use rmcp::model::JsonObject;
 use rmcp::service::RunningService;
-use rmcp::ServiceError::McpError;
 use rmcp::{
-    model::{CallToolRequestParams, ErrorCode}, object, transport::TokioChildProcess,
-    RmcpError,
-    RoleClient,
-    ServiceExt,
+    RmcpError, RoleClient, ServiceExt,
+    model::{CallToolRequestParams, ErrorCode},
+    object,
+    transport::TokioChildProcess,
 };
 use std::borrow::Cow;
+use tempfile::TempDir;
 use tokio::process::Command;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tempfile::TempDir;
 
 /* ----------------------------- Shared helpers ----------------------------- */
 
@@ -114,6 +114,41 @@ async fn test_tools_list() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_prompt_list() -> Result<()> {
+    let client = spawn_client().await?;
+
+    let tools = client.list_all_prompts().await?;
+    assert_eq!(tools.len(), 18);
+
+    let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
+    println!("{:?}", names);
+    for expected in [
+        "library-health-check",
+        "year-in-review",
+        "artist-deep-dive",
+        "hidden-gems",
+        "album-marathon",
+        "concert-setlist",
+        "reorganization-plan",
+        "similar-artists-discovery",
+        "genre-breakdown",
+        "top-tracks-analysis",
+        "collection-story",
+        "decade-analysis",
+        "metadata-cleanup-guide",
+        "duplicate-resolution",
+        "cue-sheet-assistant",
+        "instrument-to-learn",
+        "format-quality-audit",
+        "mood-playlist",
+    ] {
+        assert!(names.contains(&expected.to_string()));
+    }
+
+    shutdown(client).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_scan_directory() -> Result<()> {
     let client = spawn_client().await?;
 
@@ -167,7 +202,7 @@ async fn test_read_file_metadata() -> Result<()> {
         &client,
         "read_file_metadata",
         object!({
-            "file_path": "tests/fixtures/flac/simple/track1.flac"
+            "path": "tests/fixtures/flac/simple/track1.flac"
         }),
     )
     .await?;
@@ -185,7 +220,8 @@ async fn test_read_file_metadata() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_normalize_human_output() -> Result<()> { // Renamed
+async fn test_normalize_human_output() -> Result<()> {
+    // Renamed
     let client = spawn_client().await?;
     let temp_dir = TempDir::new()?; // Use a truly empty temporary directory
 
@@ -217,7 +253,8 @@ async fn test_normalize_human_output() -> Result<()> { // Renamed
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_normalize_json_output() -> Result<()> { // Renamed
+async fn test_normalize_json_output() -> Result<()> {
+    // Renamed
     let client = spawn_client().await?;
     let temp_dir = TempDir::new()?; // Use a truly empty temporary directory
 
@@ -238,7 +275,10 @@ async fn test_normalize_json_output() -> Result<()> { // Renamed
     let combined_report: CombinedNormalizationReport = serde_json::from_str(json_text)?;
     assert!(combined_report.title_reports.is_empty());
     assert!(combined_report.genre_reports.is_empty());
-    assert_eq!(combined_report.summary, "Combined normalization report".to_string());
+    assert_eq!(
+        combined_report.summary,
+        "Combined normalization report".to_string()
+    );
 
     shutdown(client).await
 }
@@ -500,7 +540,11 @@ async fn test_emit_library_metadata_text() -> Result<()> {
         "TRACK: \"Test Apply Behavior\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track1.flac",
         "TRACK: \"[Unknown Title]\" | Duration: 0:01 | File: tests/fixtures/flac/simple/track2.flac",
     ] {
-        assert!(text.contains(expected), "Expected text to contain: {}", expected);
+        assert!(
+            text.contains(expected),
+            "Expected text to contain: {}",
+            expected
+        );
     }
 
     shutdown(client).await

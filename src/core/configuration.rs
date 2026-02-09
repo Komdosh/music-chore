@@ -97,7 +97,7 @@ impl AppConfig {
 /// Configuration builder for fluent configuration creation
 #[derive(Default)]
 pub struct AppConfigBuilder {
-    config: AppConfig,
+    pub config: AppConfig,
 }
 
 impl AppConfigBuilder {

@@ -15,6 +15,7 @@ This document provides a comprehensive overview of the `music-chore` project, de
 *   **CUE File Operations:** Supports generating, parsing, and validating CUE sheets.
 *   **Metadata Validation:** Checks the quality and completeness of metadata against a defined schema.
 *   **Structured Output:** Emits structured metadata, particularly useful for AI integrations.
+*   **Expert AI Prompts:** Provides specialized prompts for AI agents to perform complex library analysis, health checks, and curated discovery.
 *   **Model Context Protocol (MCP) Server:** Includes an integrated server (`musicctl-mcp`) that exposes `music-chore`'s functionalities as tools for AI agents, facilitating direct interaction and automation.
 
 The project is built with AI agents in mind, offering a robust and automatable solution for music library maintenance.

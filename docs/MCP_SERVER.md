@@ -41,7 +41,13 @@ curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/insta
 Claude CLI:
 
 ```bash
-claude mcp add music-chore -- musicctl-mcp
+claude mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore -- musicctl-mcp
+```
+
+Gemini CLI:
+
+```bash
+gemini mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore musicctl-mcp
 ```
 
 **🎯 Why CLI Method is Better:**
@@ -172,7 +178,7 @@ Get a hierarchical tree view of the music library organized by artist and album.
 Read comprehensive metadata from a single music file.
 
 **Parameters:**
-- `file_path` (string, required): Path to the music file
+- `path` (string, required): Path to the music file
 
 **Returns:**
 Complete metadata object including title, artist, album, duration, format, and source information.
@@ -182,7 +188,7 @@ Complete metadata object including title, artist, album, duration, format, and s
 {
   "name": "read_file_metadata",
   "arguments": {
-    "file_path": "/Users/music/FLAC/Artist/Album/track.flac"
+    "path": "/Users/music/FLAC/Artist/Album/track.flac"
   }
 }
 ```
@@ -298,62 +304,6 @@ Validate music library for common issues and inconsistencies.
 }
 ```
 
-**Response Format:**
-If `json_output=false`:
-```
-=== MUSIC LIBRARY VALIDATION ===
-📊 Summary:
-  Total files: 145
-  Valid files: 143
-  Files with errors: 2
-  Files with warnings: 8
-
-🔴 ERRORS:
-  File: /Users/music/Artist/Album/missing-title.flac
-  Field: title
-  Issue: Missing required field: title
-
-  File: /Users/music/Artist/Album/corrupted-metadata.flac
-  Field: title
-  Issue: Title field is empty
-
-🟡 WARNINGS:
-  File: /Users/music/Artist/Album/missing-year.flac
-  Field: year
-  Issue: Missing recommended field: year
-
-  File: /Users/music/Artist/Album/track-number-missing.flac
-  Field: track_number
-  Issue: Missing recommended field: track_number
-```
-
-If `json_output=true`:
-```json
-{
-  "valid": false,
-  "errors": [
-    {
-      "file_path": "/Users/music/Artist/Album/missing-title.flac",
-      "field": "title",
-      "message": "Missing required field: title"
-    }
-  ],
-  "warnings": [
-    {
-      "file_path": "/Users/music/Artist/Album/missing-year.flac",
-      "field": "year", 
-      "message": "Missing recommended field: year"
-    }
-  ],
-  "summary": {
-    "total_files": 145,
-    "valid_files": 143,
-    "files_with_errors": 2,
-    "files_with_warnings": 8
-  }
-}
-```
-
 ### 7. `find_duplicates`
 
 Find duplicate tracks by comparing SHA256 checksums of audio files.
@@ -415,26 +365,6 @@ Unified tool for generating, parsing, and validating CUE files.
 }
 ```
 
-**Parse Response Example:**
-```json
-{
-  "performer": "Kai Engel",
-  "title": "Meanings",
-  "genre": "Ambient",
-  "date": "2024",
-  "files": ["01. A New Journey Begins.flac", "02. Time Goes On.flac"],
-  "tracks": [
-    {
-      "number": 1,
-      "title": "A New Journey Begins",
-      "performer": "Kai Engel",
-      "index": "00:00:00",
-      "file": "01. A New Journey Begins.flac"
-    }
-  ]
-}
-```
-
 **Validate Example:**
 ```json
 {
@@ -448,28 +378,33 @@ Unified tool for generating, parsing, and validating CUE files.
 }
 ```
 
-**Validate Response Example (valid):**
-```
-✓ CUE file is valid
-  All referenced files exist and track count matches.
-```
+## Available Prompts
 
-**Validate Response Example (invalid):**
-```
-✗ CUE file validation failed:
-  - Referenced audio file(s) missing
-```
+Prompts are predefined complex workflows that guide AI agents through multi-step analysis or maintenance tasks. They provide the agent with a strategy and the necessary tool-calling sequence to achieve a specific goal.
 
-**Validate Response Example (json_output=true):**
-```json
-{
-  "is_valid": false,
-  "parsing_error": false,
-  "file_missing": true,
-  "track_count_mismatch": false
-}
-```
-```
+### 1. Analysis & Insights
+- `top-tracks-analysis`: Predicts favorite tracks based on library patterns and metadata richness.
+- `genre-breakdown`: Analyzes genre distribution and discovers the user's "listening identity".
+- `decade-analysis`: Temporal analysis of the collection across decades.
+- `collection-story`: Generates a narrative about the library's themes, diversity, and emotional arc.
+- `artist-deep-dive`: Deep dive into a specific artist's discography coverage and standout tracks.
+
+### 2. Recommendations & Discovery
+- `instrument-to-learn`: Recommends an instrument to learn based on library taste.
+- `similar-artists-discovery`: Suggests new artists based on library DNA.
+- `mood-playlist`: Creates a curated playlist for a specific mood or activity.
+- `hidden-gems`: Uncovers overlooked and underappreciated tracks.
+- `album-marathon`: Designs a themed album listening marathon.
+- `concert-setlist`: Builds a dream concert setlist from the library.
+
+### 3. Library Maintenance & Quality
+- `library-health-check`: Comprehensive assessment of metadata, structure, and duplicates.
+- `metadata-cleanup-guide`: Step-by-step guide to fix metadata issues using normalization tools.
+- `duplicate-resolution`: Intelligent recommendations for resolving duplicate tracks.
+- `reorganization-plan`: Strategic plan to restructure folders into `Artist/Album/Track` hierarchy.
+- `format-quality-audit`: Audit of audio formats and quality tiers (Lossless vs Lossy).
+- `year-in-review`: Annual summary of library additions and milestones.
+- `cue-sheet-assistant`: Analyze, generate, or troubleshoot CUE sheets.
 
 ## Response Formats
 
@@ -588,13 +523,101 @@ The MCP server provides detailed error messages for:
 
 All errors are returned in the standardized MCP error format with human-readable descriptions.
 
-## Logging
+## Environment Variables
 
-Configure logging with the `RUST_LOG` environment variable:
+The musicctl-mcp server supports several environment variables for configuration:
+
+### Logging Configuration
+
+**RUST_LOG**: Set the logging level
 - `RUST_LOG=error`: Only error messages
+- `RUST_LOG=warn`: Warnings and errors only
 - `RUST_LOG=info`: General information (default)
 - `RUST_LOG=debug`: Detailed debug information
 - `RUST_LOG=trace`: Full trace information
+
+### Library Configuration
+
+**MUSIC_LIBRARY_PATH**: Default music library path
+- Sets a default path that can be used when no path is explicitly provided
+- Example: `export MUSIC_LIBRARY_PATH=/Users/username/Music`
+
+**MUSIC_SCAN_TIMEOUT**: Scan timeout in seconds
+- Controls maximum time for directory scanning operations
+- Default: 300 seconds (5 minutes)
+- Example: `export MUSIC_SCAN_TIMEOUT=600`
+
+### Security Configuration
+
+**MUSIC_ALLOWED_PATHS**: Comma-separated list of allowed paths
+- Restricts MCP server access to specific directories for security
+- If not set, all paths are allowed (backwards compatibility)
+- Example: `export MUSIC_ALLOWED_PATHS=/Users/username/Music,/Volumes/Music`
+
+## Configuration Examples
+
+### Basic Setup
+```bash
+# Set logging level
+export RUST_LOG=info
+
+# Set default library path
+export MUSIC_LIBRARY_PATH=/Users/username/Music
+
+# Run the MCP server
+musicctl-mcp
+```
+
+### Security-Restricted Setup
+```bash
+# Enable debug logging
+export RUST_LOG=debug
+
+# Restrict access to specific directories
+export MUSIC_ALLOWED_PATHS=/Users/username/Music,/Volumes/Music,/Backup/Music
+
+# Set longer timeout for large libraries
+export MUSIC_SCAN_TIMEOUT=600
+
+# Run with security restrictions
+musicctl-mcp
+```
+
+### MCP Client Configuration with Environment Variables
+
+Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "musicctl-mcp",
+      "args": [],
+      "env": {
+        "RUST_LOG": "info",
+        "MUSIC_LIBRARY_PATH": "/Users/username/Music",
+        "MUSIC_ALLOWED_PATHS": "/Users/username/Music,/Volumes/Music"
+      }
+    }
+  }
+}
+```
+
+OpenCode:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "music-chore": {
+      "type": "local",
+      "command": ["musicctl-mcp"],
+      "env": {
+        "RUST_LOG": "debug",
+        "MUSIC_ALLOWED_PATHS": "/Users/music"
+      }
+    }
+  }
+}
+```
 
 ## Performance Considerations
 
@@ -620,6 +643,19 @@ The MCP server operates with the same permissions as the user running it:
 - No network access (air-gapped operation)
 - No external dependencies or services
 - All operations are deterministic and reproducible
+
+### Path Security
+
+When `MUSIC_ALLOWED_PATHS` is configured, the server validates all file operations:
+- All tool parameters that reference paths are validated against allowed paths
+- Attempts to access paths outside allowed directories are blocked
+- Returns descriptive error messages for blocked access
+
+**Security Best Practices:**
+1. Always set `MUSIC_ALLOWED_PATHS` in production environments
+2. Use specific paths rather than broad parent directories
+3. Consider using absolute paths to avoid ambiguity
+4. Test path restrictions before deploying in sensitive environments
 
 ## Development
 

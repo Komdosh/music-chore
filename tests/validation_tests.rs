@@ -86,7 +86,7 @@ fn test_validate_missing_metadata() {
 
 #[test]
 fn test_validate_unusual_values() {
-    let tracks = vec![crate::Track {
+    let tracks = vec![Track {
         file_path: PathBuf::from("/test/unusual.flac"),
         checksum: None,
         metadata: TrackMetadata {

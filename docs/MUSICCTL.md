@@ -485,7 +485,7 @@ FILE "01. Track One.flac" WAVE
 
 ```
 Cue File: /music/Album/Album.cue
-  Performer: Kai Engel
+  Performer: Super Artist
   Title: Meanings
   Files:
     - 01. A New Journey Begins.flac
@@ -498,7 +498,7 @@ Cue File: /music/Album/Album.cue
 **Output Examples (Parse JSON):**
 ```json
 {
-  "performer": "Kai Engel",
+  "performer": "Super Artist",
   "title": "Meanings",
   "genre": "Ambient",
   "date": "2024",
@@ -510,7 +510,7 @@ Cue File: /music/Album/Album.cue
     {
       "number": 1,
       "title": "A New Journey Begins",
-      "performer": "Kai Engel",
+      "performer": "Super Artist",
       "index": "00:00:00",
       "file": "01. A New Journey Begins.flac"
     }
