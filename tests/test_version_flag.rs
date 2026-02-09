@@ -10,7 +10,7 @@ fn test_version_flag_short() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     assert!(stdout.starts_with("musicctl "));
-    assert!(stdout.contains("0.3."));
+    assert!(stdout.contains("0.4."));
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn test_version_flag_long() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     assert!(stdout.starts_with("musicctl "));
-    assert!(stdout.contains("0.3."));
+    assert!(stdout.contains("0.4."));
 }
 
 #[test]

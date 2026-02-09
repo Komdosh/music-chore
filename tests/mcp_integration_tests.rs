@@ -84,7 +84,7 @@ async fn test_server_initialization() -> Result<()> {
 
     let info = client.peer_info().expect("No peer info");
     assert_eq!(info.server_info.name, "music-chore");
-    assert!(info.server_info.version.starts_with("0.3."));
+    assert!(info.server_info.version.starts_with("0.4."));
 
     shutdown(client).await
 }
@@ -830,7 +830,7 @@ fn test_binary_version() {
     let stdout = String::from_utf8(output.stdout).unwrap();
 
     assert!(stdout.starts_with("musicctl-mcp "));
-    assert!(stdout.contains("0.3."));
+    assert!(stdout.contains("0.4."));
 }
 
 /* -------------------------- CUE file tests ------------------------- */

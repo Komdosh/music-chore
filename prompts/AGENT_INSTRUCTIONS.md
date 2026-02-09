@@ -102,7 +102,7 @@ Based on current project state and APP_SPEC.md:
 - Identify next logical feature to implement
 - Select exactly ONE feature for this session
 
-Current implementation status (as of v0.3.2):
+Current implementation status (as of v0.4.0):
 ✅ Multi-format support (FLAC, MP3, WAV, DSF, WavPack)
 ✅ Complete CLI (scan, tree, read, write, normalize, emit, validate, duplicates, cue)
 ✅ MCP server with 8 tools and 18 expert prompts
