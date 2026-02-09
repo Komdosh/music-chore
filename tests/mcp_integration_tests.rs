@@ -1016,7 +1016,7 @@ FILE "audio.flac" WAVE
 
     let text = text_content(&result);
     assert!(text.contains("Error parsing cue file"));
-    assert!(text.contains("Malformed PERFORMER line"));
+    assert!(text.contains("Malformed PERFORMER at line"));
 
     shutdown(client).await
 }
