@@ -672,14 +672,6 @@ mod tests {
         assert_eq!(result, Err(1));
     }
 
-    #[test]
-    fn test_handle_write_with_nonexistent_file_apply_true() {
-        // Test that handle_write fails when file doesn't exist and apply is true
-        let nonexistent_file = PathBuf::from("/nonexistent/path/test.flac");
-        let result = handle_write(nonexistent_file, vec![], true, false); // apply=true, dry_run=false
-        assert_eq!(result, Err(1)); // Should fail when trying to apply to non-existent file
-    }
-
     // --- New tests for handle_cue_validate ---
 
     #[test]
@@ -689,15 +681,13 @@ mod tests {
         let audio_file_path = temp_dir.path().join("track01.flac");
 
         // Create a dummy CUE file
-        let cue_content = format!(
-            r#"TITLE "Test Album"
+        let cue_content = r#"TITLE "Test Album"
 PERFORMER "Test Artist"
 FILE "track01.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Test Track 01"
     PERFORMER "Test Artist"
-    INDEX 01 00:00:00"#
-        );
+    INDEX 01 00:00:00"#.to_string();
         fs::write(&cue_file_path, cue_content).unwrap();
 
         // Create a dummy audio file

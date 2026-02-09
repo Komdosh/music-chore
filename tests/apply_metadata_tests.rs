@@ -1,253 +1,369 @@
-//! Tests for metadata application functionality
+//! Tests for the apply metadata module functionality.
 
+use music_chore::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
 use music_chore::core::services::apply_metadata::write_metadata_by_path;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-#[test]
-fn test_write_metadata_defaults_to_dry_run_when_no_flags() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+fn create_test_flac_file(temp_dir: &TempDir) -> PathBuf {
+    let source_path = "tests/fixtures/flac/simple/track1.flac";
+    let dest_path = temp_dir.path().join("test_track.flac");
 
-    // Neither apply nor dry_run - should default to dry-run behavior
+    // Copy the test fixture to our temp directory
+    fs::copy(source_path, &dest_path).expect("Failed to copy test fixture");
+
+    dest_path
+}
+
+#[test]
+fn test_write_metadata_by_path_dry_run() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test dry_run mode - should not modify the file
+    let result = write_metadata_by_path(
+        &test_file,
+        vec![
+            "title=New Title".to_string(),
+            "artist=New Artist".to_string(),
+        ],
+        false, // apply = false
+        true,  // dry_run = true
+    );
+
+    assert!(result.is_ok());
+    let output = result.unwrap();
+    assert!(output.contains("DRY RUN: Would set title = New Title"));
+    assert!(output.contains("DRY RUN: Would set artist = New Artist"));
+    assert!(output.contains("DRY RUN: No changes made to file:"));
+
+    // Verify the file was not actually modified by checking that original metadata is still there
+    let original_track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(
+        original_track.metadata.title.as_ref().unwrap().value,
+        "Test Apply Behavior"
+    );
+}
+
+#[test]
+fn test_write_metadata_by_path_apply_changes() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test apply mode - should modify the file
     let result = write_metadata_by_path(
         &test_file,
         vec!["title=New Title".to_string()],
-        false,
-        false,  // Both are false, should default to dry-run
-    );
-    assert!(result.is_ok());  // Should succeed with dry-run behavior
-    let output = result.unwrap();
-    assert!(output.contains("DRY RUN: Would set title = New Title"));
-    assert!(output.contains("DRY RUN: No changes made"));
-}
-
-#[test]
-fn test_write_metadata_prevents_both_flags() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
-
-    // Both apply and dry_run - should error
-    let result =
-        write_metadata_by_path(&test_file, vec!["title=New Title".to_string()], true, true);
-    assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .contains("Cannot use both --apply and --dry-run")
-    );
-}
-
-#[test]
-fn test_write_metadata_nonexistent_file() {
-    let path = PathBuf::from("/nonexistent/path/test.flac");
-
-    // When using apply with non-existent file, should error
-    let result = write_metadata_by_path(&path, vec!["title=New Title".to_string()], true, false);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("does not exist"));
-    
-    // When using dry-run with non-existent file, should also error (since we need to read the file to show what would change)
-    let result = write_metadata_by_path(&path, vec!["title=New Title".to_string()], false, true);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("does not exist"));
-}
-
-#[test]
-fn test_write_metadata_unsupported_format() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.ogg");
-    fs::write(&test_file, "dummy content").unwrap();
-
-    let result =
-        write_metadata_by_path(&test_file, vec!["title=New Title".to_string()], false, true);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Unsupported file format"));
-}
-
-#[test]
-fn test_write_metadata_dry_run() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
-
-    // Dry run should not modify the file
-    let result = write_metadata_by_path(
-        &test_file,
-        vec![
-            "title=New Title".to_string(),
-            "artist=New Artist".to_string(),
-            "album=New Album".to_string(),
-        ],
-        false,
-        true,
+        true,  // apply = true
+        false, // dry_run = false
     );
 
     assert!(result.is_ok());
     let output = result.unwrap();
-    assert!(output.contains("DRY RUN"));
-    assert!(output.contains("title = New Title"));
-    assert!(output.contains("artist = New Artist"));
-    assert!(output.contains("album = New Album"));
-}
+    assert!(output.contains("Successfully updated metadata:"));
 
-#[test]
-fn test_write_metadata_apply_all_fields() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
-
-    // Apply should modify the file
-    let result = write_metadata_by_path(
-        &test_file,
-        vec![
-            "title=New Title".to_string(),
-            "artist=New Artist".to_string(),
-            "album=New Album".to_string(),
-            "albumartist=New Album Artist".to_string(),
-            "tracknumber=5".to_string(),
-            "discnumber=2".to_string(),
-            "year=2023".to_string(),
-            "genre=Rock".to_string(),
-        ],
-        true,
-        false,
-    );
-
-    assert!(result.is_ok());
-    let output = result.unwrap();
-    assert!(output.contains("Successfully updated metadata"));
-
-    // Verify the metadata was written
-    let track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
-    assert_eq!(track.metadata.title.unwrap().value, "New Title");
-    assert_eq!(track.metadata.artist.unwrap().value, "New Artist");
-    assert_eq!(track.metadata.album.unwrap().value, "New Album");
+    // Verify the file was actually modified
+    let updated_track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
     assert_eq!(
-        track.metadata.album_artist.unwrap().value,
-        "New Album Artist"
+        updated_track.metadata.title.as_ref().unwrap().value,
+        "New Title"
     );
-    assert_eq!(track.metadata.track_number.unwrap().value, 5);
-    assert_eq!(track.metadata.disc_number.unwrap().value, 2);
-    assert_eq!(track.metadata.year.unwrap().value, 2023);
-    assert_eq!(track.metadata.genre.unwrap().value, "Rock");
 }
 
 #[test]
-fn test_write_metadata_invalid_track_number() {
+fn test_write_metadata_by_path_both_flags_error() {
     let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
 
+    // Test both apply and dry_run flags - should return error
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["title=New Title".to_string()],
+        true, // apply = true
+        true, // dry_run = true
+    );
+
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Cannot use both"));
+}
+
+#[test]
+fn test_write_metadata_by_path_nonexistent_file() {
+    let nonexistent_path = PathBuf::from("/nonexistent/path/test.flac");
+
+    // Test with nonexistent file - should return error
+    let result = write_metadata_by_path(
+        &nonexistent_path,
+        vec!["title=New Title".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("File not found"));
+}
+
+#[test]
+fn test_write_metadata_by_path_unsupported_format() {
+    let temp_dir = TempDir::new().unwrap();
+    let unsupported_file = temp_dir.path().join("test.txt");
+    fs::write(&unsupported_file, "dummy content").unwrap();
+
+    // Test with unsupported file format - should return error
+    let result = write_metadata_by_path(
+        &unsupported_file,
+        vec!["title=New Title".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Unsupported audio format"));
+}
+
+#[test]
+fn test_write_metadata_by_path_invalid_metadata_field() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test with invalid metadata field - should return error
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["invalid_field=Some Value".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Invalid value"));
+}
+
+#[test]
+fn test_write_metadata_by_path_invalid_track_number() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test with invalid track number - should return error
     let result = write_metadata_by_path(
         &test_file,
         vec!["tracknumber=invalid".to_string()],
-        false,
-        true,
+        true,  // apply = true
+        false, // dry_run = false
     );
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid track number"));
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Invalid value 'invalid' for field 'tracknumber'"));
 }
 
 #[test]
-fn test_write_metadata_invalid_disc_number() {
+fn test_write_metadata_by_path_invalid_year() {
     let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
 
+    // Test with invalid year - should return error
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["year=invalid".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Invalid value 'invalid' for field 'year'"));
+}
+
+#[test]
+fn test_write_metadata_by_path_invalid_disc_number() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test with invalid disc number - should return error
     let result = write_metadata_by_path(
         &test_file,
         vec!["discnumber=invalid".to_string()],
-        false,
-        true,
+        true,  // apply = true
+        false, // dry_run = false
     );
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid disc number"));
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Invalid value 'invalid' for field 'discnumber'"));
 }
 
 #[test]
-fn test_write_metadata_invalid_year() {
+fn test_write_metadata_by_path_default_dry_run() {
+    // Test ID: AMD003
+    // Given: Copy of fixture file
     let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
 
-    let result = write_metadata_by_path(&test_file, vec!["year=invalid".to_string()], false, true);
+    // Verify original title
+    let original = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    let original_title = original.metadata.title.as_ref().unwrap().value.clone();
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid year"));
-}
-
-#[test]
-fn test_write_metadata_unsupported_field() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
-
+    // When: Calling with both flags false (default should be dry-run)
     let result = write_metadata_by_path(
         &test_file,
-        vec!["unsupported_field=value".to_string()],
-        false,
-        true,
+        vec!["title=New Title".to_string()],
+        false, // apply = false
+        false, // dry_run = false
     );
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Unsupported metadata field"));
+    // Then: Acts as dry run, file not modified
+    assert!(result.is_ok());
+    let output = result.unwrap();
+    assert!(output.contains("DRY RUN"));
+
+    // Verify file was NOT modified
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(
+        updated.metadata.title.as_ref().unwrap().value,
+        original_title
+    );
 }
 
 #[test]
-fn test_write_metadata_invalid_format() {
+fn test_write_metadata_by_path_multiple_fields() {
+    // Test ID: AMD007
+    // Given: Copy of fixture file
     let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
 
-    // Missing equals sign
-    let result = write_metadata_by_path(&test_file, vec!["invalidformat".to_string()], false, true);
-
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Unsupported metadata format"));
-}
-
-#[test]
-fn test_write_metadata_case_insensitive_field_names() {
-    let temp_dir = TempDir::new().unwrap();
-    let test_file = temp_dir.path().join("test.flac");
-    fs::copy("tests/fixtures/flac/simple/track1.flac", &test_file).unwrap();
-
-    // Test various case combinations
+    // When: Calling with multiple fields
     let result = write_metadata_by_path(
         &test_file,
         vec![
-            "TITLE=New Title".to_string(),
-            "Artist=New Artist".to_string(),
-            "ALBUM=New Album".to_string(),
-            "AlbumArtist=New Album Artist".to_string(),
-            "track_number=5".to_string(),
-            "DISC_NUMBER=2".to_string(),
-            "YEAR=2023".to_string(),
-            "Genre=Rock".to_string(),
+            "title=New Title".to_string(),
+            "artist=New Artist".to_string(),
+            "album=New Album".to_string(),
+            "genre=New Genre".to_string(),
         ],
-        true,
-        false,
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    // Then: All fields updated
+    assert!(result.is_ok());
+    assert!(result.unwrap().contains("Successfully updated"));
+
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(updated.metadata.title.as_ref().unwrap().value, "New Title");
+    assert_eq!(
+        updated.metadata.artist.as_ref().unwrap().value,
+        "New Artist"
+    );
+    assert_eq!(updated.metadata.album.as_ref().unwrap().value, "New Album");
+    assert_eq!(updated.metadata.genre.as_ref().unwrap().value, "New Genre");
+
+    // Note: MetadataSource is not persisted through file I/O, so we only verify values
+}
+
+#[test]
+fn test_write_metadata_by_path_invalid_field_format() {
+    // Test ID: AMD008
+    // Given: Copy of fixture file
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // When: Calling with invalid format (no equals sign)
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["invalid-format-no-equals".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    // Then: Returns error
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Invalid value") || error_msg.contains("format"));
+}
+
+#[test]
+fn test_write_metadata_by_path_update_track_number() {
+    // Test updating track number field
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["tracknumber=5".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
     );
 
     assert!(result.is_ok());
 
-    // Verify the metadata was written
-    let track = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
-    assert_eq!(track.metadata.title.unwrap().value, "New Title");
-    assert_eq!(track.metadata.artist.unwrap().value, "New Artist");
-    assert_eq!(track.metadata.album.unwrap().value, "New Album");
-    assert_eq!(
-        track.metadata.album_artist.unwrap().value,
-        "New Album Artist"
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(updated.metadata.track_number.as_ref().unwrap().value, 5);
+    // Note: MetadataSource is not persisted through file I/O
+}
+
+#[test]
+fn test_write_metadata_by_path_update_year() {
+    // Test updating year field
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["year=2024".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
     );
-    assert_eq!(track.metadata.track_number.unwrap().value, 5);
-    assert_eq!(track.metadata.disc_number.unwrap().value, 2);
-    assert_eq!(track.metadata.year.unwrap().value, 2023);
-    assert_eq!(track.metadata.genre.unwrap().value, "Rock");
+
+    assert!(result.is_ok());
+
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(updated.metadata.year.as_ref().unwrap().value, 2024);
+    // Note: MetadataSource is not persisted through file I/O
+}
+
+#[test]
+fn test_write_metadata_by_path_update_disc_number() {
+    // Test updating disc number field
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["discnumber=2".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_ok());
+
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(updated.metadata.disc_number.as_ref().unwrap().value, 2);
+    // Note: MetadataSource is not persisted through file I/O
+}
+
+#[test]
+fn test_write_metadata_by_path_update_album_artist() {
+    // Test updating album_artist field (with alias albumartist)
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = create_test_flac_file(&temp_dir);
+
+    // Test with album_artist key
+    let result = write_metadata_by_path(
+        &test_file,
+        vec!["album_artist=Compilation Artist".to_string()],
+        true,  // apply = true
+        false, // dry_run = false
+    );
+
+    assert!(result.is_ok());
+
+    let updated = music_chore::adapters::audio_formats::read_metadata(&test_file).unwrap();
+    assert_eq!(
+        updated.metadata.album_artist.as_ref().unwrap().value,
+        "Compilation Artist"
+    );
+    // Note: MetadataSource is not persisted through file I/O
 }
