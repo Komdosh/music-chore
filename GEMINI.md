@@ -24,6 +24,7 @@ The project is built with AI agents in mind, offering a robust and automatable s
 
 *   **Primary Language:** Rust
 *   **Build System:** Cargo (Rust's package manager and build system)
+*   **Key Libraries:** `rmcp` (MCP support), `lofty` (metadata), `serde` (serialization), `clap` (CLI).
 
 ## Architecture Highlights
 
@@ -33,9 +34,14 @@ The project follows a modular architecture, organized within the `src/` director
 *   `src/adapters/audio_formats/`: Contains format-specific handlers for different audio file types, adhering to an `AudioFile` trait for extensibility.
 *   `src/core/services/`: Implements the main business logic and operations (e.g., scanning, normalization, validation).
 *   `src/presentation/cli/`: Handles the command-line interface parsing and command execution for `musicctl`.
-*   `src/mcp/`: Houses the implementation for the Model Context Protocol (MCP) server (`musicctl-mcp`), exposing the project's capabilities to AI agents.
+*   `src/mcp/`: Houses the implementation for the Model Context Protocol (MCP) server (`musicctl-mcp`).
+    *   `music_chore_server.rs`: Server entry point and handler routing.
+    *   `music_chore_server_impl.rs`: Core implementation of MCP tools and prompt logic.
+    *   `prompts.rs`: Natural language prompt templates for AI agents.
+    *   `cue_helper_methods.rs`: Specialized handlers for CUE-related tool operations.
+    *   `config.rs`: Environment-based configuration and security path validation.
 
-This design promotes separation of concerns and allows for easy extension, particularly for adding support for new audio formats.
+This design promotes separation of concerns and allows for easy extension, particularly for adding support for new audio formats or specialized AI prompts.
 
 ## Building and Running
 
@@ -92,7 +98,7 @@ The MCP server allows AI agents to interact with `music-chore` programmatically.
 ./target/debug/musicctl-mcp
 ```
 
-Refer to the `README.md` for specific integration instructions with AI platforms like Claude Desktop.
+Refer to the `README.md` for specific integration instructions with AI platforms like Claude Desktop, Gemini CLI, or Qwen.
 
 ## Testing
 
@@ -106,6 +112,12 @@ The project includes a comprehensive suite of unit and integration tests.
     ```bash
     cargo test test_name
     ```
+
+Recent updates have significantly expanded test coverage for:
+*   MCP tool handlers and prompt generation.
+*   Security path validation and environment configuration.
+*   CUE file generation, parsing, and validation logic.
+*   Core logging utilities.
 
 ## Development Conventions and Quality Checks
 

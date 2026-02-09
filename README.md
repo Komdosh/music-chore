@@ -94,9 +94,14 @@ musicctl cue --validate /path/to/album.cue
 
 ### Dry Run Mode
 
-```bash
-# See what would change (no modifications)
+By default, operations that modify files (like `normalize` and `write`) run in **dry-run mode**. They will show you what *would* happen without making any changes.
 
+```bash
+# Preview normalization (dry run)
+musicctl normalize ~/Music
+
+# Apply changes (actual modification)
+musicctl normalize ~/Music --apply
 ```
 
 ### Advanced Examples
@@ -135,7 +140,7 @@ Use the `--verbose` flag with commands to get more detailed output and debugging
 
 ## 🤖 MCP Server
 
-AI agents can integrate directly with music-chore via MCP (Model Context Protocol).
+AI agents can integrate directly with `music-chore` via MCP (Model Context Protocol).
 
 ### Setup
 
@@ -190,6 +195,13 @@ musicctl-mcp
 | `find_duplicates` | Detect duplicate files |
 | `cue_file` | Generate/parse/validate CUE sheets |
 
+### Expert Prompts (18 total)
+
+The MCP server provides specialized prompts for deep library analysis:
+- **Analysis**: `top-tracks-analysis`, `genre-breakdown`, `decade-analysis`, `collection-story`, `artist-deep-dive`.
+- **Discovery**: `instrument-to-learn`, `similar-artists-discovery`, `mood-playlist`, `hidden-gems`, `album-marathon`, `concert-setlist`.
+- **Maintenance**: `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `reorganization-plan`, `format-quality-audit`, `year-in-review`, `cue-sheet-assistant`.
+
 ---
 
 ## 🏗️ Architecture
@@ -197,18 +209,20 @@ musicctl-mcp
 ```
 music-chore/
 ├── src/
-│   ├── domain/           # Core models (Artist, Album, Track)
-│   ├── infrastructure/    # Scanner, format handlers
-│   ├── services/         # Business logic & operations
-│   ├── cli/              # Command-line interface
-│   └── mcp/             # MCP server integration
+│   ├── core/             # Business logic & domain entities
+│   │   ├── domain/       # Core models (Artist, Album, Track)
+│   │   ├── services/     # Operation implementations
+│   │   └── logging.rs    # Centralized logging
+│   ├── adapters/         # Audio format handlers (AudioFile trait)
+│   ├── presentation/     # CLI parser and commands
+│   └── mcp/              # MCP server & expert AI prompts
 ├── tests/
 │   ├── fixtures/         # Test audio files
-│   └── integration/     # Integration tests
+│   └── integration/      # Integration tests
 └── Cargo.toml
 ```
 
-**Extensible Design:** Add new audio formats by implementing the `AudioFile` trait.
+**Extensible Design:** Add new audio formats by implementing the `AudioFile` trait in `src/adapters/audio_formats/`.
 
 ---
 
@@ -221,7 +235,7 @@ cargo build
 # Build release version
 cargo build --release
 
-# Run all tests (165+ tests)
+# Run all tests (640+ tests)
 cargo test
 
 # Run specific test
