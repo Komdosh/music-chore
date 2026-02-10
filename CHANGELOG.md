@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-02-10
+
+### Changed
+- **MCP Server**: Wrapped `scan_directory` tool response in a structured JSON object (`{"tracks": [...]}`) for more consistent client-side handling.
+- **Scanner**: Reduced log noise by changing several non-critical errors (invalid glob patterns, CUE parsing failures, invalid files) from error to debug level.
+
 ## [0.4.3] - 2026-02-10
 
 ### Added
