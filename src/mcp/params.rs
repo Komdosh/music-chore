@@ -37,6 +37,7 @@ pub struct ValidateLibraryParams {
 pub struct FindDuplicatesParams {
     pub(crate) path: Option<String>,
     pub(crate) json_output: Option<bool>,
+    pub(crate) verbose: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

@@ -334,12 +334,15 @@ pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, String> {
 }
 
 /// Scan for tracks and detect duplicates by checksum.
-pub fn scan_with_duplicates(base: &Path) -> (Vec<Track>, Vec<Vec<Track>>) {
+pub fn scan_with_duplicates(base: &Path, verbose: bool) -> (Vec<Track>, Vec<Vec<Track>>) {
     let tracks = scan_dir(base, false);
     let mut by_checksum: HashMap<String, Vec<Track>> = HashMap::new();
     let mut all = Vec::with_capacity(tracks.len());
 
     for mut track in tracks {
+        if verbose {                                                                                                             │
+            println!("Scanning {}...", track.file_path.display());                                                               │
+        }
         match track.calculate_checksum() {
             Ok(cs) => {
                 track.checksum = Some(cs.clone());

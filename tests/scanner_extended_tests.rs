@@ -45,7 +45,7 @@ fn test_scan_with_duplicates_no_duplicates() {
     )
     .unwrap();
 
-    let (tracks, duplicates) = scan_with_duplicates(source_path);
+    let (tracks, duplicates) = scan_with_duplicates(source_path, false);
 
     assert_eq!(tracks.len(), 2);
     assert_eq!(duplicates.len(), 0);
@@ -75,7 +75,7 @@ fn test_scan_with_duplicates_with_duplicates() {
     )
     .unwrap();
 
-    let (tracks, duplicates) = scan_with_duplicates(source_path);
+    let (tracks, duplicates) = scan_with_duplicates(source_path, false);
 
     assert_eq!(tracks.len(), 2);
     assert_eq!(duplicates.len(), 1);
@@ -153,7 +153,7 @@ fn test_scan_with_duplicates_mixed_formats() {
     )
     .unwrap();
 
-    let (tracks, duplicates) = scan_with_duplicates(source_path);
+    let (tracks, duplicates) = scan_with_duplicates(source_path, false);
 
     assert_eq!(tracks.len(), 3);
     assert_eq!(duplicates.len(), 0);

@@ -764,6 +764,24 @@ async fn test_find_duplicates() -> Result<()> {
     assert!(text.contains("Duplicate Group 1"));
     assert!(text.contains("track1.flac") || text.contains("track2.flac"));
 
+    // Test with verbose output
+    let result = call_tool(
+        &client,
+        "find_duplicates",
+        object!({
+            "path": "tests/fixtures/duplicates",
+            "json_output": false,
+            "verbose": true
+        }),
+    )
+    .await?;
+
+    assert_ok(&result);
+
+    let text = text_content(&result);
+    assert!(text.contains("Duplicate Group 1"));
+    assert!(text.contains("sha256:"));
+
     // Test JSON output
     let result = call_tool(
         &client,

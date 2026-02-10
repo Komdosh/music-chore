@@ -131,5 +131,8 @@ pub enum Commands {
         /// Output JSON instead of human-readable format.
         #[arg(long)]
         json: bool,
+        /// Show more detailed information about duplicates.
+        #[arg(long, short)]
+        verbose: bool,
     },
 }

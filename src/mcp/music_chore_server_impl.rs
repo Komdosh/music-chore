@@ -286,7 +286,8 @@ impl MusicChoreServer {
         };
 
         let json_output = params.0.json_output.unwrap_or(false);
-        match find_duplicates(&path, json_output) {
+        let verbose = params.0.verbose.unwrap_or(false);
+        match find_duplicates(&path, json_output, verbose) {
             Ok(result) => Ok(CallToolResult::success_text(result)),
             Err(result) => Ok(CallToolResult::error_text(result)),
         }
