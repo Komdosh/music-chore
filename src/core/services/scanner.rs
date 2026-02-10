@@ -346,7 +346,7 @@ pub fn scan_with_duplicates(
             .build_global();
     }
 
-    let tracks = scan_dir(base, false);
+    let tracks = scan_dir(base, true);
 
     let all: Vec<Track> = tracks
         .into_par_iter()
@@ -365,6 +365,9 @@ pub fn scan_with_duplicates(
                         e,
                     );
                 }
+            }
+            if verbose {
+                eprintln!("Scanning {}...", track.file_path.display());
             }
             track
         })
