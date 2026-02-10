@@ -6,8 +6,9 @@ use crate::mcp::params::{
 
 use crate::adapters::audio_formats::read_metadata;
 use crate::build_library_hierarchy;
+use crate::core::services::cue::format_cue_validation_result;
 use crate::core::services::duplicates::find_duplicates;
-use crate::core::services::format_tree::emit_by_path;
+use crate::core::services::format_tree::{emit_by_path, format_library_output};
 use crate::core::services::normalization::normalize_and_format;
 use crate::core::services::scanner::{
     format_track_name_for_scan_output, scan_dir, scan_dir_with_options,
@@ -35,13 +36,17 @@ use rmcp::{
     model::{CallToolResult, GetPromptResult, PromptMessage, PromptMessageRole},
     prompt, prompt_router, tool, tool_router,
 };
+use serde_json::to_string_pretty;
 use std::path::PathBuf;
 // ─── Helper traits & functions ───────────────────────────────────────────────
 
 /// Serialize `value` to pretty JSON, mapping errors to `McpError`.
-pub(crate) fn to_json_pretty<T: serde::Serialize>(value: &T) -> Result<String, McpError> {
-    serde_json::to_string_pretty(value)
-        .map_err(|e| McpError::invalid_params(format!("JSON serialization error: {e}"), None))
+pub(crate) fn to_json_call_response<T: serde::Serialize>(
+    value: &T,
+) -> Result<CallToolResult, McpError> {
+    serde_json::to_value(value)
+        .map(|v| CallToolResult::structured(v))
+        .map_err(|e| McpError::internal_error(format!("{e}"), None))
 }
 
 /// Build a single-message `GetPromptResult` addressed to the user.
@@ -165,12 +170,7 @@ impl MusicChoreServer {
         }
 
         if json_output {
-            match serde_json::to_string_pretty(&tracks) {
-                Ok(s) => Ok(CallToolResult::success_text(s)),
-                Err(e) => Ok(CallToolResult::error_text(format!(
-                    "Error serializing to JSON: {e}"
-                ))),
-            }
+            to_json_call_response(&tracks)
         } else {
             let out: String = tracks
                 .iter()
@@ -191,6 +191,7 @@ impl MusicChoreServer {
         &self,
         params: Parameters<GetLibraryTreeParams>,
     ) -> Result<CallToolResult, McpError> {
+        let json_output = params.0.json_output.unwrap_or(false);
         let path = match self.resolve_path_for_tool(params.0.path) {
             Ok(p) => p,
             Err(e) => return Ok(e),
@@ -198,9 +199,14 @@ impl MusicChoreServer {
 
         let tracks = scan_dir(&path, false);
         let library = build_library_hierarchy(tracks);
-        let result = to_json_pretty(&library)?;
 
-        Ok(CallToolResult::success_text(result))
+        if json_output {
+            to_json_call_response(&library)
+        } else {
+            Ok(CallToolResult::success_text(format_library_output(
+                &library,
+            )))
+        }
     }
 
     #[tool(description = "Read metadata from a single music file")]
@@ -208,6 +214,7 @@ impl MusicChoreServer {
         &self,
         params: Parameters<ReadFileMetadataParams>,
     ) -> Result<CallToolResult, McpError> {
+        let json_output = params.0.json_output.unwrap_or(false);
         let file = match self.resolve_path_for_tool(params.0.path) {
             Ok(p) => p,
             Err(e) => return Ok(e),
@@ -215,8 +222,14 @@ impl MusicChoreServer {
 
         match read_metadata(&file) {
             Ok(track) => {
-                let result = to_json_pretty(&track)?;
-                Ok(CallToolResult::success_text(result))
+                if json_output {
+                    to_json_call_response(&track)
+                } else {
+                    Ok(CallToolResult::success_text(
+                        to_string_pretty(&track)
+                            .unwrap_or("Fail to read_metadata".parse().unwrap()),
+                    ))
+                }
             }
             Err(e) => Ok(CallToolResult::error_text(format!(
                 "Error reading metadata: {e}"
@@ -650,9 +663,14 @@ mod tests {
             name: "test".to_string(),
             value: 123,
         };
-        let json = to_json_pretty(&test).unwrap();
-        assert!(json.contains("\"name\": \"test\""));
-        assert!(json.contains("\"value\": 123"));
+        let answer = to_json_call_response(&test).unwrap();
+
+        let json = &answer.content.get(0).unwrap().as_text().unwrap().text;
+        assert_eq!(
+            "{\"name\":\"test\",\"value\":123}", json,
+            "Expected \"name\":\"test\",\"value\":123\", but was: {}",
+            json
+        );
     }
 
     #[test]

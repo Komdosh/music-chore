@@ -7,6 +7,8 @@ pub struct SchemaVersionWrapper<T> {
     /// Schema version for this API
     #[serde(rename = "__schema_version")]
     pub schema_version: String,
+    #[serde(rename = "$schema")]
+    pub schema: String,
     /// The actual data
     #[serde(flatten)]
     pub data: T,
@@ -17,6 +19,7 @@ impl<T> SchemaVersionWrapper<T> {
     pub fn new(data: T) -> Self {
         Self {
             schema_version: "1.0.0".to_string(),
+            schema: "https://json-schema.org/draft/2020-12/schema".to_string(),
             data,
         }
     }
@@ -37,6 +40,10 @@ mod tests {
         let wrapper = SchemaVersionWrapper::new(data.clone());
 
         assert_eq!(wrapper.schema_version, "1.0.0");
+        assert_eq!(
+            wrapper.schema,
+            "https://json-schema.org/draft/2020-12/schema"
+        );
         assert_eq!(wrapper.data, data);
     }
 
@@ -46,6 +53,10 @@ mod tests {
         let wrapper = with_schema_version(data);
 
         assert_eq!(wrapper.schema_version, "1.0.0");
+        assert_eq!(
+            wrapper.schema,
+            "https://json-schema.org/draft/2020-12/schema"
+        );
         assert_eq!(wrapper.data, data);
     }
 
@@ -67,17 +78,25 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(parsed["__schema_version"], "1.0.0");
+        assert_eq!(
+            parsed["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
         assert_eq!(parsed["field1"], "value1");
         assert_eq!(parsed["field2"], 42);
     }
 
     #[test]
     fn test_schema_version_deserialization() {
-        let json_str = r#"{"__schema_version": "1.0.0", "name": "Test Album"}"#;
+        let json_str = r#"{"__schema_version": "1.0.0", "$schema": "https://json-schema.org/draft/2020-12/schema", "name": "Test Album"}"#;
         let parsed: SchemaVersionWrapper<serde_json::Value> =
             serde_json::from_str(json_str).unwrap();
 
         assert_eq!(parsed.schema_version, "1.0.0");
+        assert_eq!(
+            parsed.schema,
+            "https://json-schema.org/draft/2020-12/schema"
+        );
         assert_eq!(parsed.data["name"], "Test Album");
     }
 
@@ -96,6 +115,10 @@ mod tests {
         let wrapper = with_schema_version(data);
 
         assert_eq!(wrapper.schema_version, "1.0.0");
+        assert_eq!(
+            wrapper.schema,
+            "https://json-schema.org/draft/2020-12/schema"
+        );
         assert_eq!(wrapper.data.id, 123);
         assert_eq!(wrapper.data.name, "Test");
     }

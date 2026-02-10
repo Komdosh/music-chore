@@ -3,7 +3,9 @@ use crate::core::services::cue::{
     parse_cue_file, validate_cue_consistency,
 };
 use crate::mcp::call_tool_result::CallToolResultExt;
+use crate::mcp::music_chore_server_impl::to_json_call_response;
 use rmcp::{ErrorData as McpError, model::CallToolResult};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 pub(crate) async fn handle_cue_generate(
@@ -56,8 +58,7 @@ pub(crate) async fn handle_cue_parse(
     match parse_cue_file(path) {
         Ok(cue_file) => {
             if json_output {
-                let result = crate::mcp::music_chore_server_impl::to_json_pretty(&cue_file)?;
-                Ok(CallToolResult::success_text(result))
+                to_json_call_response(&cue_file)
             } else {
                 let mut output = format!("Cue File: {}\n", path.display());
                 if let Some(performer) = &cue_file.performer {
@@ -124,24 +125,27 @@ pub(crate) async fn handle_cue_validate(
                 file_missing: true,
                 ..Default::default()
             };
-            let result_str = if json_output {
-                crate::mcp::music_chore_server_impl::to_json_pretty(&result)?
+            let res = if json_output {
+                to_json_call_response(&result)
             } else {
-                format_cue_validation_result(&result)
+                Ok(CallToolResult::success_text(format_cue_validation_result(
+                    &result,
+                )))
             };
-            return Ok(CallToolResult::success_text(result_str));
+            return res;
         }
     };
 
     let audio_files_refs: Vec<&Path> = audio_files.iter().map(|p| p.as_path()).collect();
     let result = validate_cue_consistency(path, &audio_files_refs);
 
-    let output = if json_output {
-        crate::mcp::music_chore_server_impl::to_json_pretty(&result)?
+    if json_output {
+        to_json_call_response(&result)
     } else {
-        format_cue_validation_result(&result)
-    };
-    Ok(CallToolResult::success_text(output))
+        Ok(CallToolResult::success_text(format_cue_validation_result(
+            &result,
+        )))
+    }
 }
 
 #[cfg(test)]

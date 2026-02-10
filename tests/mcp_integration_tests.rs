@@ -178,7 +178,7 @@ async fn test_get_library_tree() -> Result<()> {
         "get_library_tree",
         object!({
             "path": "tests/fixtures/flac/nested",
-            "json_output": false
+            "json_output": true
         }),
     )
     .await?;

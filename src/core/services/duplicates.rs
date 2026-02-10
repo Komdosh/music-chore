@@ -43,16 +43,41 @@ pub fn find_duplicates(
 
             for track in duplicate_group {
                 if verbose {
-                    let artist = track.metadata.artist.as_ref().map(|v| v.value.as_str()).unwrap_or("Unknown Artist");
-                    let album = track.metadata.album.as_ref().map(|v| v.value.as_str()).unwrap_or("Unknown Album");
-                    let title = track.metadata.title.as_ref().map(|v| v.value.as_str()).unwrap_or("Unknown Title");
-                    let duration = track.metadata.duration.as_ref().map(|v| format!("{:.0}s", v.value)).unwrap_or_else(|| "unknown".to_string());
+                    let artist = track
+                        .metadata
+                        .artist
+                        .as_ref()
+                        .map(|v| v.value.as_str())
+                        .unwrap_or("Unknown Artist");
+                    let album = track
+                        .metadata
+                        .album
+                        .as_ref()
+                        .map(|v| v.value.as_str())
+                        .unwrap_or("Unknown Album");
+                    let title = track
+                        .metadata
+                        .title
+                        .as_ref()
+                        .map(|v| v.value.as_str())
+                        .unwrap_or("Unknown Title");
+                    let duration = track
+                        .metadata
+                        .duration
+                        .as_ref()
+                        .map(|v| format!("{:.0}s", v.value))
+                        .unwrap_or_else(|| "unknown".to_string());
                     let checksum = track.checksum.as_deref().unwrap_or("unknown");
-                    
+
                     writeln!(
                         out,
                         "  {} - {} - {} [{}] ({}) [sha256: {}]",
-                        artist, album, title, duration, track.file_path.display(), checksum
+                        artist,
+                        album,
+                        title,
+                        duration,
+                        track.file_path.display(),
+                        checksum
                     )
                     .unwrap();
                 } else {

@@ -376,7 +376,10 @@ pub fn scan_with_duplicates(
     let mut by_checksum: HashMap<String, Vec<Track>> = HashMap::new();
     for track in &all {
         if let Some(cs) = &track.checksum {
-            by_checksum.entry(cs.clone()).or_default().push(track.clone());
+            by_checksum
+                .entry(cs.clone())
+                .or_default()
+                .push(track.clone());
         }
     }
 
