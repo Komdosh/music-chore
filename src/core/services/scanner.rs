@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use glob::Pattern;
 use log::{error, warn};
+use rayon::prelude::*;
 use walkdir::WalkDir;
 
 use crate::adapters::audio_formats::{self as formats, read_basic_info};
@@ -334,29 +335,46 @@ pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, String> {
 }
 
 /// Scan for tracks and detect duplicates by checksum.
-pub fn scan_with_duplicates(base: &Path, verbose: bool) -> (Vec<Track>, Vec<Vec<Track>>) {
-    let tracks = scan_dir(base, false);
-    let mut by_checksum: HashMap<String, Vec<Track>> = HashMap::new();
-    let mut all = Vec::with_capacity(tracks.len());
+pub fn scan_with_duplicates(
+    base: &Path,
+    verbose: bool,
+    parallel: Option<usize>,
+) -> (Vec<Track>, Vec<Vec<Track>>) {
+    if let Some(threads) = parallel {
+        let _ = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build_global();
+    }
 
-    for mut track in tracks {
-        if verbose {                                                                                                             │
-            println!("Scanning {}...", track.file_path.display());                                                               │
-        }
-        match track.calculate_checksum() {
-            Ok(cs) => {
-                track.checksum = Some(cs.clone());
-                by_checksum.entry(cs).or_default().push(track.clone());
+    let tracks = scan_dir(base, false);
+
+    let all: Vec<Track> = tracks
+        .into_par_iter()
+        .map(|mut track| {
+            if verbose {
+                eprintln!("Scanning {}...", track.file_path.display());
             }
-            Err(e) => {
-                eprintln!(
-                    "Warning: checksum failed for {}: {}",
-                    track.file_path.display(),
-                    e,
-                );
+            match track.calculate_checksum() {
+                Ok(cs) => {
+                    track.checksum = Some(cs);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Warning: checksum failed for {}: {}",
+                        track.file_path.display(),
+                        e,
+                    );
+                }
             }
+            track
+        })
+        .collect();
+
+    let mut by_checksum: HashMap<String, Vec<Track>> = HashMap::new();
+    for track in &all {
+        if let Some(cs) = &track.checksum {
+            by_checksum.entry(cs.clone()).or_default().push(track.clone());
         }
-        all.push(track);
     }
 
     let dupes = by_checksum.into_values().filter(|g| g.len() > 1).collect();

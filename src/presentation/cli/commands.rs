@@ -134,5 +134,8 @@ pub enum Commands {
         /// Show more detailed information about duplicates.
         #[arg(long, short)]
         verbose: bool,
+        /// Number of threads to use for parallel processing.
+        #[arg(long, short = 'p')]
+        parallel: Option<usize>,
     },
 }

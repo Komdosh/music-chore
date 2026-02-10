@@ -38,6 +38,7 @@ pub struct FindDuplicatesParams {
     pub(crate) path: Option<String>,
     pub(crate) json_output: Option<bool>,
     pub(crate) verbose: Option<bool>,
+    pub(crate) parallel: Option<usize>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

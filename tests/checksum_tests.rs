@@ -122,7 +122,7 @@ fn test_duplicate_detection() {
     ));
     music_chore::adapters::audio_formats::write_metadata(&file3, &new_metadata).unwrap();
 
-    let (tracks, duplicates) = scan_with_duplicates(&dir_path, false);
+    let (tracks, duplicates) = scan_with_duplicates(&dir_path, false, None);
 
     // Should find 3 tracks total
     assert_eq!(tracks.len(), 3);
@@ -157,7 +157,7 @@ fn test_duplicate_detection_no_duplicates() {
     ));
     music_chore::adapters::audio_formats::write_metadata(&file2, &new_metadata).unwrap();
 
-    let (tracks, duplicates) = scan_with_duplicates(&dir_path, false);
+    let (tracks, duplicates) = scan_with_duplicates(&dir_path, false, None);
 
     // Should have tracks but no duplicates
     assert_eq!(tracks.len(), 2);

@@ -102,7 +102,8 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             path,
             json,
             verbose,
-        } => match handle_duplicates(path, json, verbose) {
+            parallel,
+        } => match handle_duplicates(path, json, verbose, parallel) {
             Ok(()) => Ok(()),
             Err(_) => Err(1),
         },
@@ -305,13 +306,18 @@ pub fn handle_emit(path: PathBuf, json: bool) -> Result<(), i32> {
     Ok(())
 }
 
-pub fn handle_duplicates(path: PathBuf, json: bool, verbose: bool) -> Result<(), i32> {
+pub fn handle_duplicates(
+    path: PathBuf,
+    json: bool,
+    verbose: bool,
+    parallel: Option<usize>,
+) -> Result<(), i32> {
     if !path.exists() {
         eprintln!("Error: Path does not exist: {}", path.display());
         return Err(1);
     }
 
-    match find_duplicates(&path, json, verbose) {
+    match find_duplicates(&path, json, verbose, parallel) {
         Ok(value) => {
             println!("{}", value);
             Ok(())
@@ -601,7 +607,7 @@ mod tests {
     #[test]
     fn test_handle_duplicates_with_nonexistent_path() {
         let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_duplicates(nonexistent_path, false, false);
+        let result = handle_duplicates(nonexistent_path, false, false, None);
         assert_eq!(result, Err(1));
     }
 

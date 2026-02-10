@@ -3,8 +3,13 @@ use serde_json::to_string_pretty;
 use std::fmt::Write;
 use std::path::Path;
 
-pub fn find_duplicates(path: &Path, json: bool, verbose: bool) -> Result<String, String> {
-    let (tracks, duplicates) = scan_with_duplicates(path, verbose);
+pub fn find_duplicates(
+    path: &Path,
+    json: bool,
+    verbose: bool,
+    parallel: Option<usize>,
+) -> Result<String, String> {
+    let (tracks, duplicates) = scan_with_duplicates(path, verbose, parallel);
 
     if tracks.is_empty() {
         return Err(format!(

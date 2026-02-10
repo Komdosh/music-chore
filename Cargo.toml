@@ -36,6 +36,7 @@ sha2 = "0.10"
 glob = "0.3"
 dsf="0.2.2"
 id3 = "1.16.4"
+rayon = "1.11.0"
 
 [lints.rust]
 unused_imports = "allow"
