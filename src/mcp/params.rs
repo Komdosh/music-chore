@@ -1,8 +1,15 @@
+use crate::Track;
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ScanDirectoryParams {
     pub(crate) path: Option<String>,
     pub(crate) json_output: Option<bool>,
     pub(crate) skip_metadata: Option<bool>,
+}
+
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct ScanDirectoryResponse {
+    pub(crate) tracks: Vec<Track>
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

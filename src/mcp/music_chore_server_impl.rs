@@ -1,12 +1,8 @@
 use crate::mcp::config::Config;
-use crate::mcp::params::{
-    CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
-    NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ValidateLibraryParams,
-};
+use crate::mcp::params::{CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ScanDirectoryResponse, ValidateLibraryParams};
 
 use crate::adapters::audio_formats::read_metadata;
 use crate::build_library_hierarchy;
-use crate::core::services::cue::format_cue_validation_result;
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_library_output};
 use crate::core::services::normalization::normalize_and_format;
@@ -169,8 +165,11 @@ impl MusicChoreServer {
             )));
         }
 
+
         if json_output {
-            to_json_call_response(&tracks)
+            to_json_call_response(&ScanDirectoryResponse {
+                tracks,
+            })
         } else {
             let out: String = tracks
                 .iter()
@@ -797,8 +796,8 @@ mod tests {
         assert!(!res.is_error.unwrap_or(false));
         let text = res.content[0].raw.as_text().unwrap().text.as_str();
         let json: serde_json::Value = serde_json::from_str(text).unwrap();
-        assert!(json.is_array());
-        assert_eq!(json.as_array().unwrap().len(), 2);
+        assert!(json.is_object());
+        assert_eq!(json["tracks"].as_array().expect("tracks should be array").len(), 2);
     }
 
     #[tokio::test]

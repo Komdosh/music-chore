@@ -59,7 +59,7 @@ fn matches_any_pattern(path: &Path, patterns: &[String]) -> bool {
         Pattern::new(pat)
             .map(|p| p.matches_path(path))
             .unwrap_or_else(|e| {
-                error!(target: "music_chore", "Invalid glob pattern: {pat} - {e}");
+                log::debug!(target: "music_chore", "Invalid glob pattern: {pat} - {e}");
                 false
             })
     })
@@ -456,7 +456,7 @@ pub fn scan_dir_with_options(
             let cue = match parse_cue_file(&cue_path) {
                 Ok(c) => c,
                 Err(e) => {
-                    log::error!(target: "music_chore", "Failed to parse CUE {}: {e}", cue_path.display());
+                    log::debug!(target: "music_chore", "Failed to parse CUE {}: {e}", cue_path.display());
                     continue;
                 }
             };
@@ -536,7 +536,7 @@ pub fn scan_dir_with_options(
         }
 
         if let Err(e) = validate_file(path) {
-            error!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
+            log::debug!(target: "music_chore", "Skipping invalid file {}: {}", path.display(), e);
             continue;
         }
 

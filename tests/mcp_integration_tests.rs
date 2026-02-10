@@ -164,7 +164,7 @@ async fn test_scan_directory() -> Result<()> {
     assert_ok(&result);
 
     let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
-    assert_eq!(json.as_array().unwrap().len(), 2);
+    assert_eq!(json["tracks"].as_array().expect("tracks should be array").len(), 2);
 
     shutdown(client).await
 }
