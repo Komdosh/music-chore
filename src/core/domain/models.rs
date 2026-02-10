@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// Source of metadata information
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 pub enum MetadataSource {
     /// From file metadata
     Embedded,
@@ -20,7 +20,7 @@ pub enum MetadataSource {
 pub const FOLDER_INFERRED_CONFIDENCE: f32 = 0.3;
 
 /// Wrapper for metadata values with provenance
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct MetadataValue<T> {
     pub value: T,
     pub source: MetadataSource,
@@ -68,7 +68,7 @@ impl<T: std::fmt::Display> std::fmt::Display for MetadataValue<T> {
 }
 
 /// Track metadata with provenance tracking
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct TrackMetadata {
     pub title: Option<MetadataValue<String>>,
     pub artist: Option<MetadataValue<String>>,
@@ -84,7 +84,7 @@ pub struct TrackMetadata {
 }
 
 /// Basic representation of a music track.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct Track {
     pub file_path: PathBuf,
     pub metadata: TrackMetadata,
@@ -133,7 +133,7 @@ impl Track {
 }
 
 /// Album node in library hierarchy
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct AlbumNode {
     pub title: String,
     pub year: Option<u32>,
@@ -143,21 +143,21 @@ pub struct AlbumNode {
 }
 
 /// Track node with simplified info for tree display
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct TrackNode {
     pub file_path: PathBuf,
     pub metadata: TrackMetadata,
 }
 
 /// Artist node in library hierarchy
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, schemars::JsonSchema)]
 pub struct ArtistNode {
     pub name: String,
     pub albums: Vec<AlbumNode>,
 }
 
 /// Complete library representation
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, schemars::JsonSchema)]
 pub struct Library {
     pub artists: Vec<ArtistNode>,
     pub total_tracks: usize,

@@ -352,7 +352,7 @@ pub fn scan_with_duplicates(
         .into_par_iter()
         .map(|mut track| {
             if verbose {
-                eprintln!("Scanning {}...", track.file_path.display());
+                println!("Scanning {}...", track.file_path.display());
             }
             match track.calculate_checksum() {
                 Ok(cs) => {
@@ -365,9 +365,6 @@ pub fn scan_with_duplicates(
                         e,
                     );
                 }
-            }
-            if verbose {
-                eprintln!("Scanning {}...", track.file_path.display());
             }
             track
         })
@@ -459,7 +456,7 @@ pub fn scan_dir_with_options(
             let cue = match parse_cue_file(&cue_path) {
                 Ok(c) => c,
                 Err(e) => {
-                    error!(target: "music_chore", "Failed to parse CUE {}: {e}", cue_path.display());
+                    log::error!(target: "music_chore", "Failed to parse CUE {}: {e}", cue_path.display());
                     continue;
                 }
             };

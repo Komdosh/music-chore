@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 // Define new structs for reporting normalization outcomes
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TitleNormalizationReport {
     pub original_path: PathBuf,
     pub original_title: Option<String>,
@@ -19,7 +19,7 @@ pub struct TitleNormalizationReport {
     pub error: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GenreNormalizationReport {
     pub original_path: PathBuf,
     pub original_genre: Option<String>,
@@ -28,7 +28,7 @@ pub struct GenreNormalizationReport {
     pub error: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ArtistNormalizationReport {
     pub original_path: PathBuf,
     pub original_artist: Option<String>,
@@ -37,7 +37,7 @@ pub struct ArtistNormalizationReport {
     pub error: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AlbumNormalizationReport {
     pub original_path: PathBuf,
     pub original_album: Option<String>,
@@ -46,7 +46,7 @@ pub struct AlbumNormalizationReport {
     pub error: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct YearNormalizationReport {
     pub original_path: PathBuf,
     pub original_year: Option<u32>,
@@ -56,7 +56,7 @@ pub struct YearNormalizationReport {
 }
 
 // Combined report struct for JSON output
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CombinedNormalizationReport {
     pub title_reports: Vec<TitleNormalizationReport>,
     pub genre_reports: Vec<GenreNormalizationReport>,

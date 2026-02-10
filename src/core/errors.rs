@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::fmt;
 
 /// Main error enum for the music chore application
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, schemars::JsonSchema)]
 pub enum MusicChoreError {
     /// I/O error occurred
     IoError(String),

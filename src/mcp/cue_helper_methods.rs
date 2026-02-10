@@ -152,6 +152,7 @@ pub(crate) async fn handle_cue_validate(
 mod tests {
     use super::*;
     use std::fs;
+    use serde_json::from_str;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -219,7 +220,7 @@ mod tests {
             .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let json_text = result.content[0].raw.as_text().unwrap().text.as_str();
-        let json: serde_json::Value = serde_json::from_str(json_text).unwrap();
+        let json: Value = from_str(json_text).unwrap();
         assert_eq!(json["performer"], "Test Artist");
         assert_eq!(json["title"], "Test Album");
     }
@@ -275,7 +276,7 @@ mod tests {
             .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let json_text = result.content[0].raw.as_text().unwrap().text.as_str();
-        let json: serde_json::Value = serde_json::from_str(json_text).unwrap();
+        let json: Value = from_str(json_text).unwrap();
         assert_eq!(json["is_valid"], false);
         assert_eq!(json["file_missing"], true);
     }

@@ -1,6 +1,6 @@
 [package]
 name = "music-chore"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 
 [[bin]]
@@ -17,9 +17,9 @@ walkdir = "2"
 serde_json = "1"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-lofty = "0.22"
+lofty = "0.23.1"
 tokio = { version = "1", features = ["full"] }
-rmcp = { version = "0.14", features = [
+rmcp = { version = "0.15.0", features = [
     "server",
     "macros",
     "client",

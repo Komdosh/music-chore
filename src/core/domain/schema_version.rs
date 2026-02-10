@@ -2,31 +2,28 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SchemaVersionWrapper<T> {
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SchemaVersionWrapper<T: serde::Serialize> {
     /// Schema version for this API
     #[serde(rename = "__schema_version")]
     pub schema_version: String,
-    #[serde(rename = "$schema")]
-    pub schema: String,
     /// The actual data
     #[serde(flatten)]
     pub data: T,
 }
 
-impl<T> SchemaVersionWrapper<T> {
+impl<T: serde::Serialize> SchemaVersionWrapper<T> {
     /// Create a new wrapper with the current schema version
     pub fn new(data: T) -> Self {
         Self {
             schema_version: "1.0.0".to_string(),
-            schema: "https://json-schema.org/draft/2020-12/schema".to_string(),
             data,
         }
     }
 }
 
 /// Create a schema version wrapper with the current version
-pub fn with_schema_version<T>(data: T) -> SchemaVersionWrapper<T> {
+pub fn with_schema_version<T : serde::Serialize>(data: T) -> SchemaVersionWrapper<T> {
     SchemaVersionWrapper::new(data)
 }
 
@@ -40,10 +37,6 @@ mod tests {
         let wrapper = SchemaVersionWrapper::new(data.clone());
 
         assert_eq!(wrapper.schema_version, "1.0.0");
-        assert_eq!(
-            wrapper.schema,
-            "https://json-schema.org/draft/2020-12/schema"
-        );
         assert_eq!(wrapper.data, data);
     }
 
@@ -53,16 +46,12 @@ mod tests {
         let wrapper = with_schema_version(data);
 
         assert_eq!(wrapper.schema_version, "1.0.0");
-        assert_eq!(
-            wrapper.schema,
-            "https://json-schema.org/draft/2020-12/schema"
-        );
         assert_eq!(wrapper.data, data);
     }
 
     #[test]
     fn test_schema_version_serialization() {
-        #[derive(Serialize, Deserialize)]
+        #[derive(Serialize, Deserialize, schemars::JsonSchema)]
         struct TestData {
             field1: String,
             field2: i32,
@@ -78,10 +67,6 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(parsed["__schema_version"], "1.0.0");
-        assert_eq!(
-            parsed["$schema"],
-            "https://json-schema.org/draft/2020-12/schema"
-        );
         assert_eq!(parsed["field1"], "value1");
         assert_eq!(parsed["field2"], 42);
     }
@@ -93,16 +78,12 @@ mod tests {
             serde_json::from_str(json_str).unwrap();
 
         assert_eq!(parsed.schema_version, "1.0.0");
-        assert_eq!(
-            parsed.schema,
-            "https://json-schema.org/draft/2020-12/schema"
-        );
         assert_eq!(parsed.data["name"], "Test Album");
     }
 
     #[test]
     fn test_schema_version_with_complex_type() {
-        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        #[derive(Serialize, Deserialize, PartialEq, Debug, schemars::JsonSchema)]
         struct TestStruct {
             id: i32,
             name: String,
@@ -115,10 +96,6 @@ mod tests {
         let wrapper = with_schema_version(data);
 
         assert_eq!(wrapper.schema_version, "1.0.0");
-        assert_eq!(
-            wrapper.schema,
-            "https://json-schema.org/draft/2020-12/schema"
-        );
         assert_eq!(wrapper.data.id, 123);
         assert_eq!(wrapper.data.name, "Test");
     }

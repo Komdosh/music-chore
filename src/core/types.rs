@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Newtype wrapper for track titles to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TrackTitle(pub String);
 
 impl From<String> for TrackTitle {
@@ -26,7 +26,7 @@ impl AsRef<str> for TrackTitle {
 }
 
 /// Newtype wrapper for artist names to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ArtistName(pub String);
 
 impl From<String> for ArtistName {
@@ -48,7 +48,7 @@ impl AsRef<str> for ArtistName {
 }
 
 /// Newtype wrapper for album names to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AlbumName(pub String);
 
 impl From<String> for AlbumName {
@@ -70,7 +70,7 @@ impl AsRef<str> for AlbumName {
 }
 
 /// Newtype wrapper for file paths to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct FilePath(pub PathBuf);
 
 impl From<PathBuf> for FilePath {
@@ -92,7 +92,7 @@ impl AsRef<PathBuf> for FilePath {
 }
 
 /// Newtype wrapper for track numbers to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TrackNumber(pub u32);
 
 impl From<u32> for TrackNumber {
@@ -114,7 +114,7 @@ impl AsRef<u32> for TrackNumber {
 }
 
 /// Newtype wrapper for disc numbers to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DiscNumber(pub u32);
 
 impl From<u32> for DiscNumber {
@@ -136,7 +136,7 @@ impl AsRef<u32> for DiscNumber {
 }
 
 /// Newtype wrapper for years to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Year(pub u32);
 
 impl From<u32> for Year {
@@ -158,7 +158,7 @@ impl AsRef<u32> for Year {
 }
 
 /// Newtype wrapper for durations to provide type safety
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Duration(pub f64);
 
 impl From<f64> for Duration {
@@ -180,7 +180,7 @@ impl AsRef<f64> for Duration {
 }
 
 /// Newtype wrapper for confidence values to provide type safety
-#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Confidence(pub f32);
 
 impl From<f32> for Confidence {

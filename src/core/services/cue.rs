@@ -219,7 +219,7 @@ pub fn generate_cue_for_path(
 // ── CUE parsing ─────────────────────────────────────────────────────────────
 
 /// Represents a parsed `.cue` file.
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct CueFile {
     pub performer: Option<String>,
     pub title: Option<String>,
@@ -230,7 +230,7 @@ pub struct CueFile {
 }
 
 /// Represents a track in a `.cue` file.
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct CueTrack {
     pub number: u32,
     pub title: Option<String>,
@@ -355,7 +355,7 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
 // ── CUE validation ─────────────────────────────────────────────────────────
 
 /// Result of `.cue` file validation.
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct CueValidationResult {
     pub is_valid: bool,
     pub parsing_error: bool,
