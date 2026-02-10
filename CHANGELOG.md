@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-02-10
+
+### Added
+- **MCP Server**: Derived `schemars::JsonSchema` for core models and error types, improving automated tool schema generation.
+
+### Changed
+- **Dependencies**: Upgraded `rmcp` to `0.15.0` and `lofty` to `0.23.1`.
+- **Refactoring**: Improved JSON schema structure by removing the redundant `$schema` field from `SchemaVersionWrapper`.
+
 ## [0.4.2] - 2026-02-10
 
 ### Added
