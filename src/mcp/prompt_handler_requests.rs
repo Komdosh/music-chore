@@ -1,10 +1,10 @@
 use crate::mcp::music_chore_server::MusicChoreServer;
 use rmcp::model::{GetPromptResult, PromptMessageContent};
 use rmcp::{
+    ErrorData as McpError,
     handler::server::{router::prompt::PromptRouter, wrapper::Parameters},
     model::{Content, PromptMessage, PromptMessageRole},
-    prompt,
-    prompt_router, ErrorData as McpError,
+    prompt, prompt_router,
 };
 use serde::Deserialize;
 

@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
     use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
-    use music_chore::core::domain::models::{MetadataValue, Track, TrackMetadata, MetadataSource};
+    use music_chore::core::domain::models::{MetadataSource, MetadataValue, Track, TrackMetadata};
+    use serde_json::Value;
     use std::fs;
     use std::path::PathBuf;
     use std::process::Command;
     use tempfile::TempDir;
-    use serde_json::Value;
 
     /// Helper function to create a dummy FLAC file with specified metadata.
     fn create_dummy_flac_with_metadata(
@@ -41,11 +41,17 @@ mod tests {
     fn create_dummy_flac_without_metadata(dir: &TempDir, file_name: &str) -> PathBuf {
         let file_path = dir.path().join(file_name);
         fs::copy("tests/fixtures/flac/simple/track1.flac", &file_path).unwrap(); // Copy a file with some content
-        
+
         // Overwrite metadata with empty/none fields
         let metadata = TrackMetadata {
-            title: None, artist: None, album: None, album_artist: None,
-            track_number: None, disc_number: None, year: None, genre: None,
+            title: None,
+            artist: None,
+            album: None,
+            album_artist: None,
+            track_number: None,
+            disc_number: None,
+            year: None,
+            genre: None,
             duration: None,
             format: "flac".to_string(),
             path: file_path.clone(),
@@ -69,7 +75,10 @@ mod tests {
         );
 
         // File without embedded metadata, relying on filename inference
-        let _file_no_meta = create_dummy_flac_without_metadata(&temp_dir, "Inferred Artist - Inferred Album - Inferred Title.flac");
+        let _file_no_meta = create_dummy_flac_without_metadata(
+            &temp_dir,
+            "Inferred Artist - Inferred Album - Inferred Title.flac",
+        );
 
         let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("scan")
@@ -86,8 +95,9 @@ mod tests {
         assert!(!stdout.contains("Embedded Artist"));
         assert!(!stdout.contains("Embedded Album"));
         assert!(!stdout.contains("2023"));
-        assert!(stdout.contains(&format!("Artist - Album - Title.flac [Artist - Album - Title 🤖]")));
-
+        assert!(stdout.contains(&format!(
+            "Artist - Album - Title.flac [Artist - Album - Title 🤖]"
+        )));
 
         // Assertions for file without embedded metadata (should use filename inference)
         assert!(stdout.contains(&format!("Inferred Artist - Inferred Album - Inferred Title.flac [Inferred Artist - Inferred Album - Inferred Title 🤖]")));
@@ -108,7 +118,10 @@ mod tests {
         );
 
         // File without embedded metadata, relying on filename inference
-        let _file_no_meta = create_dummy_flac_without_metadata(&temp_dir, "Inferred Artist - Inferred Album - Inferred Title.flac");
+        let _file_no_meta = create_dummy_flac_without_metadata(
+            &temp_dir,
+            "Inferred Artist - Inferred Album - Inferred Title.flac",
+        );
 
         let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("scan")
@@ -125,19 +138,36 @@ mod tests {
         assert_eq!(json_tracks.len(), 2);
 
         // Check file with embedded metadata (should be skipped, but filename should be used for inference)
-        let track1 = json_tracks.iter().find(|t| t.file_path.file_name().unwrap().to_str().unwrap() == "Artist - Album - Title.flac").unwrap();
+        let track1 = json_tracks
+            .iter()
+            .find(|t| {
+                t.file_path.file_name().unwrap().to_str().unwrap() == "Artist - Album - Title.flac"
+            })
+            .unwrap();
         assert!(track1.metadata.title.is_some()); // Title should be extracted from filename
-        assert_eq!(track1.metadata.title.as_ref().unwrap().value, "Artist - Album - Title"); // Value should be from filename
+        assert_eq!(
+            track1.metadata.title.as_ref().unwrap().value,
+            "Artist - Album - Title"
+        ); // Value should be from filename
         assert!(track1.metadata.artist.is_some()); // Inferred from filename
-        assert!(track1.metadata.album.is_some());  // Inferred from filename
+        assert!(track1.metadata.album.is_some()); // Inferred from filename
         assert!(track1.metadata.year.is_none());
 
         // Check file without embedded metadata (should use filename inference)
-        let track2 = json_tracks.iter().find(|t| t.file_path.file_name().unwrap().to_str().unwrap() == "Inferred Artist - Inferred Album - Inferred Title.flac").unwrap();
+        let track2 = json_tracks
+            .iter()
+            .find(|t| {
+                t.file_path.file_name().unwrap().to_str().unwrap()
+                    == "Inferred Artist - Inferred Album - Inferred Title.flac"
+            })
+            .unwrap();
         assert!(track2.metadata.title.is_some()); // Title should be extracted from filename
-        assert_eq!(track2.metadata.title.as_ref().unwrap().value, "Inferred Artist - Inferred Album - Inferred Title"); // Value should be from filename
+        assert_eq!(
+            track2.metadata.title.as_ref().unwrap().value,
+            "Inferred Artist - Inferred Album - Inferred Title"
+        ); // Value should be from filename
         assert!(track2.metadata.artist.is_some()); // Inferred from filename
-        assert!(track2.metadata.album.is_some());  // Inferred from filename
+        assert!(track2.metadata.album.is_some()); // Inferred from filename
         assert!(track2.metadata.year.is_none());
     }
 
@@ -168,10 +198,22 @@ mod tests {
         let track = &json_tracks[0];
 
         // Assert that embedded metadata is read
-        assert_eq!(track.metadata.title.as_ref().map(|v| &v.value), Some(&"Original Title".to_string()));
-        assert_eq!(track.metadata.artist.as_ref().map(|v| &v.value), Some(&"Original Artist".to_string()));
-        assert_eq!(track.metadata.album.as_ref().map(|v| &v.value), Some(&"Original Album".to_string()));
+        assert_eq!(
+            track.metadata.title.as_ref().map(|v| &v.value),
+            Some(&"Original Title".to_string())
+        );
+        assert_eq!(
+            track.metadata.artist.as_ref().map(|v| &v.value),
+            Some(&"Original Artist".to_string())
+        );
+        assert_eq!(
+            track.metadata.album.as_ref().map(|v| &v.value),
+            Some(&"Original Album".to_string())
+        );
         assert_eq!(track.metadata.year.as_ref().map(|v| v.value), Some(2022));
-        assert_eq!(track.metadata.title.as_ref().map(|v| v.source.clone()), Some(MetadataSource::Embedded));
+        assert_eq!(
+            track.metadata.title.as_ref().map(|v| v.source.clone()),
+            Some(MetadataSource::Embedded)
+        );
     }
 }

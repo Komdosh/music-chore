@@ -321,7 +321,11 @@ pub fn scan_dir_with_metadata(base: &Path) -> Result<Vec<Track>, String> {
                 map.insert(path.to_path_buf(), track);
             }
             Err(e) => {
-                eprintln!("Warning: Failed to read metadata for {}: {}", path.display(), e);
+                eprintln!(
+                    "Warning: Failed to read metadata for {}: {}",
+                    path.display(),
+                    e
+                );
             }
         }
     }
@@ -382,8 +386,7 @@ pub fn scan_tracks(path: PathBuf, json_output: bool) -> Result<String, String> {
     }
 
     if json_output {
-        serde_json::to_string_pretty(&tracks)
-            .map_err(|e| format!("Error serializing to JSON: {e}"))
+        serde_json::to_string_pretty(&tracks).map_err(|e| format!("Error serializing to JSON: {e}"))
     } else {
         Ok(tracks
             .iter()
@@ -423,7 +426,9 @@ pub fn scan_dir_with_options(
                 continue;
             }
 
-            let Some(cue_path) = find_cue_in_dir(path) else { continue };
+            let Some(cue_path) = find_cue_in_dir(path) else {
+                continue;
+            };
             let cue = match parse_cue_file(&cue_path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -439,7 +444,10 @@ pub fn scan_dir_with_options(
                 .map(|a| MetadataValue::inferred(a, FOLDER_INFERRED_CONFIDENCE));
 
             let cue_performer = cue.performer.map(|s| MetadataValue::inferred(s, 1.0));
-            let album = cue.title.map(|s| MetadataValue::inferred(s, 1.0)).or(dir_album);
+            let album = cue
+                .title
+                .map(|s| MetadataValue::inferred(s, 1.0))
+                .or(dir_album);
             let year = cue
                 .date
                 .as_deref()

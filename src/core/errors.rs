@@ -46,13 +46,23 @@ impl fmt::Display for MusicChoreError {
             MusicChoreError::IoError(msg) => write!(f, "I/O error: {}", msg),
             MusicChoreError::FormatNotSupported(msg) => write!(f, "Format not supported: {}", msg),
             MusicChoreError::FileNotFound(msg) => write!(f, "File not found: {}", msg),
-            MusicChoreError::MetadataParseError(msg) => write!(f, "Metadata parsing error: {}", msg),
-            MusicChoreError::InvalidMetadataField { field, value } => write!(f, "Invalid value '{}' for field '{}'", value, field),
-            MusicChoreError::DirectoryAccessError(msg) => write!(f, "Directory access error: {}", msg),
+            MusicChoreError::MetadataParseError(msg) => {
+                write!(f, "Metadata parsing error: {}", msg)
+            }
+            MusicChoreError::InvalidMetadataField { field, value } => {
+                write!(f, "Invalid value '{}' for field '{}'", value, field)
+            }
+            MusicChoreError::DirectoryAccessError(msg) => {
+                write!(f, "Directory access error: {}", msg)
+            }
             MusicChoreError::PermissionDenied(msg) => write!(f, "Permission denied: {}", msg),
             MusicChoreError::InvalidPath(msg) => write!(f, "Invalid path: {}", msg),
-            MusicChoreError::UnsupportedAudioFormat(msg) => write!(f, "Unsupported audio format: {}", msg),
-            MusicChoreError::InvalidConfiguration(msg) => write!(f, "Invalid configuration: {}", msg),
+            MusicChoreError::UnsupportedAudioFormat(msg) => {
+                write!(f, "Unsupported audio format: {}", msg)
+            }
+            MusicChoreError::InvalidConfiguration(msg) => {
+                write!(f, "Invalid configuration: {}", msg)
+            }
             MusicChoreError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             MusicChoreError::ProcessingError(msg) => write!(f, "Processing error: {}", msg),
             MusicChoreError::ConversionError(msg) => write!(f, "Conversion error: {}", msg),

@@ -31,10 +31,10 @@ pub struct Cli {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    
+
     // Load configuration from environment variables
     let mut config = Config::from_env();
-    
+
     // Override log level if verbose flag is set
     if cli.verbose {
         config.log_level = "debug".to_string();

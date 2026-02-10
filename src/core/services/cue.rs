@@ -73,8 +73,8 @@ pub fn generate_cue_content(album: &AlbumNode) -> String {
     }
 
     // Album-level TITLE
-    let title = best_value(tracks, |t| t.metadata.album.as_ref())
-        .unwrap_or_else(|| album.title.clone());
+    let title =
+        best_value(tracks, |t| t.metadata.album.as_ref()).unwrap_or_else(|| album.title.clone());
     let _ = writeln!(out, "TITLE \"{}\"", to_title_case(&title));
 
     // REM GENRE
@@ -83,9 +83,11 @@ pub fn generate_cue_content(album: &AlbumNode) -> String {
     }
 
     // REM DATE – prefer embedded year, then album.year, then best inferred
-    let year = best_value(tracks, |t| t.metadata.year.as_ref().filter(|mv| is_embedded(mv)))
-        .or(album.year)
-        .or_else(|| best_value(tracks, |t| t.metadata.year.as_ref()));
+    let year = best_value(tracks, |t| {
+        t.metadata.year.as_ref().filter(|mv| is_embedded(mv))
+    })
+    .or(album.year)
+    .or_else(|| best_value(tracks, |t| t.metadata.year.as_ref()));
     if let Some(y) = year {
         let _ = writeln!(out, "REM DATE {}", y);
     }
@@ -168,11 +170,9 @@ pub fn generate_cue_for_path(
         .iter()
         .map(|fp| {
             read_metadata(fp).map_err(|e| {
-                CueGenerationError::FileReadError(format!(
-                    "Failed to read {}: {}",
-                    fp.display(),
-                    e,
-                ))
+                CueGenerationError::FileReadError(
+                    format!("Failed to read {}: {}", fp.display(), e,),
+                )
             })
         })
         .collect::<Result<_, _>>()?;
@@ -196,8 +196,7 @@ pub fn generate_cue_for_path(
         })
         .collect();
 
-    let album_files: HashSet<PathBuf> =
-        track_nodes.iter().map(|t| t.file_path.clone()).collect();
+    let album_files: HashSet<PathBuf> = track_nodes.iter().map(|t| t.file_path.clone()).collect();
 
     let album = AlbumNode {
         title: album_name,
@@ -272,7 +271,10 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
         let is_track_level = line.starts_with("  ") || line.starts_with('\t');
         let line_ctx = || format!("line {}: {}", line_num + 1, line);
 
-        match (trimmed.split_whitespace().next().unwrap_or(""), is_track_level) {
+        match (
+            trimmed.split_whitespace().next().unwrap_or(""),
+            is_track_level,
+        ) {
             // Album-level directives
             ("PERFORMER", false) => {
                 cue.performer = Some(
@@ -333,8 +335,7 @@ pub fn parse_cue_file(cue_path: &Path) -> Result<CueFile, String> {
                 let remainder = trimmed.trim_start_matches("INDEX").trim();
                 let parts: Vec<&str> = remainder.split_whitespace().collect();
                 if parts.len() >= 2 && parts[0].parse::<u32>().is_ok() {
-                    current_track.as_mut().unwrap().index =
-                        Some(remainder.to_string());
+                    current_track.as_mut().unwrap().index = Some(remainder.to_string());
                 } else {
                     return Err(format!("Malformed INDEX at {}", line_ctx()));
                 }
@@ -468,8 +469,20 @@ mod tests {
     #[test]
     fn test_generate_cue_content_basic() {
         let tracks = vec![
-            make_track("Song One", "Test Artist", "track1.flac", Some(2024), Some("Rock")),
-            make_track("Song Two", "Test Artist", "track2.flac", Some(2024), Some("Rock")),
+            make_track(
+                "Song One",
+                "Test Artist",
+                "track1.flac",
+                Some(2024),
+                Some("Rock"),
+            ),
+            make_track(
+                "Song Two",
+                "Test Artist",
+                "track2.flac",
+                Some(2024),
+                Some("Rock"),
+            ),
         ];
         let album = make_album("Test Album", Some(2024), tracks);
         let content = generate_cue_content(&album);
@@ -495,7 +508,13 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("Test Album.cue");
 
-        let tracks = vec![make_track("Song", "Artist", "file.flac", None, Some("Rock"))];
+        let tracks = vec![make_track(
+            "Song",
+            "Artist",
+            "file.flac",
+            None,
+            Some("Rock"),
+        )];
         let album = make_album("Test Album", Some(2024), tracks);
 
         write_cue_file(&album, &cue_path).unwrap();
@@ -517,8 +536,11 @@ mod tests {
         let album = make_album("Album", Some(2023), tracks);
         let content = generate_cue_content(&album);
 
-        assert_eq!(content.match_indices("FILE ").count(), 1,
-                   "Should have one FILE entry for single file album");
+        assert_eq!(
+            content.match_indices("FILE ").count(),
+            1,
+            "Should have one FILE entry for single file album"
+        );
         assert!(content.contains("FILE \"album.flac\" WAVE"));
         assert!(content.contains("TRACK 01 AUDIO"));
         assert!(content.contains("TRACK 02 AUDIO"));
@@ -535,8 +557,11 @@ mod tests {
         let album = make_album("Album", None, tracks);
         let content = generate_cue_content(&album);
 
-        assert_eq!(content.match_indices("FILE ").count(), 3,
-                   "Should have FILE entry for each track");
+        assert_eq!(
+            content.match_indices("FILE ").count(),
+            3,
+            "Should have FILE entry for each track"
+        );
         assert!(content.contains("FILE \"01.flac\" WAVE"));
         assert!(content.contains("FILE \"02.flac\" WAVE"));
         assert!(content.contains("FILE \"03.flac\" WAVE"));
@@ -558,8 +583,20 @@ mod tests {
     #[test]
     fn test_generate_cue_content_genre_from_track() {
         let tracks = vec![
-            make_track("Song One", "Artist", "track1.flac", Some(2020), Some("Classical")),
-            make_track("Song Two", "Artist", "track2.flac", Some(2020), Some("Classical")),
+            make_track(
+                "Song One",
+                "Artist",
+                "track1.flac",
+                Some(2020),
+                Some("Classical"),
+            ),
+            make_track(
+                "Song Two",
+                "Artist",
+                "track2.flac",
+                Some(2020),
+                Some("Classical"),
+            ),
         ];
         let album = make_album("Album Title", Some(2020), tracks);
         let content = generate_cue_content(&album);
@@ -598,8 +635,12 @@ mod tests {
                     artist: Some(MetadataValue::embedded("Track Artist".to_string())),
                     album: None,
                     album_artist: Some(MetadataValue::embedded("Album Artist".to_string())),
-                    track_number: None, disc_number: None, year: None, genre: None,
-                    duration: None, format: "FLAC".to_string(),
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
                     path: PathBuf::from("track1.flac"),
                 },
             },
@@ -610,8 +651,12 @@ mod tests {
                     artist: Some(MetadataValue::embedded("Track Artist".to_string())),
                     album: None,
                     album_artist: Some(MetadataValue::embedded("Album Artist".to_string())),
-                    track_number: None, disc_number: None, year: None, genre: None,
-                    duration: None, format: "FLAC".to_string(),
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
                     path: PathBuf::from("track2.flac"),
                 },
             },
@@ -630,9 +675,14 @@ mod tests {
                     title: Some(MetadataValue::embedded("Song One".to_string())),
                     artist: Some(MetadataValue::embedded("Artist".to_string())),
                     album: Some(MetadataValue::embedded("Real Album Name".to_string())),
-                    album_artist: None, track_number: None, disc_number: None,
-                    year: None, genre: None, duration: None,
-                    format: "FLAC".to_string(), path: PathBuf::from("track1.flac"),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track1.flac"),
                 },
             },
             TrackNode {
@@ -641,9 +691,14 @@ mod tests {
                     title: Some(MetadataValue::embedded("Song Two".to_string())),
                     artist: Some(MetadataValue::embedded("Artist".to_string())),
                     album: Some(MetadataValue::embedded("Real Album Name".to_string())),
-                    album_artist: None, track_number: None, disc_number: None,
-                    year: None, genre: None, duration: None,
-                    format: "FLAC".to_string(), path: PathBuf::from("track2.flac"),
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
+                    year: None,
+                    genre: None,
+                    duration: None,
+                    format: "FLAC".to_string(),
+                    path: PathBuf::from("track2.flac"),
                 },
             },
         ];
@@ -661,10 +716,13 @@ mod tests {
                     title: Some(MetadataValue::embedded("Song One".to_string())),
                     artist: Some(MetadataValue::embedded("Artist".to_string())),
                     album: Some(MetadataValue::embedded("Album From Tags".to_string())),
-                    album_artist: None, track_number: None, disc_number: None,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
                     year: Some(MetadataValue::embedded(2021)),
                     genre: Some(MetadataValue::embedded("Metal".to_string())),
-                    duration: None, format: "FLAC".to_string(),
+                    duration: None,
+                    format: "FLAC".to_string(),
                     path: PathBuf::from("track1.flac"),
                 },
             },
@@ -674,10 +732,13 @@ mod tests {
                     title: Some(MetadataValue::embedded("Song Two".to_string())),
                     artist: Some(MetadataValue::embedded("Artist".to_string())),
                     album: Some(MetadataValue::inferred("Folder Album".to_string(), 0.3)),
-                    album_artist: None, track_number: None, disc_number: None,
+                    album_artist: None,
+                    track_number: None,
+                    disc_number: None,
                     year: Some(MetadataValue::inferred(2020, 0.3)),
                     genre: Some(MetadataValue::inferred("Rock".to_string(), 0.3)),
-                    duration: None, format: "FLAC".to_string(),
+                    duration: None,
+                    format: "FLAC".to_string(),
                     path: PathBuf::from("track2.flac"),
                 },
             },
@@ -693,7 +754,11 @@ mod tests {
     #[test]
     fn test_generate_cue_content_title_case_normalization() {
         let tracks = vec![make_track(
-            "Song", "UPPERCASE ARTIST", "track1.flac", Some(2020), Some("ROCK"),
+            "Song",
+            "UPPERCASE ARTIST",
+            "track1.flac",
+            Some(2020),
+            Some("ROCK"),
         )];
         let album = make_album("UPPERCASE ALBUM", Some(2020), tracks);
         let content = generate_cue_content(&album);
@@ -725,7 +790,9 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Test Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Test Artist"
 TITLE "Test Album"
 FILE "test.flac" WAVE
   TRACK 01 AUDIO
@@ -735,7 +802,9 @@ FILE "test.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track Two"
     INDEX 01 00:03:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -759,13 +828,17 @@ FILE "test.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("minimal.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "tracks.flac" WAVE
   TRACK 01 AUDIO
     TITLE "First Track"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -780,7 +853,9 @@ FILE "tracks.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("multi.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Various Artists"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Various Artists"
 TITLE "Compilation"
 FILE "disc1.flac" WAVE
   TRACK 01 AUDIO
@@ -790,12 +865,17 @@ FILE "disc2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
         assert_eq!(result.performer, Some("Various Artists".to_string()));
-        assert_eq!(result.files, vec!["disc1.flac".to_string(), "disc2.flac".to_string()]);
+        assert_eq!(
+            result.files,
+            vec!["disc1.flac".to_string(), "disc2.flac".to_string()]
+        );
         assert_eq!(result.tracks.len(), 2);
         assert_eq!(result.tracks[0].number, 1);
         assert_eq!(result.tracks[0].file, Some("disc1.flac".to_string()));
@@ -808,10 +888,14 @@ FILE "disc2.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("empty.cue");
 
-        std::fs::write(&cue_path, r#"FILE "audio.flac" WAVE
+        std::fs::write(
+            &cue_path,
+            r#"FILE "audio.flac" WAVE
   TRACK 01 AUDIO
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -827,12 +911,16 @@ FILE "disc2.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("nofile.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
   TRACK 01 AUDIO
     TITLE "Track"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -853,7 +941,9 @@ TITLE "Album"
         let audio1 = temp_dir.path().join("track1.flac");
         let audio2 = temp_dir.path().join("track2.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -863,14 +953,13 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio1, b"dummy audio").unwrap();
         std::fs::write(&audio2, b"dummy audio").unwrap();
 
-        let result = validate_cue_consistency(
-            &cue_path,
-            &[audio1.as_path(), audio2.as_path()],
-        );
+        let result = validate_cue_consistency(&cue_path, &[audio1.as_path(), audio2.as_path()]);
 
         assert!(result.is_valid);
         assert!(!result.parsing_error);
@@ -884,13 +973,17 @@ FILE "track2.flac" WAVE
         let cue_path = temp_dir.path().join("test.cue");
         let audio = temp_dir.path().join("existing.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "missing.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio, b"dummy audio").unwrap();
 
         let result = validate_cue_consistency(&cue_path, &[audio.as_path()]);
@@ -907,7 +1000,9 @@ FILE "missing.flac" WAVE
         let audio2 = temp_dir.path().join("track2.flac");
         let audio3 = temp_dir.path().join("track3.flac");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Artist"
 TITLE "Album"
 FILE "track1.flac" WAVE
   TRACK 01 AUDIO
@@ -917,7 +1012,9 @@ FILE "track2.flac" WAVE
   TRACK 02 AUDIO
     TITLE "Track 2"
     INDEX 01 00:02:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         std::fs::write(&audio1, b"dummy audio").unwrap();
         std::fs::write(&audio2, b"dummy audio").unwrap();
         std::fs::write(&audio3, b"dummy audio").unwrap();
@@ -953,10 +1050,8 @@ FILE "track2.flac" WAVE
         let audio = temp_dir.path().join("track.flac");
         std::fs::write(&audio, b"dummy audio").unwrap();
 
-        let result = validate_cue_consistency(
-            &temp_dir.path().join("nonexistent.cue"),
-            &[audio.as_path()],
-        );
+        let result =
+            validate_cue_consistency(&temp_dir.path().join("nonexistent.cue"), &[audio.as_path()]);
 
         assert!(!result.is_valid);
         assert!(result.parsing_error);
@@ -967,7 +1062,9 @@ FILE "track2.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Test Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Test Artist"
 TITLE "Test Album"
 REM GENRE "Rock"
 REM DATE 2024
@@ -975,7 +1072,9 @@ FILE "test.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track One"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -988,7 +1087,9 @@ FILE "test.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Test Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Test Artist"
 TITLE "Test Album"
 REM GENRE Rock
 REM DATE 2024
@@ -996,7 +1097,9 @@ FILE "test.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track One"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 
@@ -1009,13 +1112,17 @@ FILE "test.flac" WAVE
         let temp_dir = tempfile::TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
 
-        std::fs::write(&cue_path, r#"PERFORMER "Test Artist"
+        std::fs::write(
+            &cue_path,
+            r#"PERFORMER "Test Artist"
 TITLE "Test Album"
 FILE "test.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Track One"
     INDEX 01 00:00:00
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let result = parse_cue_file(&cue_path).unwrap();
 

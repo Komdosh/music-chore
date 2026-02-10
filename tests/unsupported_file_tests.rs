@@ -115,10 +115,9 @@ fn test_scan_dir_nested_unsupported_formats() {
         source_path.join("album/subdir/nested_unsupported.dsf"),
         "dsf",
     )
-        .unwrap();
+    .unwrap();
 
     fs::write(source_path.join("album/unsupported.ogg"), "ogg").unwrap();
-
 
     let tracks = scan_dir(source_path, false);
 

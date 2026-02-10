@@ -24,7 +24,10 @@ fn test_track_calculate_checksum() {
     // Verify the actual SHA256 hash value against pre-calculated known-good value
     // This ensures the checksum algorithm is correct, not just well-formed
     let expected_checksum = "e2b069fbc726ad70d1c65bf1fb7baa547daf4735f4e69e1f1021d295672a63dc";
-    assert_eq!(checksum, expected_checksum, "Checksum mismatch - algorithm may have changed");
+    assert_eq!(
+        checksum, expected_checksum,
+        "Checksum mismatch - algorithm may have changed"
+    );
 }
 
 #[test]

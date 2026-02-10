@@ -20,11 +20,13 @@ fn test_scan_simple_directory() {
     // Verify all files have .flac extension
     for track in &tracks {
         assert_eq!(track.metadata.format, "flac");
-        assert!(track
-            .file_path
-            .extension()
-            .unwrap()
-            .eq_ignore_ascii_case("flac"));
+        assert!(
+            track
+                .file_path
+                .extension()
+                .unwrap()
+                .eq_ignore_ascii_case("flac")
+        );
     }
 }
 
@@ -61,12 +63,13 @@ fn test_scan_paths_only() {
 
     // Verify all are .flac files
     for path in &paths {
-        assert!(path
-            .extension()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .eq_ignore_ascii_case("flac"));
+        assert!(
+            path.extension()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .eq_ignore_ascii_case("flac")
+        );
     }
 }
 

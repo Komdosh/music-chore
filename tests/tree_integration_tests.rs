@@ -55,9 +55,10 @@ mod tests {
             },
         };
 
-        let album1_files: HashSet<PathBuf> = vec![
-            PathBuf::from("Test Artist/First Album/01 Track.flac"),
-        ].into_iter().collect();
+        let album1_files: HashSet<PathBuf> =
+            vec![PathBuf::from("Test Artist/First Album/01 Track.flac")]
+                .into_iter()
+                .collect();
 
         // Create first artist with multiple albums
         let artist1 = ArtistNode {
@@ -188,14 +189,17 @@ mod tests {
 
         // Copy fixture files for multiple artists and albums
         // Use the truly untagged FLAC file to ensure folder inference for artist/album
-        let untagged_fixture_path = PathBuf::from("tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac");
+        let untagged_fixture_path = PathBuf::from(
+            "tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac",
+        );
 
         for artist_name in ["ArtistA", "ArtistB"] {
             for album_name in ["Album1", "Album2"] {
                 let album_dir = dir.path().join(artist_name).join(album_name);
                 fs::create_dir_all(&album_dir).unwrap();
 
-                for (_i, track_filename) in ["track1.flac", "track2.flac"].iter().enumerate() { // Use two untagged FLACs
+                for (_i, track_filename) in ["track1.flac", "track2.flac"].iter().enumerate() {
+                    // Use two untagged FLACs
                     let track_path = album_dir.join(track_filename);
                     fs::copy(&untagged_fixture_path, &track_path).unwrap();
                 }
@@ -229,7 +233,9 @@ mod tests {
         fs::create_dir_all(&album_dir).unwrap();
 
         // Use the truly untagged FLAC file for all formats
-        let untagged_fixture_path = PathBuf::from("tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac");
+        let untagged_fixture_path = PathBuf::from(
+            "tests/fixtures/artist_bracket/Some guy [FLAC]/05. Shard/no_metadata.flac",
+        );
 
         let track1 = album_dir.join("track1.flac");
         let track2 = album_dir.join("track2.FLAC");
@@ -247,8 +253,7 @@ mod tests {
         // Should find FLAC, MP3, and WAV files (case insensitive)
         assert_eq!(library.total_tracks, 4); // flac, FLAC, mp3, and wav
         assert_eq!(library.total_artists, 1); // All untagged, so one folder inferred artist
-        assert_eq!(library.total_albums, 1);  // All untagged, so one folder inferred album
-
+        assert_eq!(library.total_albums, 1); // All untagged, so one folder inferred album
 
         let tracks = &library.artists[0].albums[0].tracks;
         let track_formats: Vec<_> = tracks.iter().map(|t| &t.metadata.format).collect();

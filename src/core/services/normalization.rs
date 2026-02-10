@@ -3,8 +3,8 @@
 use crate::adapters::audio_formats as formats;
 use crate::core::domain::models::Track;
 // Ensure Track is imported
-use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
 use crate::MetadataValue;
+use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
 use serde::{Deserialize, Serialize};
 // Added for combined JSON output
 use std::path::PathBuf;
@@ -159,7 +159,13 @@ const GENRE_ALIASES: &[(&[&str], &str)] = &[
         "Blues",
     ),
     (
-        &["country", "country music", "country & western", "c&w", "nashville"],
+        &[
+            "country",
+            "country music",
+            "country & western",
+            "c&w",
+            "nashville",
+        ],
         "Country",
     ),
     (
@@ -480,9 +486,6 @@ pub(crate) fn normalize_years_internal(
     Ok(reports)
 }
 
-
-
-
 pub fn to_title_case(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut capitalize_next = true;
@@ -536,7 +539,11 @@ pub(crate) fn normalize_titles_internal(
             }
             Err(e) => {
                 // If scanning fails for a directory, report an overall error
-                return Err(format!("Error scanning directory {}: {}", path.display(), e));
+                return Err(format!(
+                    "Error scanning directory {}: {}",
+                    path.display(),
+                    e
+                ));
             }
         }
     } else {
@@ -576,7 +583,11 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         out.push_str("--- Title Normalization ---\n");
         for report in title_reports {
             if let Some(ref error) = report.error {
-                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
+                out.push_str(&format!(
+                    "ERROR: {} for {}\n",
+                    error,
+                    report.original_path.display()
+                ));
                 title_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -608,7 +619,11 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         out.push_str("--- Genre Normalization ---\n");
         for report in genre_reports {
             if let Some(ref error) = report.error {
-                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
+                out.push_str(&format!(
+                    "ERROR: {} for {}\n",
+                    error,
+                    report.original_path.display()
+                ));
                 genre_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -640,7 +655,11 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         out.push_str("--- Artist Normalization ---\n");
         for report in artist_reports {
             if let Some(ref error) = report.error {
-                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
+                out.push_str(&format!(
+                    "ERROR: {} for {}\n",
+                    error,
+                    report.original_path.display()
+                ));
                 artist_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -672,7 +691,11 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         out.push_str("--- Album Normalization ---\n");
         for report in album_reports {
             if let Some(ref error) = report.error {
-                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
+                out.push_str(&format!(
+                    "ERROR: {} for {}\n",
+                    error,
+                    report.original_path.display()
+                ));
                 album_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
@@ -704,20 +727,33 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         out.push_str("--- Year Normalization ---\n");
         for report in year_reports {
             if let Some(ref error) = report.error {
-                out.push_str(&format!("ERROR: {} for {}\n", error, report.original_path.display()));
+                out.push_str(&format!(
+                    "ERROR: {} for {}\n",
+                    error,
+                    report.original_path.display()
+                ));
                 year_error_count += 1;
             } else if report.changed {
                 out.push_str(&format!(
                     "NORMALIZED: Year '{}' -> '{}' in {}\n",
-                    report.original_year.map(|y| y.to_string()).unwrap_or_default(),
-                    report.normalized_year.map(|y| y.to_string()).unwrap_or_default(),
+                    report
+                        .original_year
+                        .map(|y| y.to_string())
+                        .unwrap_or_default(),
+                    report
+                        .normalized_year
+                        .map(|y| y.to_string())
+                        .unwrap_or_default(),
                     report.original_path.display()
                 ));
                 year_updated_count += 1;
             } else {
                 out.push_str(&format!(
                     "NO CHANGE: Year '{}' already normalized in {}\n",
-                    report.original_year.map(|y| y.to_string()).unwrap_or_default(),
+                    report
+                        .original_year
+                        .map(|y| y.to_string())
+                        .unwrap_or_default(),
                     report.original_path.display()
                 ));
                 year_no_change_count += 1;
@@ -731,7 +767,6 @@ pub fn normalize_and_format(path: PathBuf, json: bool) -> Result<String, String>
         Ok(out)
     }
 }
-
 
 /// Normalize a single track's title
 fn normalize_single_track(track: Track) -> TitleNormalizationReport {
@@ -777,7 +812,7 @@ fn normalize_single_track(track: Track) -> TitleNormalizationReport {
             };
         }
     };
-    
+
     let original_title_for_report = Some(current_title_string_value.clone()); // Store for reporting
 
     let normalized_title_value = to_title_case(&current_title_string_value); // Borrow `current_title_string_value`
@@ -886,7 +921,16 @@ mod tests {
             file_path: PathBuf::from("/music/artist/album/track.flac"),
             metadata: TrackMetadata {
                 title: Some(MetadataValue::user_set("a test title".to_string())),
-                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+                artist: None,
+                album: None,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format: "flac".to_string(),
+                path: PathBuf::from(""),
             },
             checksum: None,
         };
@@ -903,14 +947,29 @@ mod tests {
             file_path: PathBuf::from("/music/artist/album/track.flac"),
             metadata: TrackMetadata {
                 title: Some(MetadataValue::user_set("Already Normalized".to_string())),
-                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+                artist: None,
+                album: None,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format: "flac".to_string(),
+                path: PathBuf::from(""),
             },
             checksum: None,
         };
         let report = normalize_single_track(track);
         assert!(!report.changed);
-        assert_eq!(report.original_title, Some("Already Normalized".to_string()));
-        assert_eq!(report.normalized_title, Some("Already Normalized".to_string()));
+        assert_eq!(
+            report.original_title,
+            Some("Already Normalized".to_string())
+        );
+        assert_eq!(
+            report.normalized_title,
+            Some("Already Normalized".to_string())
+        );
         assert!(report.error.is_none());
     }
 
@@ -920,14 +979,29 @@ mod tests {
             file_path: PathBuf::from("/music/file_without_title.flac"),
             metadata: TrackMetadata {
                 title: None, // Explicitly no title in metadata
-                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+                artist: None,
+                album: None,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format: "flac".to_string(),
+                path: PathBuf::from(""),
             },
             checksum: None,
         };
         let report = normalize_single_track(track);
         assert!(report.changed); // Expect change because "file_without_title" is normalized
-        assert_eq!(report.original_title, Some("file_without_title".to_string())); // This is the title derived from filename that was processed
-        assert_eq!(report.normalized_title, Some("File_Without_Title".to_string())); // Normalized value
+        assert_eq!(
+            report.original_title,
+            Some("file_without_title".to_string())
+        ); // This is the title derived from filename that was processed
+        assert_eq!(
+            report.normalized_title,
+            Some("File_Without_Title".to_string())
+        ); // Normalized value
         assert!(report.error.is_none());
     }
 
@@ -938,7 +1012,16 @@ mod tests {
             file_path: PathBuf::from("/music/.flac"), // File with no stem
             metadata: TrackMetadata {
                 title: None,
-                artist: None, album: None, album_artist: None, track_number: None, disc_number: None, year: None, genre: None, duration: None, format: "flac".to_string(), path: PathBuf::from(""),
+                artist: None,
+                album: None,
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                year: None,
+                genre: None,
+                duration: None,
+                format: "flac".to_string(),
+                path: PathBuf::from(""),
             },
             checksum: None,
         };

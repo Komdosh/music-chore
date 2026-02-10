@@ -1,6 +1,6 @@
 use crate::core::domain::with_schema_version;
 use crate::core::services::scanner::{scan_dir, scan_dir_with_metadata};
-use crate::{build_library_hierarchy, Library, MetadataSource, Track, TrackNode};
+use crate::{Library, MetadataSource, Track, TrackNode, build_library_hierarchy};
 use serde_json::to_string_pretty;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -160,7 +160,11 @@ fn format_track_info_for_dir(track: &Track) -> String {
             display_name = format!(
                 "{} ({})",
                 title_metadata_value.value,
-                track.file_path.file_name().unwrap_or_default().to_string_lossy()
+                track
+                    .file_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
             );
         } else if !title_metadata_value.value.is_empty() {
             // For non-CUE-inferred titles, use the title if it exists and is not empty
@@ -179,7 +183,12 @@ fn format_track_info_for_dir(track: &Track) -> String {
         }
     }
 
-    format!("{} [{}] {}", display_name, determined_source_icon, info_parts.join(" | "))
+    format!(
+        "{} [{}] {}",
+        display_name,
+        determined_source_icon,
+        info_parts.join(" | ")
+    )
 }
 
 fn get_metadata_source_icon(source: &MetadataSource) -> &str {
@@ -289,13 +298,13 @@ fn format_track_info(track: &TrackNode) -> String {
         .title
         .as_ref()
         .map(|t| &t.source)
-        .unwrap_or(&MetadataSource::FolderInferred) {
+        .unwrap_or(&MetadataSource::FolderInferred)
+    {
         MetadataSource::Embedded => "🎯",
         MetadataSource::FolderInferred => "🤖",
         MetadataSource::CueInferred => "📄",
         MetadataSource::UserEdited => "👤",
     };
-
 
     format!("[{}] {}", source, info.join(" | "))
 }

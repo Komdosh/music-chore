@@ -1,14 +1,19 @@
 use crate::adapters::audio_formats::{get_supported_extensions, read_metadata};
 use crate::core::domain::with_schema_version;
 use crate::core::services::apply_metadata::write_metadata_by_path;
-use crate::core::services::cue::{format_cue_validation_result, generate_cue_for_path, parse_cue_file, validate_cue_consistency, CueGenerationError};
+use crate::core::services::cue::{
+    CueGenerationError, format_cue_validation_result, generate_cue_for_path, parse_cue_file,
+    validate_cue_consistency,
+};
 use crate::core::services::duplicates::find_duplicates;
 use crate::core::services::format_tree::{emit_by_path, format_tree_output};
 use crate::core::services::library::build_library_hierarchy;
 use crate::core::services::normalization::normalize_and_format;
-use crate::core::services::scanner::{format_track_name_for_scan_output, scan_dir, scan_dir_with_options};
-use crate::presentation::cli::commands::validate_path;
+use crate::core::services::scanner::{
+    format_track_name_for_scan_output, scan_dir, scan_dir_with_options,
+};
 use crate::presentation::cli::Commands;
+use crate::presentation::cli::commands::validate_path;
 use serde_json::to_string_pretty;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -25,49 +30,44 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             verbose,
             skip_metadata,
         } => {
-            match handle_scan(path, max_depth, follow_symlinks, exclude, json, verbose, skip_metadata) {
+            match handle_scan(
+                path,
+                max_depth,
+                follow_symlinks,
+                exclude,
+                json,
+                verbose,
+                skip_metadata,
+            ) {
                 Ok(()) => Ok(()),
                 Err(_) => Err(1),
             }
         }
-        Commands::Tree { path, json } => {
-            match handle_tree(path, json) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
-        Commands::Read { file } => {
-            match handle_read(file) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
+        Commands::Tree { path, json } => match handle_tree(path, json) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
+        Commands::Read { file } => match handle_read(file) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
         Commands::Write {
             file,
             set,
             apply,
             dry_run,
-        } => {
-            match handle_write(file, set, apply, dry_run) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
-        Commands::Normalize {
-            path,
-            json,
-        } => {
-            match handle_normalize_and_format(path, json) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
-        Commands::Emit { path, json } => {
-            match handle_emit(path, json) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
+        } => match handle_write(file, set, apply, dry_run) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
+        Commands::Normalize { path, json } => match handle_normalize_and_format(path, json) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
+        Commands::Emit { path, json } => match handle_emit(path, json) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
         Commands::Cue {
             path,
             output,
@@ -80,24 +80,28 @@ pub fn handle_command(command: Commands) -> Result<(), i32> {
             validate,
         } => {
             match handle_cue(CueParams {
-                path, output, dry_run, force, audio_dir, json, generate, parse, validate,
+                path,
+                output,
+                dry_run,
+                force,
+                audio_dir,
+                json,
+                generate,
+                parse,
+                validate,
             }) {
                 Ok(()) => Ok(()),
                 Err(_) => Err(1),
             }
         }
-        Commands::Validate { path, json } => {
-            match handle_validate(path, json) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
-        Commands::Duplicates { path, json } => {
-            match handle_duplicates(path, json) {
-                Ok(()) => Ok(()),
-                Err(_) => Err(1),
-            }
-        }
+        Commands::Validate { path, json } => match handle_validate(path, json) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
+        Commands::Duplicates { path, json } => match handle_duplicates(path, json) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(1),
+        },
     }
 }
 
@@ -128,7 +132,11 @@ pub fn handle_scan(
     }
 
     if verbose {
-        eprintln!("Scanned {} music files from {}", tracks.len(), path.display());
+        eprintln!(
+            "Scanned {} music files from {}",
+            tracks.len(),
+            path.display()
+        );
     }
 
     if json {
@@ -143,13 +151,9 @@ pub fn handle_scan(
         // Print detailed track information when not in JSON mode
         for track in &tracks {
             let track_name_for_display = format_track_name_for_scan_output(track);
-            println!(
-                "{} [{}]",
-                track.file_path.display(),
-                track_name_for_display
-            );
+            println!("{} [{}]", track.file_path.display(), track_name_for_display);
         }
-        
+
         if verbose {
             eprintln!("Successfully processed {} music files.", tracks.len());
         }
@@ -208,8 +212,12 @@ pub fn handle_read(file: PathBuf) -> Result<(), i32> {
     Ok(())
 }
 
-
-pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool) -> Result<(), i32> {
+pub fn handle_write(
+    file: PathBuf,
+    set: Vec<String>,
+    apply: bool,
+    dry_run: bool,
+) -> Result<(), i32> {
     // Validate that both flags are not used simultaneously
     if apply && dry_run {
         eprintln!("Error: Cannot use both --apply and --dry-run flags simultaneously");
@@ -224,7 +232,7 @@ pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool)
             if let Err(_) = std::io::stdout().flush() {
                 // If we can't flush, continue anyway
             }
-            
+
             let mut input = String::new();
             match std::io::stdin().read_line(&mut input) {
                 Ok(_) => {
@@ -241,7 +249,9 @@ pub fn handle_write(file: PathBuf, set: Vec<String>, apply: bool, dry_run: bool)
             }
         } else {
             // If not in a TTY environment (like in tests), skip confirmation but warn
-            eprintln!("Warning: Running in non-interactive mode. Skipping confirmation for --apply.");
+            eprintln!(
+                "Warning: Running in non-interactive mode. Skipping confirmation for --apply."
+            );
         }
     }
 
@@ -266,7 +276,7 @@ pub fn handle_normalize_and_format(path: PathBuf, json: bool) -> Result<(), i32>
         Ok(result) => {
             println!("{}", result);
             Ok(())
-        },
+        }
         Err(e) => {
             eprintln!("{}", e);
             Err(1)
@@ -301,7 +311,7 @@ pub fn handle_duplicates(path: PathBuf, json: bool) -> Result<(), i32> {
         Ok(value) => {
             println!("{}", value);
             Ok(())
-        },
+        }
         Err(value) => {
             eprintln!("{}", value);
             Err(1)
@@ -319,7 +329,7 @@ fn handle_validate(path: PathBuf, json: bool) -> Result<(), i32> {
         Ok(value) => {
             println!("{}", value);
             Ok(())
-        },
+        }
         Err(value) => {
             eprintln!("{}", value);
             Err(1)
@@ -340,7 +350,8 @@ struct CueParams {
 }
 
 fn handle_cue(params: CueParams) -> Result<(), i32> {
-    let operation_count = params.generate as u8 + params.parse as u8 + params.validate as u8;
+    let generate = params.generate;
+    let operation_count = generate as u8 + params.parse as u8 + params.validate as u8;
 
     if operation_count == 0 {
         eprintln!("Error: Must specify --generate, --parse, or --validate");
@@ -352,7 +363,7 @@ fn handle_cue(params: CueParams) -> Result<(), i32> {
         return Err(1);
     }
 
-    if params.generate {
+    if generate {
         handle_cue_generate(params.path, params.output, params.dry_run, params.force)?;
     } else if params.parse {
         handle_cue_parse(params.path, params.json)?;
@@ -486,11 +497,16 @@ fn handle_cue_validate(path: PathBuf, audio_dir: Option<PathBuf>, json: bool) ->
             .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
             .filter(|e| {
                 // Only include audio files, not the CUE file itself
-                let extension = e.path().extension()
+                let extension = e
+                    .path()
+                    .extension()
                     .and_then(|ext| ext.to_str())
                     .map(|ext| ext.to_lowercase());
 
-                extension.as_deref().iter().any(|ext| supported_extensions.contains(&ext.to_string()))
+                extension
+                    .as_deref()
+                    .iter()
+                    .any(|ext| supported_extensions.contains(&ext.to_string()))
             })
             .map(|e| e.path())
             .collect(),
@@ -531,35 +547,19 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_path = temp_dir.path().join("test_dir");
         fs::create_dir(&test_path).unwrap();
-        
+
         // Create a dummy audio file to ensure scan finds something
         let audio_file = test_path.join("test.flac");
         fs::copy("tests/fixtures/flac/simple/track1.flac", &audio_file).unwrap();
-        
-        let result = handle_scan(
-            test_path,
-            None,
-            false,
-            vec![],
-            false,
-            false,
-            false
-        );
+
+        let result = handle_scan(test_path, None, false, vec![], false, false, false);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_handle_scan_with_nonexistent_path() {
         let nonexistent_path = PathBuf::from("/nonexistent/path/test");
-        let result = handle_scan(
-            nonexistent_path,
-            None,
-            false,
-            vec![],
-            false,
-            false,
-            false
-        );
+        let result = handle_scan(nonexistent_path, None, false, vec![], false, false, false);
         assert_eq!(result, Err(1));
     }
 
@@ -568,7 +568,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_path = temp_dir.path().join("test_dir");
         fs::create_dir(&test_path).unwrap();
-        
+
         let result = handle_tree(test_path, false);
         assert!(result.is_ok());
     }
@@ -643,10 +643,10 @@ mod tests {
             parse: false,
             validate: false,
         };
-        
+
         let result_no_op = handle_cue(params_no_op);
         assert_eq!(result_no_op, Err(1)); // Should fail when no operation is specified
-        
+
         let params_multi_op = CueParams {
             path: PathBuf::from("test.cue"),
             output: None,
@@ -658,7 +658,7 @@ mod tests {
             parse: true,
             validate: false,
         };
-        
+
         let result_multi_op = handle_cue(params_multi_op);
         assert_eq!(result_multi_op, Err(1)); // Should fail when multiple operations are specified
     }
@@ -687,7 +687,8 @@ FILE "track01.flac" WAVE
   TRACK 01 AUDIO
     TITLE "Test Track 01"
     PERFORMER "Test Artist"
-    INDEX 01 00:00:00"#.to_string();
+    INDEX 01 00:00:00"#
+            .to_string();
         fs::write(&cue_file_path, cue_content).unwrap();
 
         // Create a dummy audio file
@@ -721,7 +722,11 @@ FILE "track01.flac" WAVE
         // Create a dummy audio file in the specified audio directory
         fs::write(&audio_file_path, b"dummy flac content").unwrap();
 
-        let result = handle_cue_validate(cue_file_path, Some(audio_temp_dir.path().to_path_buf()), false);
+        let result = handle_cue_validate(
+            cue_file_path,
+            Some(audio_temp_dir.path().to_path_buf()),
+            false,
+        );
         assert!(result.is_ok());
         // Expected: Prints success message indicating validation passed
     }

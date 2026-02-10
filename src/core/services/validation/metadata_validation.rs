@@ -1,6 +1,6 @@
 //! Metadata schema validation module
 
-use crate::core::domain::models::{Track, TrackMetadata, MetadataValue};
+use crate::core::domain::models::{MetadataValue, Track, TrackMetadata};
 use std::path::Path;
 
 /// Errors that can occur during metadata validation
@@ -19,9 +19,15 @@ pub enum ValidationError {
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::MissingRequiredField(field) => write!(f, "Missing required field: {}", field),
-            ValidationError::InvalidValue(field, value) => write!(f, "Invalid value for {}: {}", field, value),
-            ValidationError::FormatMismatch(field, format) => write!(f, "Format mismatch for {}: {}", field, format),
+            ValidationError::MissingRequiredField(field) => {
+                write!(f, "Missing required field: {}", field)
+            }
+            ValidationError::InvalidValue(field, value) => {
+                write!(f, "Invalid value for {}: {}", field, value)
+            }
+            ValidationError::FormatMismatch(field, format) => {
+                write!(f, "Format mismatch for {}: {}", field, format)
+            }
             ValidationError::IoError(msg) => write!(f, "IO error: {}", msg),
         }
     }
@@ -32,10 +38,12 @@ impl std::error::Error for ValidationError {}
 /// Validate track number is within acceptable bounds
 fn validate_track_number(track_number: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
     if let Some(track_number_val) = track_number {
-        if track_number_val.value == 0 || track_number_val.value > crate::core::config::MAX_TRACK_NUMBER {
+        if track_number_val.value == 0
+            || track_number_val.value > crate::core::config::MAX_TRACK_NUMBER
+        {
             return Err(ValidationError::InvalidValue(
                 "track_number".to_string(),
-                track_number_val.value.to_string()
+                track_number_val.value.to_string(),
             ));
         }
     }
@@ -45,10 +53,12 @@ fn validate_track_number(track_number: Option<&MetadataValue<u32>>) -> Result<()
 /// Validate disc number is within acceptable bounds
 fn validate_disc_number(disc_number: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
     if let Some(disc_number_val) = disc_number {
-        if disc_number_val.value == 0 || disc_number_val.value > crate::core::config::MAX_DISC_NUMBER {
+        if disc_number_val.value == 0
+            || disc_number_val.value > crate::core::config::MAX_DISC_NUMBER
+        {
             return Err(ValidationError::InvalidValue(
                 "disc_number".to_string(),
-                disc_number_val.value.to_string()
+                disc_number_val.value.to_string(),
             ));
         }
     }
@@ -59,10 +69,12 @@ fn validate_disc_number(disc_number: Option<&MetadataValue<u32>>) -> Result<(), 
 fn validate_year(year: Option<&MetadataValue<u32>>) -> Result<(), ValidationError> {
     if let Some(year_val) = year {
         // Reasonable range for years
-        if year_val.value < crate::core::config::MIN_YEAR || year_val.value > crate::core::config::MAX_YEAR {
+        if year_val.value < crate::core::config::MIN_YEAR
+            || year_val.value > crate::core::config::MAX_YEAR
+        {
             return Err(ValidationError::InvalidValue(
                 "year".to_string(),
-                year_val.value.to_string()
+                year_val.value.to_string(),
             ));
         }
     }
@@ -72,10 +84,12 @@ fn validate_year(year: Option<&MetadataValue<u32>>) -> Result<(), ValidationErro
 /// Validate duration is within acceptable bounds
 fn validate_duration(duration: Option<&MetadataValue<f64>>) -> Result<(), ValidationError> {
     if let Some(duration_val) = duration {
-        if duration_val.value < 0.0 || duration_val.value > crate::core::config::MAX_DURATION_SECONDS {
+        if duration_val.value < 0.0
+            || duration_val.value > crate::core::config::MAX_DURATION_SECONDS
+        {
             return Err(ValidationError::InvalidValue(
                 "duration".to_string(),
-                duration_val.value.to_string()
+                duration_val.value.to_string(),
             ));
         }
     }
@@ -98,7 +112,10 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
 
     // Validate path
     if !track.file_path.exists() {
-        return Err(ValidationError::IoError(format!("File does not exist: {}", track.file_path.display())));
+        return Err(ValidationError::IoError(format!(
+            "File does not exist: {}",
+            track.file_path.display()
+        )));
     }
 
     // Validate numeric fields are within reasonable bounds
@@ -110,34 +127,47 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
     // Validate string fields are not empty when present
     if let Some(ref title) = metadata.title {
         if title.value.trim().is_empty() {
-            return Err(ValidationError::InvalidValue("title".to_string(), "empty".to_string()));
+            return Err(ValidationError::InvalidValue(
+                "title".to_string(),
+                "empty".to_string(),
+            ));
         }
     }
 
     if let Some(ref artist) = metadata.artist {
         if artist.value.trim().is_empty() {
-            return Err(ValidationError::InvalidValue("artist".to_string(), "empty".to_string()));
+            return Err(ValidationError::InvalidValue(
+                "artist".to_string(),
+                "empty".to_string(),
+            ));
         }
     }
 
     if let Some(ref album) = metadata.album {
         if album.value.trim().is_empty() {
-            return Err(ValidationError::InvalidValue("album".to_string(), "empty".to_string()));
+            return Err(ValidationError::InvalidValue(
+                "album".to_string(),
+                "empty".to_string(),
+            ));
         }
     }
 
     if let Some(ref genre) = metadata.genre {
         if genre.value.trim().is_empty() {
-            return Err(ValidationError::InvalidValue("genre".to_string(), "empty".to_string()));
+            return Err(ValidationError::InvalidValue(
+                "genre".to_string(),
+                "empty".to_string(),
+            ));
         }
     }
 
     // Validate duration if present
     if let Some(ref duration) = metadata.duration {
-        if duration.value < 0.0 || duration.value > crate::core::config::MAX_DURATION_SECONDS { // Max 10 hours
+        if duration.value < 0.0 || duration.value > crate::core::config::MAX_DURATION_SECONDS {
+            // Max 10 hours
             return Err(ValidationError::InvalidValue(
                 "duration".to_string(),
-                duration.value.to_string()
+                duration.value.to_string(),
             ));
         }
     }
@@ -146,7 +176,10 @@ pub fn validate_track_metadata(track: &Track) -> Result<(), ValidationError> {
 }
 
 /// Validate metadata when reading from a file
-pub fn validate_metadata_on_read(path: &Path, metadata: &TrackMetadata) -> Result<(), ValidationError> {
+pub fn validate_metadata_on_read(
+    path: &Path,
+    metadata: &TrackMetadata,
+) -> Result<(), ValidationError> {
     // Create a temporary track for validation purposes
     let temp_track = Track::new(path.to_path_buf(), metadata.clone());
     validate_track_metadata(&temp_track)

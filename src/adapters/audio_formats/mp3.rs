@@ -8,11 +8,13 @@ use lofty::{
     tag::{ItemValue, TagItem},
 };
 
-use std::path::Path;
 use crate::adapters::audio_formats::wav::item_value_text;
-use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
+use crate::core::domain::models::{
+    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata,
+};
 use crate::core::domain::traits::{AudioFile, AudioFileError};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
+use std::path::Path;
 
 /// MP3 format handler
 pub struct Mp3Handler;
@@ -46,15 +48,18 @@ impl AudioFile for Mp3Handler {
         }
 
         // Use lofty to read the file with error handling for problematic ID3 tags
-        let tagged_file = read_from_path(path)
-            .map_err(|e| {
-                let error_msg = format!("{}", e);
-                if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator") {
-                    AudioFileError::InvalidFile(format!("MP3 file contains unsupported encrypted/compressed frames: {}", e))
-                } else {
-                    AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
-                }
-            })?;
+        let tagged_file = read_from_path(path).map_err(|e| {
+            let error_msg = format!("{}", e);
+            if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator")
+            {
+                AudioFileError::InvalidFile(format!(
+                    "MP3 file contains unsupported encrypted/compressed frames: {}",
+                    e
+                ))
+            } else {
+                AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
+            }
+        })?;
 
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
@@ -128,15 +133,18 @@ impl AudioFile for Mp3Handler {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        let tagged_file = read_from_path(path)
-            .map_err(|e| {
-                let error_msg = format!("{}", e);
-                if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator") {
-                    AudioFileError::InvalidFile(format!("MP3 file contains unsupported encrypted/compressed frames: {}", e))
-                } else {
-                    AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
-                }
-            })?;
+        let tagged_file = read_from_path(path).map_err(|e| {
+            let error_msg = format!("{}", e);
+            if error_msg.contains("encrypted frame") || error_msg.contains("data length indicator")
+            {
+                AudioFileError::InvalidFile(format!(
+                    "MP3 file contains unsupported encrypted/compressed frames: {}",
+                    e
+                ))
+            } else {
+                AudioFileError::InvalidFile(format!("Failed to read MP3 file: {}", e))
+            }
+        })?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }
@@ -272,10 +280,10 @@ impl Mp3Handler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use crate::core::domain::models::MetadataSource;
     use std::fs;
-    use tempfile::TempDir;
-    use crate::core::domain::models::MetadataSource; // Added MetadataSource import
+    use std::path::PathBuf;
+    use tempfile::TempDir; // Added MetadataSource import
 
     #[test]
     fn test_mp3_handler_supported_extensions() {
@@ -380,14 +388,14 @@ mod tests {
         let handler = Mp3Handler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.mp3");
-        
+
         // Create a dummy file that is not a real MP3 file
         fs::write(&test_file, b"not a real mp3 file").unwrap();
-        
+
         let result = handler.read_metadata(&test_file);
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
-    
+
     // --- New tests for successful read operations ---
 
     #[test]
@@ -400,7 +408,7 @@ mod tests {
         let track = result.unwrap();
 
         let metadata = track.metadata;
-        
+
         let title_meta = metadata.title.as_ref().unwrap();
         assert_eq!(title_meta.value, "Test Track 1");
         assert_eq!(title_meta.source, MetadataSource::Embedded);
@@ -415,31 +423,31 @@ mod tests {
         assert_eq!(album_meta.value, "Test Album");
         assert_eq!(album_meta.source, MetadataSource::Embedded);
         assert_eq!(album_meta.confidence, 1.0);
-        
+
         assert!(metadata.album_artist.is_none());
-        
+
         let track_number_meta = metadata.track_number.as_ref().unwrap();
         assert_eq!(track_number_meta.value, 1);
         assert_eq!(track_number_meta.source, MetadataSource::Embedded);
         assert_eq!(track_number_meta.confidence, 1.0);
-        
+
         assert!(metadata.disc_number.is_none());
-        
+
         let year_meta = metadata.year.as_ref().unwrap();
         assert_eq!(year_meta.value, 2024);
         assert_eq!(year_meta.source, MetadataSource::Embedded);
         assert_eq!(year_meta.confidence, 1.0);
-        
+
         let genre_meta = metadata.genre.as_ref().unwrap();
         assert_eq!(genre_meta.value, "Test Genre");
         assert_eq!(genre_meta.source, MetadataSource::Embedded);
         assert_eq!(genre_meta.confidence, 1.0);
-        
+
         let duration_meta = metadata.duration.as_ref().unwrap();
         assert!(duration_meta.value > 0.0); // Duration should be positive
         assert_eq!(duration_meta.source, MetadataSource::Embedded);
         assert_eq!(duration_meta.confidence, 1.0);
-        
+
         assert_eq!(metadata.format, "mp3");
     }
 
@@ -453,12 +461,12 @@ mod tests {
         let metadata = result.unwrap();
 
         assert!(metadata.title.is_none());
-        
+
         let artist_meta = metadata.artist.as_ref().unwrap();
         assert_eq!(artist_meta.value, "mp3");
         assert_eq!(artist_meta.source, MetadataSource::FolderInferred);
         assert_eq!(artist_meta.confidence, FOLDER_INFERRED_CONFIDENCE);
-        
+
         let album_meta = metadata.album.as_ref().unwrap();
         assert_eq!(album_meta.value, "simple");
         assert_eq!(album_meta.source, MetadataSource::FolderInferred);

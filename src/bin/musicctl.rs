@@ -2,10 +2,11 @@
 
 use clap::Parser;
 use env_logger::Env;
-use music_chore::presentation::cli::{handle_command, Cli};
+use music_chore::presentation::cli::{Cli, handle_command};
 
 fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("warn,lofty::flac::read=error")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("warn,lofty::flac::read=error"))
+        .init();
 
     let cli = Cli::parse();
 

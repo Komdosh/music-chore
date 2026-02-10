@@ -1,6 +1,6 @@
 //! Builder patterns for complex objects in the music chore application.
 
-use crate::core::domain::models::{MetadataValue, MetadataSource, TrackMetadata};
+use crate::core::domain::models::{MetadataSource, MetadataValue, TrackMetadata};
 use std::path::PathBuf;
 
 /// Builder for TrackMetadata to facilitate easy construction of metadata objects
@@ -38,7 +38,12 @@ impl TrackMetadataBuilder {
     }
 
     /// Set the title metadata
-    pub fn title<V: Into<String>>(mut self, value: V, source: MetadataSource, confidence: f32) -> Self {
+    pub fn title<V: Into<String>>(
+        mut self,
+        value: V,
+        source: MetadataSource,
+        confidence: f32,
+    ) -> Self {
         self.title = Some(MetadataValue {
             value: value.into(),
             source,
@@ -48,7 +53,12 @@ impl TrackMetadataBuilder {
     }
 
     /// Set the artist metadata
-    pub fn artist<V: Into<String>>(mut self, value: V, source: MetadataSource, confidence: f32) -> Self {
+    pub fn artist<V: Into<String>>(
+        mut self,
+        value: V,
+        source: MetadataSource,
+        confidence: f32,
+    ) -> Self {
         self.artist = Some(MetadataValue {
             value: value.into(),
             source,
@@ -58,7 +68,12 @@ impl TrackMetadataBuilder {
     }
 
     /// Set the album metadata
-    pub fn album<V: Into<String>>(mut self, value: V, source: MetadataSource, confidence: f32) -> Self {
+    pub fn album<V: Into<String>>(
+        mut self,
+        value: V,
+        source: MetadataSource,
+        confidence: f32,
+    ) -> Self {
         self.album = Some(MetadataValue {
             value: value.into(),
             source,
@@ -68,7 +83,12 @@ impl TrackMetadataBuilder {
     }
 
     /// Set the album artist metadata
-    pub fn album_artist<V: Into<String>>(mut self, value: V, source: MetadataSource, confidence: f32) -> Self {
+    pub fn album_artist<V: Into<String>>(
+        mut self,
+        value: V,
+        source: MetadataSource,
+        confidence: f32,
+    ) -> Self {
         self.album_artist = Some(MetadataValue {
             value: value.into(),
             source,
@@ -108,7 +128,12 @@ impl TrackMetadataBuilder {
     }
 
     /// Set the genre metadata
-    pub fn genre<V: Into<String>>(mut self, value: V, source: MetadataSource, confidence: f32) -> Self {
+    pub fn genre<V: Into<String>>(
+        mut self,
+        value: V,
+        source: MetadataSource,
+        confidence: f32,
+    ) -> Self {
         self.genre = Some(MetadataValue {
             value: value.into(),
             source,

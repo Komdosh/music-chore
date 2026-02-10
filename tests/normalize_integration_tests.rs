@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
+    use music_chore::core::domain::models::MetadataValue;
+    use music_chore::core::services::normalization::CombinedNormalizationReport; // Import CombinedNormalizationReport
     use music_chore::to_title_case;
     use std::fs;
     use std::path::Path;
     use std::process::Command;
     use tempfile::TempDir;
-    use music_chore::core::services::normalization::CombinedNormalizationReport; // Import CombinedNormalizationReport
-    use music_chore::adapters::audio_formats::{read_metadata, write_metadata};
-    use music_chore::core::domain::models::{MetadataValue};
 
     #[test]
     fn test_to_title_case_basic() {
@@ -41,7 +41,6 @@ mod tests {
         track_metadata.genre = Some(MetadataValue::user_set("Rock".to_string()));
         write_metadata(&test_file, &track_metadata).unwrap();
 
-
         // Test human-readable output
         let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("normalize")
@@ -66,15 +65,28 @@ mod tests {
 
         assert!(output_json.status.success());
         let stdout_json = String::from_utf8_lossy(&output_json.stdout);
-        let combined_report: CombinedNormalizationReport = serde_json::from_str(&stdout_json).unwrap();
+        let combined_report: CombinedNormalizationReport =
+            serde_json::from_str(&stdout_json).unwrap();
         assert_eq!(combined_report.title_reports.len(), 1);
-        assert_eq!(combined_report.title_reports[0].original_title, Some("Test Song".to_string()));
-        assert_eq!(combined_report.title_reports[0].normalized_title, Some("Test Song".to_string()));
+        assert_eq!(
+            combined_report.title_reports[0].original_title,
+            Some("Test Song".to_string())
+        );
+        assert_eq!(
+            combined_report.title_reports[0].normalized_title,
+            Some("Test Song".to_string())
+        );
         assert_eq!(combined_report.title_reports[0].changed, false);
 
         assert_eq!(combined_report.genre_reports.len(), 1);
-        assert_eq!(combined_report.genre_reports[0].original_genre, Some("Rock".to_string()));
-        assert_eq!(combined_report.genre_reports[0].normalized_genre, Some("Rock".to_string()));
+        assert_eq!(
+            combined_report.genre_reports[0].original_genre,
+            Some("Rock".to_string())
+        );
+        assert_eq!(
+            combined_report.genre_reports[0].normalized_genre,
+            Some("Rock".to_string())
+        );
         assert_eq!(combined_report.genre_reports[0].changed, false);
     }
 
@@ -100,7 +112,6 @@ mod tests {
         track2_metadata.genre = Some(MetadataValue::user_set("punk rock".to_string()));
         write_metadata(&track2_path, &track2_metadata).unwrap();
 
-
         // Test human-readable output
         let output = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("normalize")
@@ -117,7 +128,6 @@ mod tests {
         assert!(stdout.contains("NORMALIZED: Genre 'punk rock' -> 'Punk' in"));
         assert!(stdout.contains("Genre Summary: 1 normalized, 1 no change, 0 errors"));
 
-
         // Test JSON output
         let output_json = Command::new(env!("CARGO_BIN_EXE_musicctl"))
             .arg("normalize")
@@ -128,14 +138,39 @@ mod tests {
 
         assert!(output_json.status.success());
         let stdout_json = String::from_utf8_lossy(&output_json.stdout);
-        let combined_report: CombinedNormalizationReport = serde_json::from_str(&stdout_json).unwrap();
+        let combined_report: CombinedNormalizationReport =
+            serde_json::from_str(&stdout_json).unwrap();
         assert_eq!(combined_report.title_reports.len(), 2);
-        assert!(combined_report.title_reports.iter().any(|r| r.original_title == Some("Test Song".to_string()) && r.changed == false));
-        assert!(combined_report.title_reports.iter().any(|r| r.original_title == Some("this is a test".to_string()) && r.normalized_title == Some("This Is A Test".to_string()) && r.changed == true));
+        assert!(
+            combined_report
+                .title_reports
+                .iter()
+                .any(|r| r.original_title == Some("Test Song".to_string()) && r.changed == false)
+        );
+        assert!(
+            combined_report
+                .title_reports
+                .iter()
+                .any(|r| r.original_title == Some("this is a test".to_string())
+                    && r.normalized_title == Some("This Is A Test".to_string())
+                    && r.changed == true)
+        );
 
         assert_eq!(combined_report.genre_reports.len(), 2);
-        assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == Some("Rock".to_string()) && r.changed == false));
-        assert!(combined_report.genre_reports.iter().any(|r| r.original_genre == Some("punk rock".to_string()) && r.normalized_genre == Some("Punk".to_string()) && r.changed == true));
+        assert!(
+            combined_report
+                .genre_reports
+                .iter()
+                .any(|r| r.original_genre == Some("Rock".to_string()) && r.changed == false)
+        );
+        assert!(
+            combined_report
+                .genre_reports
+                .iter()
+                .any(|r| r.original_genre == Some("punk rock".to_string())
+                    && r.normalized_genre == Some("Punk".to_string())
+                    && r.changed == true)
+        );
     }
 
     #[test]

@@ -1,8 +1,8 @@
 //! Integration tests for MP3 format support.
 
-use music_chore::core::domain::traits::AudioFile;
 use music_chore::adapters::audio_formats::is_format_supported;
 use music_chore::adapters::audio_formats::mp3::Mp3Handler;
+use music_chore::core::domain::traits::AudioFile;
 use music_chore::core::services::scanner::scan_dir;
 use std::path::PathBuf;
 

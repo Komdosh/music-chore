@@ -8,10 +8,12 @@ use lofty::{
     tag::{ItemValue, TagItem},
 };
 
-use std::path::Path;
 use crate::adapters::audio_formats::wav::item_value_text;
+use std::path::Path;
 
-use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
+use crate::core::domain::models::{
+    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata,
+};
 use crate::core::domain::traits::{AudioFile, AudioFileError};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 
@@ -47,8 +49,9 @@ impl AudioFile for WavPackHandler {
         }
 
         // Use lofty to read the file
-        let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+        let tagged_file = read_from_path(path).map_err(|e| {
+            AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e))
+        })?;
 
         // Extract metadata from tags and file properties
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
@@ -62,8 +65,9 @@ impl AudioFile for WavPackHandler {
         }
 
         // Use lofty to write metadata to WavPack file
-        let mut tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+        let mut tagged_file = read_from_path(path).map_err(|e| {
+            AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e))
+        })?;
 
         // Get or create the primary tag
         let tag = tagged_file.primary_tag_mut().ok_or_else(|| {
@@ -110,9 +114,9 @@ impl AudioFile for WavPackHandler {
 
         // Save the changes to disk with default write options
         let write_options = WriteOptions::default();
-        tagged_file
-            .save_to_path(path, write_options)
-            .map_err(|e| AudioFileError::WriteError(format!("Failed to save WavPack file: {}", e)))?;
+        tagged_file.save_to_path(path, write_options).map_err(|e| {
+            AudioFileError::WriteError(format!("Failed to save WavPack file: {}", e))
+        })?;
 
         Ok(())
     }
@@ -122,8 +126,9 @@ impl AudioFile for WavPackHandler {
             return Err(AudioFileError::UnsupportedFormat);
         }
 
-        let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e)))?;
+        let tagged_file = read_from_path(path).map_err(|e| {
+            AudioFileError::InvalidFile(format!("Failed to read WavPack file: {}", e))
+        })?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }
@@ -253,8 +258,8 @@ impl WavPackHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -354,17 +359,16 @@ mod tests {
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
 
-
     #[test]
     fn test_wavpack_handler_with_real_file_should_fail_on_dummy() {
         // Test that a dummy file (not a real WavPack file) produces an error
         let handler = WavPackHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.wv");
-        
+
         // Create a dummy file that is not a real WavPack file
         fs::write(&test_file, b"not a real wavpack file").unwrap();
-        
+
         let result = handler.read_metadata(&test_file);
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
@@ -374,11 +378,11 @@ mod tests {
         let handler = WavPackHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.wv");
-        
+
         // Create a dummy file to simulate a WavPack file for this test
         // In a real scenario, we'd need an actual WavPack file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Test Title".to_string())),
             artist: Some(MetadataValue::embedded("Test Artist".to_string())),
@@ -392,7 +396,7 @@ mod tests {
             format: "wv".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real WavPack file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -403,10 +407,10 @@ mod tests {
         let handler = WavPackHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("partial.wv");
-        
+
         // Create a dummy file to simulate a WavPack file for this test
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Partial Title".to_string())),
             artist: None, // No artist
@@ -420,7 +424,7 @@ mod tests {
             format: "wv".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real WavPack file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -436,10 +440,10 @@ mod tests {
         let test_artist_name = "Inferred Artist";
         let test_album_name = "Inferred Album";
         let relative_path = PathBuf::from(test_artist_name)
-                                      .join(test_album_name)
-                                      .join("track.wv");
+            .join(test_album_name)
+            .join("track.wv");
         let test_file_path = temp_dir.path().join(&relative_path);
-        
+
         fs::create_dir_all(test_file_path.parent().unwrap()).unwrap();
         // Copy the silent.wv fixture to the test path
         let fixture_source_path = PathBuf::from("tests/fixtures/wavpack/silent/silent.wv");
@@ -474,12 +478,18 @@ mod tests {
 
         let handler = WavPackHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let temp_dir_name = temp_dir.path().file_name().unwrap().to_str().unwrap().to_string(); // Get the actual temp dir name
+        let temp_dir_name = temp_dir
+            .path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // Get the actual temp dir name
 
         let test_album_name = "Inferred Album"; // This folder will act as the album name
         let relative_test_path = PathBuf::from(test_album_name).join("track.wv");
         let test_file_path = temp_dir.path().join(&relative_test_path);
-        
+
         fs::create_dir_all(test_file_path.parent().unwrap()).unwrap();
         // Copy the silent.wv fixture to the test path
         let fixture_source_path = PathBuf::from("tests/fixtures/wavpack/silent/silent.wv");
@@ -495,7 +505,7 @@ mod tests {
         assert_eq!(artist_meta.value, temp_dir_name);
         assert_eq!(artist_meta.confidence, FOLDER_INFERRED_CONFIDENCE);
         assert_eq!(artist_meta.source, MetadataSource::FolderInferred);
-        
+
         // Album will be inferred from "Inferred Album" (parent.file_name())
         let album_meta = metadata.album.as_ref().unwrap();
         assert_eq!(album_meta.value, test_album_name);
@@ -510,12 +520,26 @@ mod tests {
 
         let handler = WavPackHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let temp_dir_name = temp_dir.path().file_name().unwrap().to_str().unwrap().to_string(); // Get the actual temp dir name
-        let temp_dir_grandparent_name = temp_dir.path().parent().unwrap().file_name().unwrap().to_str().unwrap().to_string(); // Get the parent of the temp dir
+        let temp_dir_name = temp_dir
+            .path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // Get the actual temp dir name
+        let temp_dir_grandparent_name = temp_dir
+            .path()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(); // Get the parent of the temp dir
 
         let test_file_name = "track.wv";
         let test_file_path = temp_dir.path().join(test_file_name);
-        
+
         // Copy the silent.wv fixture to the test path
         let fixture_source_path = PathBuf::from("tests/fixtures/wavpack/silent/silent.wv");
         fs::copy(&fixture_source_path, &test_file_path).expect("Failed to copy fixture file");
@@ -530,7 +554,7 @@ mod tests {
         assert_eq!(artist_meta.value, temp_dir_grandparent_name);
         assert_eq!(artist_meta.confidence, FOLDER_INFERRED_CONFIDENCE);
         assert_eq!(artist_meta.source, MetadataSource::FolderInferred);
-        
+
         // Album will be inferred from the TempDir name itself (parent.file_name())
         let album_meta = metadata.album.as_ref().unwrap();
         assert_eq!(album_meta.value, temp_dir_name);

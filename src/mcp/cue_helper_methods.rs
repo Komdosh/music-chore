@@ -2,9 +2,9 @@ use crate::core::services::cue::{
     CueGenerationError, CueValidationResult, format_cue_validation_result, generate_cue_for_path,
     parse_cue_file, validate_cue_consistency,
 };
+use crate::mcp::call_tool_result::CallToolResultExt;
 use rmcp::{ErrorData as McpError, model::CallToolResult};
 use std::path::{Path, PathBuf};
-use crate::mcp::call_tool_result::CallToolResultExt;
 
 pub(crate) async fn handle_cue_generate(
     path: &Path,
@@ -147,20 +147,22 @@ pub(crate) async fn handle_cue_validate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_handle_cue_generate_dry_run() {
         let temp_dir = TempDir::new().unwrap();
         let album_dir = temp_dir.path().join("Album");
         fs::create_dir_all(&album_dir).unwrap();
-        
+
         // Need some audio files for generate to work
         let track1 = album_dir.join("01. Track 1.flac");
         fs::copy("tests/fixtures/flac/simple/track1.flac", &track1).unwrap();
 
-        let result = handle_cue_generate(&album_dir, None, true, false).await.expect("Should succeed");
+        let result = handle_cue_generate(&album_dir, None, true, false)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let text = result.content[0].raw.as_text().unwrap().text.as_str();
         assert!(text.contains("Would write to:"));
@@ -173,15 +175,17 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let album_dir = temp_dir.path().join("Album");
         fs::create_dir_all(&album_dir).unwrap();
-        
+
         let track1 = album_dir.join("01. Track 1.flac");
         fs::copy("tests/fixtures/flac/simple/track1.flac", &track1).unwrap();
 
-        let result = handle_cue_generate(&album_dir, None, false, false).await.expect("Should succeed");
+        let result = handle_cue_generate(&album_dir, None, false, false)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let text = result.content[0].raw.as_text().unwrap().text.as_str();
         assert!(text.contains("Cue file written to:"));
-        
+
         let cue_path = album_dir.join("Album.cue");
         assert!(cue_path.exists());
         let content = fs::read_to_string(cue_path).unwrap();
@@ -195,7 +199,9 @@ mod tests {
         let empty_dir = temp_dir.path().join("Empty");
         fs::create_dir_all(&empty_dir).unwrap();
 
-        let result = handle_cue_generate(&empty_dir, None, false, false).await.expect("Should return error Result");
+        let result = handle_cue_generate(&empty_dir, None, false, false)
+            .await
+            .expect("Should return error Result");
         assert!(result.is_error.unwrap_or(false));
         let text = result.content[0].raw.as_text().unwrap().text.as_str();
         assert!(text.contains("No music files found"));
@@ -204,7 +210,9 @@ mod tests {
     #[tokio::test]
     async fn test_handle_cue_parse_json() {
         let cue_path = Path::new("tests/fixtures/cue/album.cue");
-        let result = handle_cue_parse(cue_path, true).await.expect("Should succeed");
+        let result = handle_cue_parse(cue_path, true)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let json_text = result.content[0].raw.as_text().unwrap().text.as_str();
         let json: serde_json::Value = serde_json::from_str(json_text).unwrap();
@@ -215,7 +223,9 @@ mod tests {
     #[tokio::test]
     async fn test_handle_cue_parse_text() {
         let cue_path = Path::new("tests/fixtures/cue/album.cue");
-        let result = handle_cue_parse(cue_path, false).await.expect("Should succeed");
+        let result = handle_cue_parse(cue_path, false)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let text = result.content[0].raw.as_text().unwrap().text.as_str();
         assert!(text.contains("Cue File: tests/fixtures/cue/album.cue"));
@@ -229,11 +239,17 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
         let audio_path = temp_dir.path().join("track1.flac");
-        
-        fs::write(&cue_path, "FILE \"track1.flac\" WAVE\n  TRACK 01 AUDIO\n    INDEX 01 00:00:00").unwrap();
+
+        fs::write(
+            &cue_path,
+            "FILE \"track1.flac\" WAVE\n  TRACK 01 AUDIO\n    INDEX 01 00:00:00",
+        )
+        .unwrap();
         fs::write(&audio_path, b"dummy").unwrap();
 
-        let result = handle_cue_validate(&cue_path, None, false).await.expect("Should succeed");
+        let result = handle_cue_validate(&cue_path, None, false)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let text = result.content[0].raw.as_text().unwrap().text.as_str();
         assert!(text.contains("CUE file is valid"));
@@ -243,10 +259,16 @@ mod tests {
     async fn test_handle_cue_validate_invalid_json() {
         let temp_dir = TempDir::new().unwrap();
         let cue_path = temp_dir.path().join("test.cue");
-        
-        fs::write(&cue_path, "FILE \"missing.flac\" WAVE\n  TRACK 01 AUDIO\n    INDEX 01 00:00:00").unwrap();
 
-        let result = handle_cue_validate(&cue_path, None, true).await.expect("Should succeed");
+        fs::write(
+            &cue_path,
+            "FILE \"missing.flac\" WAVE\n  TRACK 01 AUDIO\n    INDEX 01 00:00:00",
+        )
+        .unwrap();
+
+        let result = handle_cue_validate(&cue_path, None, true)
+            .await
+            .expect("Should succeed");
         assert!(!result.is_error.unwrap_or(false));
         let json_text = result.content[0].raw.as_text().unwrap().text.as_str();
         let json: serde_json::Value = serde_json::from_str(json_text).unwrap();

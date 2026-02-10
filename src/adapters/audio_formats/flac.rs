@@ -8,11 +8,13 @@ use lofty::{
     tag::{ItemValue, TagItem},
 };
 
-use std::path::Path;
 use crate::adapters::audio_formats::wav::item_value_text;
-use crate::core::domain::models::{FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata};
+use crate::core::domain::models::{
+    FOLDER_INFERRED_CONFIDENCE, MetadataValue, Track, TrackMetadata,
+};
 use crate::core::domain::traits::{AudioFile, AudioFileError};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
+use std::path::Path;
 
 /// FLAC format handler
 pub struct FlacHandler;
@@ -252,8 +254,8 @@ impl FlacHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -359,10 +361,10 @@ mod tests {
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.flac");
-        
+
         // Create a dummy file that is not a real FLAC file
         fs::write(&test_file, b"not a real flac file").unwrap();
-        
+
         let result = handler.read_metadata(&test_file);
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
@@ -372,11 +374,11 @@ mod tests {
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.flac");
-        
+
         // Create a dummy file to simulate a FLAC file for this test
         // In a real scenario, we'd need an actual FLAC file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Test Title".to_string())),
             artist: Some(MetadataValue::embedded("Test Artist".to_string())),
@@ -390,7 +392,7 @@ mod tests {
             format: "flac".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real FLAC file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -401,10 +403,10 @@ mod tests {
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("partial.flac");
-        
+
         // Create a dummy file to simulate a FLAC file for this test
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Partial Title".to_string())),
             artist: None, // No artist
@@ -418,7 +420,7 @@ mod tests {
             format: "flac".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real FLAC file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -433,10 +435,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("artist/album/test.flac");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        
+
         // Create an empty file to represent a FLAC file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         // This should test the folder inference when no embedded metadata exists
         // Note: This test will likely fail since the file isn't a real FLAC file,
         // but it demonstrates the intended behavior
@@ -452,10 +454,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test_artist/test_album/test.flac");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        
+
         // Create an empty file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let _result = handler.read_basic_info(&test_file);
         // This will likely fail due to the file not being a real FLAC file
         // but tests the error handling path
@@ -495,7 +497,11 @@ mod tests {
         // Test reading metadata where folder structure provides fallback values
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Test Artist").join("Test Album").join("track.flac");
+        let test_file = temp_dir
+            .path()
+            .join("Test Artist")
+            .join("Test Album")
+            .join("track.flac");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file
@@ -526,7 +532,11 @@ mod tests {
         // Test the folder inference logic when no embedded metadata exists
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Infer Artist").join("Infer Album").join("song.flac");
+        let test_file = temp_dir
+            .path()
+            .join("Infer Artist")
+            .join("Infer Album")
+            .join("song.flac");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file
@@ -542,7 +552,11 @@ mod tests {
         // Test that embedded metadata has confidence 1.0 and inferred has lower confidence
         let handler = FlacHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Confidence Artist").join("Confidence Album").join("track.flac");
+        let test_file = temp_dir
+            .path()
+            .join("Confidence Artist")
+            .join("Confidence Album")
+            .join("track.flac");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file

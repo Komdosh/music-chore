@@ -1,4 +1,6 @@
-use music_chore::core::services::scanner::{scan_dir_with_metadata, scan_tracks, scan_with_duplicates};
+use music_chore::core::services::scanner::{
+    scan_dir_with_metadata, scan_tracks, scan_with_duplicates,
+};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;

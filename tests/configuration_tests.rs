@@ -16,16 +16,24 @@ fn test_app_config_default() {
     assert_eq!(config.verbose_by_default, false);
     assert_eq!(config.skip_metadata_by_default, false);
     assert_eq!(config.show_source_indicators, true);
-    
+
     // Check excluded extensions
     assert!(config.excluded_extensions.contains(&"tmp".to_string()));
     assert!(config.excluded_extensions.contains(&"log".to_string()));
     assert!(config.excluded_extensions.contains(&"bak".to_string()));
-    
+
     // Check excluded directories
     assert!(config.excluded_directories.contains(&".git".to_string()));
-    assert!(config.excluded_directories.contains(&"node_modules".to_string()));
-    assert!(config.excluded_directories.contains(&".DS_Store".to_string()));
+    assert!(
+        config
+            .excluded_directories
+            .contains(&"node_modules".to_string())
+    );
+    assert!(
+        config
+            .excluded_directories
+            .contains(&".DS_Store".to_string())
+    );
 }
 
 #[test]
@@ -79,10 +87,10 @@ fn test_app_config_validate_confidence_above_max() {
 #[test]
 fn test_app_config_validate_confidence_at_boundaries() {
     let mut config = AppConfig::default();
-    
+
     config.default_inference_confidence = 0.0;
     assert!(config.validate().is_ok());
-    
+
     config.default_inference_confidence = 1.0;
     assert!(config.validate().is_ok());
 }
@@ -111,7 +119,7 @@ fn test_app_config_validate_positive_file_size() {
 fn test_app_config_load_from_file_roundtrip() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
-    
+
     // Create original config
     let mut original_config = AppConfig::default();
     original_config.max_recursion_depth = 5;
@@ -122,31 +130,52 @@ fn test_app_config_load_from_file_roundtrip() {
     original_config.skip_metadata_by_default = true;
     original_config.excluded_extensions = vec!["tmp".to_string()];
     original_config.excluded_directories = vec![];
-    
+
     // Save config
     original_config.save_to_file(&config_path).unwrap();
-    
+
     // Load config
     let loaded_config = AppConfig::load_from_file(&config_path).unwrap();
-    
+
     // Verify roundtrip
-    assert_eq!(loaded_config.max_recursion_depth, original_config.max_recursion_depth);
-    assert_eq!(loaded_config.follow_symlinks, original_config.follow_symlinks);
-    assert_eq!(loaded_config.default_inference_confidence, original_config.default_inference_confidence);
-    assert_eq!(loaded_config.max_file_size_mb, original_config.max_file_size_mb);
-    assert_eq!(loaded_config.verbose_by_default, original_config.verbose_by_default);
-    assert_eq!(loaded_config.skip_metadata_by_default, original_config.skip_metadata_by_default);
-    assert_eq!(loaded_config.show_source_indicators, original_config.show_source_indicators);
+    assert_eq!(
+        loaded_config.max_recursion_depth,
+        original_config.max_recursion_depth
+    );
+    assert_eq!(
+        loaded_config.follow_symlinks,
+        original_config.follow_symlinks
+    );
+    assert_eq!(
+        loaded_config.default_inference_confidence,
+        original_config.default_inference_confidence
+    );
+    assert_eq!(
+        loaded_config.max_file_size_mb,
+        original_config.max_file_size_mb
+    );
+    assert_eq!(
+        loaded_config.verbose_by_default,
+        original_config.verbose_by_default
+    );
+    assert_eq!(
+        loaded_config.skip_metadata_by_default,
+        original_config.skip_metadata_by_default
+    );
+    assert_eq!(
+        loaded_config.show_source_indicators,
+        original_config.show_source_indicators
+    );
 }
 
 #[test]
 fn test_app_config_load_from_file_invalid_json() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("invalid.json");
-    
+
     // Write invalid JSON
     std::fs::write(&config_path, "{ invalid json }").unwrap();
-    
+
     let result = AppConfig::load_from_file(&config_path);
 
     assert!(result.is_err());
@@ -163,12 +192,12 @@ fn test_app_config_load_from_file_missing_file() {
 fn test_app_config_save_to_file() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("config.json");
-    
+
     let config = AppConfig::default();
     config.save_to_file(&config_path).unwrap();
 
     assert!(config_path.exists());
-    
+
     // Verify file content is valid JSON
     let content = std::fs::read_to_string(&config_path).unwrap();
     let loaded: serde_json::Value = serde_json::from_str(&content).unwrap();
@@ -178,56 +207,53 @@ fn test_app_config_save_to_file() {
 #[test]
 fn test_app_config_builder_new() {
     let builder = AppConfigBuilder::new();
-    
+
     // Should create builder with default config
     let default_config = AppConfig::default();
-    assert_eq!(builder.config.max_recursion_depth, default_config.max_recursion_depth);
+    assert_eq!(
+        builder.config.max_recursion_depth,
+        default_config.max_recursion_depth
+    );
 }
 
 #[test]
 fn test_app_config_builder_max_recursion_depth() {
-    let builder = AppConfigBuilder::new()
-        .max_recursion_depth(15);
+    let builder = AppConfigBuilder::new().max_recursion_depth(15);
 
     assert_eq!(builder.config.max_recursion_depth, 15);
 }
 
 #[test]
 fn test_app_config_builder_follow_symlinks() {
-    let builder = AppConfigBuilder::new()
-        .follow_symlinks(true);
+    let builder = AppConfigBuilder::new().follow_symlinks(true);
 
     assert_eq!(builder.config.follow_symlinks, true);
 }
 
 #[test]
 fn test_app_config_builder_default_inference_confidence() {
-    let builder = AppConfigBuilder::new()
-        .default_inference_confidence(0.5);
+    let builder = AppConfigBuilder::new().default_inference_confidence(0.5);
 
     assert_eq!(builder.config.default_inference_confidence, 0.5);
 }
 
 #[test]
 fn test_app_config_builder_max_file_size() {
-    let builder = AppConfigBuilder::new()
-        .max_file_size_mb(250);
+    let builder = AppConfigBuilder::new().max_file_size_mb(250);
 
     assert_eq!(builder.config.max_file_size_mb, 250);
 }
 
 #[test]
 fn test_app_config_builder_verbose_by_default() {
-    let builder = AppConfigBuilder::new()
-        .verbose_by_default(true);
+    let builder = AppConfigBuilder::new().verbose_by_default(true);
 
     assert_eq!(builder.config.verbose_by_default, true);
 }
 
 #[test]
 fn test_app_config_builder_skip_metadata_by_default() {
-    let builder = AppConfigBuilder::new()
-        .skip_metadata_by_default(true);
+    let builder = AppConfigBuilder::new().skip_metadata_by_default(true);
 
     assert_eq!(builder.config.skip_metadata_by_default, true);
 }
@@ -258,8 +284,7 @@ fn test_app_config_builder_excluded_directories() {
 
 #[test]
 fn test_app_config_builder_show_source_indicators() {
-    let builder = AppConfigBuilder::new()
-        .show_source_indicators(false);
+    let builder = AppConfigBuilder::new().show_source_indicators(false);
 
     assert_eq!(builder.config.show_source_indicators, false);
 }
@@ -289,9 +314,7 @@ fn test_app_config_builder_chaining() {
 
 #[test]
 fn test_app_config_builder_build_valid() {
-    let builder = AppConfigBuilder::new()
-        .max_recursion_depth(15)
-        .build();
+    let builder = AppConfigBuilder::new().max_recursion_depth(15).build();
 
     assert!(builder.is_ok());
     let config = builder.unwrap();

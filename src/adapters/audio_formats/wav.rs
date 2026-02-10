@@ -129,12 +129,11 @@ impl AudioFile for WavHandler {
 }
 
 pub fn item_value_text(tag_item: &TagItem) -> String {
-    let item_value_str = match tag_item.value() {
+    match tag_item.value() {
         ItemValue::Text(s) => s.to_string(),
         ItemValue::Locator(s) => s.to_string(),
         ItemValue::Binary(_) => "<binary data>".to_string(),
-    };
-    item_value_str
+    }
 }
 
 impl WavHandler {
@@ -253,8 +252,8 @@ impl WavHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -360,10 +359,10 @@ mod tests {
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.wav");
-        
+
         // Create a dummy file that is not a real WAV file
         fs::write(&test_file, b"not a real wav file").unwrap();
-        
+
         let result = handler.read_metadata(&test_file);
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
@@ -373,11 +372,11 @@ mod tests {
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.wav");
-        
+
         // Create a dummy file to simulate a WAV file for this test
         // In a real scenario, we'd need an actual WAV file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Test Title".to_string())),
             artist: Some(MetadataValue::embedded("Test Artist".to_string())),
@@ -391,7 +390,7 @@ mod tests {
             format: "wav".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real WAV file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -402,10 +401,10 @@ mod tests {
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("partial.wav");
-        
+
         // Create a dummy file to simulate a WAV file for this test
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Partial Title".to_string())),
             artist: None, // No artist
@@ -419,7 +418,7 @@ mod tests {
             format: "wav".to_string(),
             path: test_file.clone(),
         };
-        
+
         let result = handler.write_metadata(&test_file, &metadata);
         // This should fail because the dummy file is not a real WAV file
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
@@ -434,10 +433,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("artist/album/test.wav");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
-        
+
         // Create an empty file to represent a WAV file
         fs::write(&test_file, b"dummy content").unwrap();
-        
+
         // This should test the folder inference when no embedded metadata exists
         // Note: This test will likely fail since the file isn't a real WAV file,
         // but it demonstrates the intended behavior
@@ -496,7 +495,11 @@ mod tests {
         // Test reading metadata where folder structure provides fallback values
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Test Artist").join("Test Album").join("track.wav");
+        let test_file = temp_dir
+            .path()
+            .join("Test Artist")
+            .join("Test Album")
+            .join("track.wav");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file
@@ -527,7 +530,11 @@ mod tests {
         // Test the folder inference logic when no embedded metadata exists
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Infer Artist").join("Infer Album").join("song.wav");
+        let test_file = temp_dir
+            .path()
+            .join("Infer Artist")
+            .join("Infer Album")
+            .join("song.wav");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file
@@ -543,7 +550,11 @@ mod tests {
         // Test that embedded metadata has confidence 1.0 and inferred has lower confidence
         let handler = WavHandler::new();
         let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("Confidence Artist").join("Confidence Album").join("track.wav");
+        let test_file = temp_dir
+            .path()
+            .join("Confidence Artist")
+            .join("Confidence Album")
+            .join("track.wav");
         fs::create_dir_all(test_file.parent().unwrap()).unwrap();
 
         // Create a dummy file
@@ -554,4 +565,3 @@ mod tests {
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
 }
-

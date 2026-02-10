@@ -95,22 +95,22 @@ mod tests {
 
         // Check that inference works even with deep nesting
         let artist = &library.artists[0];
-        
+
         // Original assertion: Artist is inferred as parent folder of album folder
         // New assertion should consider embedded metadata if present in track1.flac
         assert!(
             artist.name.contains("TestArtist") || // Folder inferred artist
-            artist.name == "Test Artist"       // Embedded artist from track1.flac
+            artist.name == "Test Artist" // Embedded artist from track1.flac
         );
 
         let album = &artist.albums[0];
-        
+
         // Original assertion: Album is inferred as immediate parent folder
         // New assertion should consider embedded metadata if present in track1.flac
         assert!(
             album.title.contains("TestAlbum") || // Folder inferred album
             album.title.contains("Disc1") ||     // Folder inferred album
-            album.title == "Test Album"          // Embedded album from track1.flac
+            album.title == "Test Album" // Embedded album from track1.flac
         );
     }
 
@@ -233,7 +233,10 @@ mod tests {
         let special_artist_folder = "Artist_Band_2023_Remastered";
         let special_album_folder = "Album_Vol_1_2";
 
-        let album_dir = dir.path().join(special_artist_folder).join(special_album_folder);
+        let album_dir = dir
+            .path()
+            .join(special_artist_folder)
+            .join(special_album_folder);
         fs::create_dir_all(&album_dir).unwrap();
 
         // Copy fixture file
@@ -248,12 +251,12 @@ mod tests {
         assert_eq!(library.total_tracks, 1);
 
         let artist = &library.artists[0];
-        
+
         // Original assertion: relies on folder inference. Now, track1.flac has embedded artist.
         assert_eq!(artist.name, "Test Artist"); // Expect embedded artist from track1.flac
 
         let album = &artist.albums[0];
-        
+
         // Original assertion: relies on folder inference. Now, track1.flac has embedded album.
         assert_eq!(album.title, "Test Album"); // Expect embedded album from track1.flac
     }

@@ -91,8 +91,8 @@ fn test_write_metadata_unsupported_format() {
 
 #[test]
 fn test_read_metadata_success_for_flac() {
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
     let temp_dir = TempDir::new().unwrap();
     let flac_file = temp_dir.path().join("test.flac");
     fs::write(&flac_file, b"dummy flac content").unwrap();
@@ -106,9 +106,9 @@ fn test_read_metadata_success_for_flac() {
 
 #[test]
 fn test_write_metadata_success_for_flac() {
-    use tempfile::TempDir;
+    use music_chore::core::domain::models::{MetadataValue, TrackMetadata};
     use std::fs;
-    use music_chore::core::domain::models::{TrackMetadata, MetadataValue};
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().unwrap();
     let flac_file = temp_dir.path().join("test.flac");

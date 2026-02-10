@@ -1,10 +1,8 @@
 //! Tests for the validation module functionality.
 
-use music_chore::core::domain::models::{
-    MetadataValue, Track, TrackMetadata,
-};
+use music_chore::core::domain::models::{MetadataValue, Track, TrackMetadata};
 use music_chore::core::services::validation::metadata_validation::{
-    validate_track_metadata, ValidationError,
+    ValidationError, validate_track_metadata,
 };
 use music_chore::core::services::validation::validate_path;
 use std::fs;

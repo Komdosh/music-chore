@@ -1,5 +1,5 @@
-use crate::core::domain::with_schema_version;
 use crate::adapters::audio_formats::read_metadata;
+use crate::core::domain::with_schema_version;
 use crate::core::services::scanner::scan_dir;
 use serde_json::to_string_pretty;
 use std::path::PathBuf;

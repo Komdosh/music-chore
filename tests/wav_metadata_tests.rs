@@ -133,8 +133,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_handler_supported_extensions() {
-        use music_chore::core::domain::traits::AudioFile;
         use music_chore::adapters::audio_formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
 
         let handler = WavHandler::new();
         let extensions = handler.supported_extensions();
@@ -145,8 +145,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_handler_can_handle() {
-        use music_chore::core::domain::traits::AudioFile;
         use music_chore::adapters::audio_formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
         use std::path::PathBuf;
 
         let handler = WavHandler::new();
@@ -165,8 +165,8 @@ mod wav_metadata_tests {
 
     #[test]
     fn test_wav_read_basic_info() {
-        use music_chore::core::domain::traits::AudioFile;
         use music_chore::adapters::audio_formats::wav::WavHandler;
+        use music_chore::core::domain::traits::AudioFile;
 
         let handler = WavHandler::new();
         let fixture_path = Path::new("tests/fixtures/wav/simple/track1.wav");

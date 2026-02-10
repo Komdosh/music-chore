@@ -1,11 +1,17 @@
 use crate::mcp::config::Config;
 
 use rmcp::handler::server::router::prompt::PromptRouter;
-use rmcp::{handler::server::{tool::ToolRouter, ServerHandler}, model::{
-    GetPromptRequestParams, GetPromptResult,
-    Implementation, ListPromptsResult, PaginatedRequestParams
-    , ProtocolVersion, ServerCapabilities, ServerInfo,
-}, prompt_handler, service::RequestContext, tool_handler, RoleServer};
+use rmcp::{
+    RoleServer,
+    handler::server::{ServerHandler, tool::ToolRouter},
+    model::{
+        GetPromptRequestParams, GetPromptResult, Implementation, ListPromptsResult,
+        PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerInfo,
+    },
+    prompt_handler,
+    service::RequestContext,
+    tool_handler,
+};
 
 #[derive(Clone)]
 pub struct MusicChoreServer {

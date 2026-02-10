@@ -80,15 +80,15 @@ fn test_emit_command_nested_json() {
     // // Verify it's valid JSON
     let parsed: serde_json::Value =
         serde_json::from_str(&stdout).expect("Output should be valid JSON");
-    
+
     assert_eq!(parsed["total_tracks"], 2);
     assert_eq!(parsed["total_artists"], 1);
     assert_eq!(parsed["total_albums"], 1);
-    
+
     // Check artist and album names
     let artist = &parsed["artists"][0];
     assert_eq!(artist["name"], "The Beatles");
-    
+
     let album = &artist["albums"][0];
     assert_eq!(album["title"], "Abbey Road");
     assert_eq!(album["tracks"].as_array().unwrap().len(), 2);
@@ -120,7 +120,7 @@ fn test_emit_command_nonexistent_directory() {
         .args(&["emit", "/nonexistent/path"])
         .output()
         .expect("Failed to run emit command");
-   
+
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).expect("Invalid UTF-8");
 

@@ -1,12 +1,12 @@
 //! Audio format registry and factory.
-#[allow(unused_imports)]
-use crate::core::domain::traits::{AudioFileError, AudioFileRegistry};
-use crate::core::domain::models::{TrackMetadata, MetadataValue};
 use crate::adapters::audio_formats::dsf::DsfHandler;
 use crate::adapters::audio_formats::flac::FlacHandler;
 use crate::adapters::audio_formats::mp3::Mp3Handler;
 use crate::adapters::audio_formats::wav::WavHandler;
 use crate::adapters::audio_formats::wavpack::WavPackHandler;
+use crate::core::domain::models::{MetadataValue, TrackMetadata};
+#[allow(unused_imports)]
+use crate::core::domain::traits::{AudioFileError, AudioFileRegistry};
 use std::path::Path;
 
 pub mod dsf;
@@ -70,12 +70,8 @@ pub fn read_basic_info(path: &Path) -> Result<BasicAudioInfo, AudioFileError> {
     })
 }
 
-
 /// Write metadata to a file using the appropriate format handler
-pub fn write_metadata(
-    path: &Path,
-    metadata: &TrackMetadata,
-) -> Result<(), AudioFileError> {
+pub fn write_metadata(path: &Path, metadata: &TrackMetadata) -> Result<(), AudioFileError> {
     let registry = create_audio_registry();
     let handler = registry.find_handler(path)?;
     handler.write_metadata(path, metadata)

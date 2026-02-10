@@ -1,7 +1,7 @@
 //! Core domain models for music library representation.
 
-use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// Source of metadata information

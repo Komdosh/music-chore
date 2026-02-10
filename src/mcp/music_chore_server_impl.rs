@@ -30,13 +30,13 @@ use crate::mcp::prompts::{
 use crate::presentation::cli::commands::validate_path;
 use rmcp::model::PromptMessageContent;
 use rmcp::{
+    ErrorData as McpError, ErrorData,
     handler::server::wrapper::Parameters,
     model::{CallToolResult, GetPromptResult, PromptMessage, PromptMessageRole},
-    prompt, prompt_router, tool, tool_router, ErrorData as McpError, ErrorData,
+    prompt, prompt_router, tool, tool_router,
 };
 use std::path::PathBuf;
 // ─── Helper traits & functions ───────────────────────────────────────────────
-
 
 /// Serialize `value` to pretty JSON, mapping errors to `McpError`.
 pub(crate) fn to_json_pretty<T: serde::Serialize>(value: &T) -> Result<String, McpError> {
@@ -89,7 +89,10 @@ impl MusicChoreServer {
     fn validate_path(&self, path: &PathBuf) -> Result<(), McpError> {
         if !self.config.is_path_allowed(path) {
             return Err(McpError::invalid_params(
-                format!("Access denied: path '{}' is not in allowed paths", path.display()),
+                format!(
+                    "Access denied: path '{}' is not in allowed paths",
+                    path.display()
+                ),
                 None,
             ));
         }
@@ -113,10 +116,7 @@ impl MusicChoreServer {
 
     /// Resolve a path and convert to a `&str`, returning a tool-level error on failure.
     /// Suitable for tool handlers that want `Ok(CallToolResult::error(...))` on bad paths.
-    fn resolve_path_for_tool(
-        &self,
-        path_param: Option<String>,
-    ) -> Result<PathBuf, CallToolResult> {
+    fn resolve_path_for_tool(&self, path_param: Option<String>) -> Result<PathBuf, CallToolResult> {
         self.resolve_and_validate_path(path_param)
             .map_err(|e| CallToolResult::error_text(e.to_string()))
     }
@@ -314,8 +314,7 @@ impl MusicChoreServer {
 
         match operation.as_str() {
             "generate" => {
-                handle_cue_generate(&path, params.0.output.map(PathBuf::from), dry_run, force)
-                    .await
+                handle_cue_generate(&path, params.0.output.map(PathBuf::from), dry_run, force).await
             }
             "parse" => handle_cue_parse(&path, json_output).await,
             "validate" => handle_cue_validate(&path, audio_dir, json_output).await,
@@ -399,7 +398,10 @@ impl MusicChoreServer {
             .resolve_path_str_for_prompt(params.0.path)
             .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
 
-        Ok(user_prompt(artist_deep_dive_prompt(path, params.0.artist_name)))
+        Ok(user_prompt(artist_deep_dive_prompt(
+            path,
+            params.0.artist_name,
+        )))
     }
 
     // ─── Prompts: Recommendations & Discovery ────────────────────────────
@@ -483,7 +485,11 @@ impl MusicChoreServer {
 
         let hours = params.0.duration_hours.unwrap_or(4);
 
-        Ok(user_prompt(album_marathon_prompt(path, hours, params.0.theme)))
+        Ok(user_prompt(album_marathon_prompt(
+            path,
+            hours,
+            params.0.theme,
+        )))
     }
 
     #[prompt(
@@ -500,7 +506,11 @@ impl MusicChoreServer {
 
         let minutes = params.0.duration_minutes.unwrap_or(90);
 
-        Ok(user_prompt(concert_setlist_prompt(path, minutes, params.0.vibe)))
+        Ok(user_prompt(concert_setlist_prompt(
+            path,
+            minutes,
+            params.0.vibe,
+        )))
     }
 
     // ─── Prompts: Library Maintenance & Quality ──────────────────────────
@@ -579,7 +589,10 @@ impl MusicChoreServer {
 
         let suggest_upgrades = params.0.suggest_upgrades.unwrap_or(true);
 
-        Ok(user_prompt(format_quality_audit_prompt(path, suggest_upgrades)))
+        Ok(user_prompt(format_quality_audit_prompt(
+            path,
+            suggest_upgrades,
+        )))
     }
 
     #[prompt(
@@ -670,8 +683,16 @@ mod tests {
         config.allowed_paths = vec![PathBuf::from("/allowed")];
         let server = MusicChoreServer::new_with_config(config);
 
-        assert!(server.validate_path(&PathBuf::from("/allowed/path")).is_ok());
-        assert!(server.validate_path(&PathBuf::from("/not/allowed")).is_err());
+        assert!(
+            server
+                .validate_path(&PathBuf::from("/allowed/path"))
+                .is_ok()
+        );
+        assert!(
+            server
+                .validate_path(&PathBuf::from("/not/allowed"))
+                .is_err()
+        );
     }
 
     #[test]
@@ -686,7 +707,9 @@ mod tests {
         assert_eq!(path, PathBuf::from("/default"));
 
         // Test explicit path
-        let path = server.resolve_and_validate_path(Some("/other/path".to_string())).unwrap();
+        let path = server
+            .resolve_and_validate_path(Some("/other/path".to_string()))
+            .unwrap();
         assert_eq!(path, PathBuf::from("/other/path"));
 
         // Test denied path
@@ -734,7 +757,7 @@ mod tests {
             json_output: None,
             skip_metadata: None,
         };
-        
+
         let res = server.scan_directory(Parameters(params)).await.unwrap();
         assert!(res.is_error.unwrap());
         let text = res.content[0].raw.as_text().unwrap().text.as_str();
@@ -749,7 +772,7 @@ mod tests {
             json_output: Some(true),
             skip_metadata: None,
         };
-        
+
         let res = server.scan_directory(Parameters(params)).await.unwrap();
         assert!(!res.is_error.unwrap_or(false));
         let text = res.content[0].raw.as_text().unwrap().text.as_str();
@@ -764,8 +787,11 @@ mod tests {
         let params = LibraryPathParams {
             path: Some("/allowed/path".to_string()),
         };
-        
-        let res = server.top_tracks_analysis(Parameters(params)).await.unwrap();
+
+        let res = server
+            .top_tracks_analysis(Parameters(params))
+            .await
+            .unwrap();
         assert_eq!(res.messages.len(), 1);
         let text = match &res.messages[0].content {
             PromptMessageContent::Text { text } => text,
