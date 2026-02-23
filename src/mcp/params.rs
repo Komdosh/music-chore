@@ -9,7 +9,7 @@ pub struct ScanDirectoryParams {
 
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 pub struct ScanDirectoryResponse {
-    pub(crate) tracks: Vec<Track>
+    pub(crate) tracks: Vec<Track>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **MCP Prompts**: Reduced the expert prompt surface from 26 to 6 high-value prompts focused on core listening decisions and essential library maintenance.
+- **Skills**: Consolidated skill catalog to a minimal set (`listen-now`, `web-perfect-match`, `library-maintenance`) to reduce overlap and improve adoption.
+- **Documentation**: Updated MCP prompt counts and categories in `README.md` and `docs/MCP_SERVER.md`.
+
+### Removed
+- **Prompt Overlap**: Removed low-usage and redundant prompt variants (analysis/story/novelty and specialized sub-variants now covered by core prompts).
+- **Skill Overlap**: Removed specialized skill folders that duplicated capabilities now unified under the compact core set.
+
 ## [0.4.4] - 2026-02-10
 
 ### Changed

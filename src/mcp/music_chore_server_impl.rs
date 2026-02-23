@@ -1,5 +1,9 @@
 use crate::mcp::config::Config;
-use crate::mcp::params::{CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams, NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ScanDirectoryResponse, ValidateLibraryParams};
+use crate::mcp::params::{
+    CueParams, EmitLibraryMetadataParams, FindDuplicatesParams, GetLibraryTreeParams,
+    NormalizeParams, ReadFileMetadataParams, ScanDirectoryParams, ScanDirectoryResponse,
+    ValidateLibraryParams,
+};
 
 use crate::adapters::audio_formats::read_metadata;
 use crate::build_library_hierarchy;
@@ -12,17 +16,10 @@ use crate::core::services::scanner::{
 use crate::mcp::call_tool_result::CallToolResultExt;
 use crate::mcp::cue_helper_methods::{handle_cue_generate, handle_cue_parse, handle_cue_validate};
 use crate::mcp::music_chore_server::MusicChoreServer;
-use crate::mcp::prompt_handler_requests::{
-    AlbumMarathonParams, ArtistDiveParams, FormatAuditParams, InstrumentParams, LibraryPathParams,
-    MoodPlaylistParams, SetlistParams, YearReviewParams,
-};
+use crate::mcp::prompt_handler_requests::{LibraryPathParams, ListenNowParams, WebMatchParams};
 use crate::mcp::prompts::{
-    album_marathon_prompt, artist_deep_dive_prompt, collection_story_prompt,
-    concert_setlist_prompt, cue_sheet_assistant_prompt, decade_analysis_prompt,
-    duplicate_resolution_prompt, format_quality_audit_prompt, genre_breakdown_prompt,
-    hidden_gems_prompt, instrument_to_learn_prompt, library_health_check_prompt,
-    metadata_cleanup_guide_prompt, mood_playlist_prompt, reorganization_plan_prompt,
-    similar_artists_discovery_prompt, top_tracks_analysis_prompt, year_in_review_prompt,
+    cue_sheet_assistant_prompt, duplicate_resolution_prompt, library_health_check_prompt,
+    listen_now_prompt, metadata_cleanup_guide_prompt, web_perfect_match_prompt,
 };
 use crate::presentation::cli::commands::validate_path;
 use rmcp::model::PromptMessageContent;
@@ -165,11 +162,8 @@ impl MusicChoreServer {
             )));
         }
 
-
         if json_output {
-            to_json_call_response(&ScanDirectoryResponse {
-                tracks,
-            })
+            to_json_call_response(&ScanDirectoryResponse { tracks })
         } else {
             let out: String = tracks
                 .iter()
@@ -338,196 +332,52 @@ impl MusicChoreServer {
         }
     }
 
-    // ─── Prompts: Analysis & Insights ────────────────────────────────────
+    // ─── Prompts: Core Listening + Essential Maintenance ─────────────────
 
     #[prompt(
-        name = "top-tracks-analysis",
-        description = "Analyze your music library and predict which tracks you probably love the most based on collection patterns, metadata richness, and genre clustering"
+        name = "listen-now",
+        description = "Resolve listening indecision right now with one clear pick plus a short fallback queue based on your time, mood, and novelty preference"
     )]
-    async fn top_tracks_analysis(
+    async fn listen_now(
         &self,
-        params: Parameters<LibraryPathParams>,
+        params: Parameters<ListenNowParams>,
     ) -> Result<GetPromptResult, McpError> {
         let (_buf, path) = self
             .resolve_path_str_for_prompt(params.0.path)
             .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
 
-        Ok(user_prompt(top_tracks_analysis_prompt(path)))
-    }
+        let minutes = params.0.available_minutes.unwrap_or(45);
+        let mood = params.0.mood.unwrap_or_else(|| "any".to_string());
+        let novelty = params
+            .0
+            .novelty_preference
+            .unwrap_or_else(|| "balanced".to_string());
 
-    #[prompt(
-        name = "genre-breakdown",
-        description = "Break down your music taste by genre distribution, discover your listening identity, and visualize how genres interconnect in your library"
-    )]
-    async fn genre_breakdown(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(genre_breakdown_prompt(path)))
-    }
-
-    #[prompt(
-        name = "decade-analysis",
-        description = "Discover which decades dominate your music collection and what that reveals about your musical influences and nostalgia patterns"
-    )]
-    async fn decade_analysis(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(decade_analysis_prompt(path)))
-    }
-
-    #[prompt(
-        name = "collection-story",
-        description = "Generate a narrative story about your music collection — its themes, diversity, emotional arc, and what it reveals about you as a listener"
-    )]
-    async fn collection_story(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(collection_story_prompt(path)))
-    }
-
-    #[prompt(
-        name = "artist-deep-dive",
-        description = "Deep dive into a specific artist's presence in your library — their discography coverage, standout tracks, and how they fit into your broader taste"
-    )]
-    async fn artist_deep_dive(
-        &self,
-        params: Parameters<ArtistDiveParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(artist_deep_dive_prompt(
-            path,
-            params.0.artist_name,
-        )))
-    }
-
-    // ─── Prompts: Recommendations & Discovery ────────────────────────────
-
-    #[prompt(
-        name = "instrument-to-learn",
-        description = "Based on your music library's genres and artists, recommend the best instrument to learn so you can play your favorite songs"
-    )]
-    async fn instrument_to_learn(
-        &self,
-        params: Parameters<InstrumentParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        let level = params.0.experience_level.as_deref().unwrap_or("beginner");
-
-        Ok(user_prompt(instrument_to_learn_prompt(path, level)))
-    }
-
-    #[prompt(
-        name = "similar-artists-discovery",
-        description = "Discover new artists you'll love based on patterns in your existing music library"
-    )]
-    async fn similar_artists_discovery(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(similar_artists_discovery_prompt(path)))
-    }
-
-    #[prompt(
-        name = "mood-playlist",
-        description = "Create a perfectly curated playlist from your library matched to a specific mood, activity, or moment"
-    )]
-    async fn mood_playlist(
-        &self,
-        params: Parameters<MoodPlaylistParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        let mood = &params.0.mood;
-        let max = params.0.max_tracks.unwrap_or(20);
-
-        Ok(user_prompt(mood_playlist_prompt(path, mood, max)))
-    }
-
-    #[prompt(
-        name = "hidden-gems",
-        description = "Uncover overlooked and underappreciated tracks in your library that deserve more attention"
-    )]
-    async fn hidden_gems(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(hidden_gems_prompt(path)))
-    }
-
-    #[prompt(
-        name = "album-marathon",
-        description = "Design the perfect album listening marathon from your collection with themed sequencing and pacing"
-    )]
-    async fn album_marathon(
-        &self,
-        params: Parameters<AlbumMarathonParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        let hours = params.0.duration_hours.unwrap_or(4);
-
-        Ok(user_prompt(album_marathon_prompt(
-            path,
-            hours,
-            params.0.theme,
+        Ok(user_prompt(listen_now_prompt(
+            path, minutes, &mood, &novelty,
         )))
     }
 
     #[prompt(
-        name = "concert-setlist",
-        description = "Build a dream concert setlist from your library — sequenced like a real live show with encores and crowd moments"
+        name = "web-perfect-match",
+        description = "Find highest-fit web music recommendations based on your local library fingerprint with explicit scoring"
     )]
-    async fn concert_setlist(
+    async fn web_perfect_match(
         &self,
-        params: Parameters<SetlistParams>,
+        params: Parameters<WebMatchParams>,
     ) -> Result<GetPromptResult, McpError> {
         let (_buf, path) = self
             .resolve_path_str_for_prompt(params.0.path)
             .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
 
-        let minutes = params.0.duration_minutes.unwrap_or(90);
-
-        Ok(user_prompt(concert_setlist_prompt(
+        let max_results = params.0.max_results.unwrap_or(10);
+        Ok(user_prompt(web_perfect_match_prompt(
             path,
-            minutes,
-            params.0.vibe,
+            params.0.mood.as_deref(),
+            params.0.genre.as_deref(),
+            max_results,
         )))
     }
-
-    // ─── Prompts: Library Maintenance & Quality ──────────────────────────
 
     #[prompt(
         name = "library-health-check",
@@ -575,58 +425,6 @@ impl MusicChoreServer {
     }
 
     #[prompt(
-        name = "reorganization-plan",
-        description = "Get a strategic plan to reorganize your music library's folder structure for optimal browsing, consistency, and tool compatibility"
-    )]
-    async fn reorganization_plan(
-        &self,
-        params: Parameters<LibraryPathParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        Ok(user_prompt(reorganization_plan_prompt(path)))
-    }
-
-    #[prompt(
-        name = "format-quality-audit",
-        description = "Audit the audio formats and quality levels across your library, identify lossy files, and plan quality upgrades"
-    )]
-    async fn format_quality_audit(
-        &self,
-        params: Parameters<FormatAuditParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        let suggest_upgrades = params.0.suggest_upgrades.unwrap_or(true);
-
-        Ok(user_prompt(format_quality_audit_prompt(
-            path,
-            suggest_upgrades,
-        )))
-    }
-
-    #[prompt(
-        name = "year-in-review",
-        description = "Generate a music collection year-in-review summary highlighting additions, patterns, and collection milestones"
-    )]
-    async fn year_in_review(
-        &self,
-        params: Parameters<YearReviewParams>,
-    ) -> Result<GetPromptResult, McpError> {
-        let (_buf, path) = self
-            .resolve_path_str_for_prompt(params.0.path)
-            .map_err(|_| McpError::invalid_params("Path resolution failed", None))?;
-
-        let year = params.0.year.unwrap_or(2024);
-
-        Ok(user_prompt(year_in_review_prompt(path, year)))
-    }
-
-    #[prompt(
         name = "cue-sheet-assistant",
         description = "Analyze, generate, or troubleshoot CUE sheets in your library with expert guidance on proper formatting and validation"
     )]
@@ -646,7 +444,7 @@ impl MusicChoreServer {
 mod tests {
     use super::*;
     use crate::mcp::params::ScanDirectoryParams;
-    use crate::mcp::prompt_handler_requests::LibraryPathParams;
+    use crate::mcp::prompt_handler_requests::{ListenNowParams, WebMatchParams};
     use rmcp::handler::server::wrapper::Parameters;
     use serde::Serialize;
 
@@ -797,26 +595,55 @@ mod tests {
         let text = res.content[0].raw.as_text().unwrap().text.as_str();
         let json: serde_json::Value = serde_json::from_str(text).unwrap();
         assert!(json.is_object());
-        assert_eq!(json["tracks"].as_array().expect("tracks should be array").len(), 2);
+        assert_eq!(
+            json["tracks"]
+                .as_array()
+                .expect("tracks should be array")
+                .len(),
+            2
+        );
     }
 
     #[tokio::test]
-    async fn test_top_tracks_analysis_prompt() {
+    async fn test_listen_now_prompt() {
         let server = MusicChoreServer::new();
-        let params = LibraryPathParams {
+        let params = ListenNowParams {
             path: Some("/allowed/path".to_string()),
+            available_minutes: Some(30),
+            mood: Some("focus".to_string()),
+            novelty_preference: Some("balanced".to_string()),
         };
 
-        let res = server
-            .top_tracks_analysis(Parameters(params))
-            .await
-            .unwrap();
+        let res = server.listen_now(Parameters(params)).await.unwrap();
         assert_eq!(res.messages.len(), 1);
         let text = match &res.messages[0].content {
             PromptMessageContent::Text { text } => text,
             _ => panic!("Expected text"),
         };
         assert!(text.contains("/allowed/path"));
-        assert!(text.contains("top 10 favorite tracks"));
+        assert!(text.contains("Available time: 30 minutes"));
+        assert!(text.contains("Mood/activity: \"focus\""));
+    }
+
+    #[tokio::test]
+    async fn test_web_perfect_match_prompt() {
+        let server = MusicChoreServer::new();
+        let params = WebMatchParams {
+            path: Some("/allowed/path".to_string()),
+            mood: Some("night drive".to_string()),
+            genre: Some("ambient".to_string()),
+            max_results: Some(7),
+        };
+
+        let res = server.web_perfect_match(Parameters(params)).await.unwrap();
+        assert_eq!(res.messages.len(), 1);
+        let text = match &res.messages[0].content {
+            PromptMessageContent::Text { text } => text,
+            _ => panic!("Expected text"),
+        };
+        assert!(text.contains("/allowed/path"));
+        assert!(text.contains("Mood filter: \"night drive\""));
+        assert!(text.contains("Genre filter: \"ambient\""));
+        assert!(text.contains("Max results: 7"));
     }
 }

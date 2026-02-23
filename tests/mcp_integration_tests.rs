@@ -118,28 +118,17 @@ async fn test_prompt_list() -> Result<()> {
     let client = spawn_client().await?;
 
     let tools = client.list_all_prompts().await?;
-    assert_eq!(tools.len(), 18);
+    assert_eq!(tools.len(), 6);
 
     let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
     for expected in [
         "library-health-check",
-        "year-in-review",
-        "artist-deep-dive",
-        "hidden-gems",
-        "album-marathon",
-        "concert-setlist",
-        "reorganization-plan",
-        "similar-artists-discovery",
-        "genre-breakdown",
-        "top-tracks-analysis",
-        "collection-story",
-        "decade-analysis",
+        "listen-now",
+        "web-perfect-match",
         "metadata-cleanup-guide",
         "duplicate-resolution",
         "cue-sheet-assistant",
-        "instrument-to-learn",
-        "format-quality-audit",
-        "mood-playlist",
+        "library-health-check",
     ] {
         assert!(names.contains(&expected.to_string()));
     }
@@ -164,7 +153,13 @@ async fn test_scan_directory() -> Result<()> {
     assert_ok(&result);
 
     let json: serde_json::Value = serde_json::from_str(text_content(&result))?;
-    assert_eq!(json["tracks"].as_array().expect("tracks should be array").len(), 2);
+    assert_eq!(
+        json["tracks"]
+            .as_array()
+            .expect("tracks should be array")
+            .len(),
+        2
+    );
 
     shutdown(client).await
 }
