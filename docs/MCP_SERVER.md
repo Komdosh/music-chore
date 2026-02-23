@@ -1,120 +1,104 @@
-# Music Chore MCP Server
+# MCP Server Guide
 
-The Model Context Protocol (MCP) server for Music Chore provides AI agents with programmatic access to music library management capabilities. It exposes the core functionality of the `musicctl` CLI tool through a standardized MCP interface.
+`musicctl-mcp` exposes `music-chore` functionality to AI agents via Model Context Protocol (MCP).
 
-## ✅ Status: Production Ready
+## Scope
 
-The MCP server is **fully functional and tested** with:
-- ✅ Complete MCP protocol implementation using rmcp SDK
-- ✅ All 8 core tools exposed and working
-- ✅ 18 Expert AI Prompts for complex workflows
-- ✅ Environment-based security (allowed paths restriction)
-- ✅ AI-friendly structured output (JSON and text formats)
-- ✅ Multi-format support: FLAC, MP3, WAV, DSF, WavPack
+This server provides:
+- 8 MCP tools for scanning, metadata operations, validation, duplicates, and CUE workflows
+- 6 high-value MCP prompts for listening decisions and maintenance
+- path-based security controls through environment variables
 
-## Overview
+## Install and Register
 
-The MCP server allows AI agents to:
-- Scan directories for music files recursively
-- Analyze metadata with source provenance tracking
-- Visualize library hierarchies (Artist -> Album -> Track)
-- Standardize titles and genres using the `normalize` tool
-- Detect duplicate files using SHA256 checksums
-- Generate, parse, and validate CUE sheets
-- Run complex analysis via specialized AI Prompts
-
-## Installation
-
-### Quick Install (Recommended)
-
-```bash
-# Automated local setup
-curl -fsSL https://github.com/Komdosh/music-chore/releases/latest/download/install_mcp.sh | bash
-```
-
-### Install in your AI Agent
-
-**Claude CLI:**
+### Claude CLI
 ```bash
 claude mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore -- musicctl-mcp
 ```
 
-**Gemini CLI:**
+### Gemini CLI
 ```bash
 gemini mcp add -e MUSIC_LIBRARY_PATH="/path/to/music" music-chore musicctl-mcp
 ```
 
-**Qwen:**
+### Qwen
 ```bash
 qwen mcp add music-chore musicctl-mcp -e MUSIC_LIBRARY_PATH="/path/to/music"
 ```
 
 ## Available Tools (8)
 
-### 1. `scan_directory`
-Recursively scan for music files.
-- `path` (string): Path to scan.
-- `json_output` (bool): Get full track objects instead of paths.
+1. `scan_directory`
+2. `get_library_tree`
+3. `read_file_metadata`
+4. `normalize`
+5. `emit_library_metadata`
+6. `validate_library`
+7. `find_duplicates`
+8. `cue_file`
 
-### 2. `get_library_tree`
-Get hierarchical organization of the library.
-- `path` (string): Root directory.
+## Available Prompts (6)
 
-### 3. `read_file_metadata`
-Read full metadata from a single file.
-- `path` (string): Path to audio file.
-
-### 4. `normalize`
-Standardize titles (Title Case) and genres (standard mapping).
-- `path` (string): Directory to analyze.
-- `json_output` (bool): Get structured before/after reports.
-
-### 5. `emit_library_metadata`
-Export complete structured metadata for the entire library.
-
-### 6. `validate_library`
-Check for missing fields, track mismatches, and schema violations.
-
-### 7. `find_duplicates`
-Find identical audio data using SHA256 checksums.
-
-### 8. `cue_file`
-Unified tool for `.cue` operations (`generate`, `parse`, `validate`).
-
-## Expert Prompts (6)
-
-Expert prompts provide the AI agent with a strategy and the necessary tool calls to perform high-level tasks.
-
-| Category | Prompts |
-|----------|---------|
-| **Listening** | `listen-now` |
-| **Web Discovery** | `web-perfect-match` |
-| **Maintenance** | `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `cue-sheet-assistant` |
+- `listen-now`
+- `web-perfect-match`
+- `library-health-check`
+- `metadata-cleanup-guide`
+- `duplicate-resolution`
+- `cue-sheet-assistant`
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `RUST_LOG` | Logging level (error, warn, info, debug) | `info` |
-| `MUSIC_LIBRARY_PATH` | Default path if none provided to tools | None |
-| `MUSIC_SCAN_TIMEOUT` | Timeout for large scan operations (seconds) | `300` |
-| `MUSIC_ALLOWED_PATHS` | Whitelist of paths the AI is allowed to access | All |
+- `RUST_LOG`: logging level (`error|warn|info|debug|trace`)
+- `MUSIC_LIBRARY_PATH`: default path when tool request omits `path`
+- `MUSIC_SCAN_TIMEOUT`: scan timeout in seconds (default `300`)
+- `MUSIC_ALLOWED_PATHS`: comma-separated allowed roots
 
-## Security
+Example:
+```bash
+export RUST_LOG=info
+export MUSIC_LIBRARY_PATH=/Users/username/Music
+export MUSIC_ALLOWED_PATHS=/Users/username/Music,/Volumes/Music
+musicctl-mcp
+```
 
-The MCP server implements **Path-based Security**:
-- If `MUSIC_ALLOWED_PATHS` is set, the server will block any attempts to access files outside those directories.
-- This protects your private system files from accidental or intentional access by AI agents.
+## Security Model
 
-## Development & Testing
+If `MUSIC_ALLOWED_PATHS` is set, the server rejects access outside these paths.
+Use this in all shared or agent-driven environments.
 
-You can test the MCP server manually using `rlwrap`:
+## Minimal Config Snippets
+
+### Claude Desktop-style JSON
+```json
+{
+  "mcpServers": {
+    "music-chore": {
+      "command": "musicctl-mcp",
+      "env": {
+        "RUST_LOG": "info",
+        "MUSIC_LIBRARY_PATH": "/Users/username/Music",
+        "MUSIC_ALLOWED_PATHS": "/Users/username/Music"
+      }
+    }
+  }
+}
+```
+
+### Node example (tool call)
+```javascript
+const result = await client.callTool('normalize', {
+  path: '/Users/username/Music',
+  json_output: true,
+});
+```
+
+## Manual Smoke Test
 
 ```bash
 rlwrap musicctl-mcp
 ```
 
-Initialize command:
+Initialize request:
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test"}}}
 ```
