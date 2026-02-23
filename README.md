@@ -195,14 +195,12 @@ musicctl-mcp
 | `find_duplicates` | Detect duplicate files |
 | `cue_file` | Generate/parse/validate CUE sheets |
 
-### Expert Prompts (26 total)
+### Expert Prompts (6 total)
 
-The MCP server provides specialized prompts for deep library analysis:
-- **Analysis**: `top-tracks-analysis`, `genre-breakdown`, `decade-analysis`, `collection-story`, `artist-deep-dive`.
-- **Discovery**: `instrument-to-learn`, `similar-artists-discovery`, `mood-playlist`, `hidden-gems`, `album-marathon`, `concert-setlist`.
-- **Listening Decision Skills**: `listen-now`, `quick-pick`, `album-tonight`, `rediscovery-rotation`, `decision-duel`.
-- **Web Discovery Skills**: `web-perfect-match`, `web-genre-scout`, `web-mood-match`.
-- **Maintenance**: `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `reorganization-plan`, `format-quality-audit`, `year-in-review`, `cue-sheet-assistant`.
+The MCP server provides a compact, high-value prompt set:
+- **Listening**: `listen-now`
+- **Web Discovery**: `web-perfect-match`
+- **Maintenance**: `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `cue-sheet-assistant`
 
 ---
 

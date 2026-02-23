@@ -81,17 +81,15 @@ Find identical audio data using SHA256 checksums.
 ### 8. `cue_file`
 Unified tool for `.cue` operations (`generate`, `parse`, `validate`).
 
-## Expert Prompts (26)
+## Expert Prompts (6)
 
 Expert prompts provide the AI agent with a strategy and the necessary tool calls to perform high-level tasks.
 
 | Category | Prompts |
 |----------|---------|
-| **Analysis** | `top-tracks-analysis`, `genre-breakdown`, `decade-analysis`, `collection-story`, `artist-deep-dive` |
-| **Discovery** | `instrument-to-learn`, `similar-artists-discovery`, `mood-playlist`, `hidden-gems`, `album-marathon`, `concert-setlist` |
-| **Listening Decision Skills** | `listen-now`, `quick-pick`, `album-tonight`, `rediscovery-rotation`, `decision-duel` |
-| **Web Discovery Skills** | `web-perfect-match`, `web-genre-scout`, `web-mood-match` |
-| **Maintenance** | `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `reorganization-plan`, `format-quality-audit`, `year-in-review`, `cue-sheet-assistant` |
+| **Listening** | `listen-now` |
+| **Web Discovery** | `web-perfect-match` |
+| **Maintenance** | `library-health-check`, `metadata-cleanup-guide`, `duplicate-resolution`, `cue-sheet-assistant` |
 
 ## Environment Variables
 
