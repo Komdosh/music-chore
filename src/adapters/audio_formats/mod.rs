@@ -1,6 +1,7 @@
 //! Audio format registry and factory.
 use crate::adapters::audio_formats::dsf::DsfHandler;
 use crate::adapters::audio_formats::flac::FlacHandler;
+use crate::adapters::audio_formats::m4a::M4aHandler;
 use crate::adapters::audio_formats::mp3::Mp3Handler;
 use crate::adapters::audio_formats::ogg::OggHandler;
 use crate::adapters::audio_formats::wav::WavHandler;
@@ -12,6 +13,7 @@ use std::path::Path;
 
 pub mod dsf;
 pub mod flac;
+pub mod m4a;
 pub mod mp3;
 pub mod ogg;
 pub mod wav;
@@ -39,6 +41,9 @@ pub fn create_audio_registry() -> AudioFileRegistry {
 
     // Register OGG handler
     registry.register(Box::new(OggHandler::new()));
+
+    // Register M4A handler
+    registry.register(Box::new(M4aHandler::new()));
 
     // Register DSF handler
     registry.register(Box::new(DsfHandler::new()));

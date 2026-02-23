@@ -22,7 +22,7 @@
 | Feature | Description |
 |:--------:|:------------|
 | 🔍 | Recursive directory scanning |
-| 🏷️ | Metadata extraction (FLAC, MP3, WAV, OGG, DSF, WavPack) |
+| 🏷️ | Metadata extraction (FLAC, MP3, WAV, OGG, M4A, DSF, WavPack) |
 | 📂 | Artist → Album → Track inference |
 | 🔤 | Title and genre normalization |
 | 🌳 | Tree visualization |
@@ -126,7 +126,7 @@ musicctl duplicates ~/Music/Compilations
 
 1. **Permission errors**: Ensure you have read/write permissions for the directories and files you're working with.
 
-2. **Unsupported format errors**: The tool only supports FLAC, MP3, WAV, OGG, DSF, and WavPack formats. Convert unsupported files to a supported format first.
+2. **Unsupported format errors**: The tool only supports FLAC, MP3, WAV, OGG, M4A, DSF, and WavPack formats. Convert unsupported files to a supported format first.
 
 3. **Metadata not updating**: Remember to use the `--apply` flag when writing metadata; by default, operations are dry runs.
 
@@ -263,7 +263,7 @@ cargo clippy
 | OGG | ✅ | ✅ |
 | DSF | ✅ | ✅ |
 | WavPack | ✅ | ✅ |
-| M4A | 🔜 | 🔜 |
+| M4A | ✅ | ✅ |
 
 ---
 

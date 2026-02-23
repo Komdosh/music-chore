@@ -1,4 +1,4 @@
-//! OGG format implementation of the AudioFile trait.
+//! M4A format implementation of the AudioFile trait.
 
 use lofty::{
     config::WriteOptions,
@@ -16,30 +16,30 @@ use crate::core::domain::models::{
 use crate::core::domain::traits::{AudioFile, AudioFileError};
 use crate::core::services::inference::{infer_album_from_path, infer_artist_from_path};
 
-/// OGG format handler
-pub struct OggHandler;
+/// M4A format handler
+pub struct M4aHandler;
 
-impl OggHandler {
-    /// Create a new OGG handler
+impl M4aHandler {
+    /// Create a new M4A handler
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for OggHandler {
+impl Default for M4aHandler {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AudioFile for OggHandler {
+impl AudioFile for M4aHandler {
     fn can_handle(&self, path: &Path) -> bool {
         path.extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("ogg"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("m4a"))
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["ogg"]
+        vec!["m4a"]
     }
 
     fn read_metadata(&self, path: &Path) -> Result<Track, AudioFileError> {
@@ -48,7 +48,7 @@ impl AudioFile for OggHandler {
         }
 
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read OGG file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read M4A file: {}", e)))?;
 
         let metadata = self.extract_metadata_from_tags(&tagged_file, path);
         Ok(Track::new(path.to_path_buf(), metadata))
@@ -60,12 +60,12 @@ impl AudioFile for OggHandler {
         }
 
         let mut tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read OGG file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read M4A file: {}", e)))?;
 
-        // OGG/Vorbis uses Vorbis comments as primary tag
+        // M4A (MP4) uses MP4 tags as the primary tag representation
         let tag = tagged_file
             .primary_tag_mut()
-            .ok_or_else(|| AudioFileError::WriteError("OGG file has no primary tag".to_string()))?;
+            .ok_or_else(|| AudioFileError::WriteError("M4A file has no primary tag".to_string()))?;
 
         let mut set_tag = |key: ItemKey, value: &str| {
             tag.insert(TagItem::new(key, ItemValue::Text(value.to_string())));
@@ -98,7 +98,7 @@ impl AudioFile for OggHandler {
 
         tagged_file
             .save_to_path(path, WriteOptions::default())
-            .map_err(|e| AudioFileError::WriteError(format!("Failed to save OGG file: {}", e)))?;
+            .map_err(|e| AudioFileError::WriteError(format!("Failed to save M4A file: {}", e)))?;
 
         Ok(())
     }
@@ -109,13 +109,13 @@ impl AudioFile for OggHandler {
         }
 
         let tagged_file = read_from_path(path)
-            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read OGG file: {}", e)))?;
+            .map_err(|e| AudioFileError::InvalidFile(format!("Failed to read M4A file: {}", e)))?;
 
         Ok(self.extract_basic_metadata(&tagged_file, path))
     }
 }
 
-impl OggHandler {
+impl M4aHandler {
     /// Extract metadata from lofty TaggedFile and convert to our TrackMetadata
     fn extract_metadata_from_tags(&self, tagged_file: &TaggedFile, path: &Path) -> TrackMetadata {
         let mut title = None;
@@ -187,7 +187,7 @@ impl OggHandler {
             year,
             genre,
             duration,
-            format: "ogg".to_string(),
+            format: "m4a".to_string(),
             path: path.to_path_buf(),
         }
     }
@@ -213,7 +213,7 @@ impl OggHandler {
             year: None,
             genre: None,
             duration,
-            format: "ogg".to_string(),
+            format: "m4a".to_string(),
             path: path.to_path_buf(),
         }
     }
@@ -233,7 +233,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_tagged_file(duration_secs: f64, items: Vec<TagItem>) -> TaggedFile {
-        let mut tag = Tag::new(TagType::VorbisComments);
+        let mut tag = Tag::new(TagType::Mp4Ilst);
         for item in items {
             tag.insert(item);
         }
@@ -248,7 +248,7 @@ mod tests {
             None,
         );
 
-        TaggedFile::new(FileType::Vorbis, properties, vec![tag])
+        TaggedFile::new(FileType::Mp4, properties, vec![tag])
     }
 
     fn make_tagged_file_without_tags(duration_secs: f64) -> TaggedFile {
@@ -262,55 +262,55 @@ mod tests {
             None,
         );
 
-        TaggedFile::new(FileType::Vorbis, properties, vec![])
+        TaggedFile::new(FileType::Mp4, properties, vec![])
     }
 
     #[test]
-    fn test_ogg_handler_supported_extensions() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_supported_extensions() {
+        let handler = M4aHandler::new();
         let extensions = handler.supported_extensions();
-        assert_eq!(extensions, vec!["ogg"]);
+        assert_eq!(extensions, vec!["m4a"]);
     }
 
     #[test]
-    fn test_ogg_handler_new_creates_instance() {
-        let handler = OggHandler::new();
-        assert!(handler.can_handle(&PathBuf::from("test.ogg")));
+    fn test_m4a_handler_new_creates_instance() {
+        let handler = M4aHandler::new();
+        assert!(handler.can_handle(&PathBuf::from("test.m4a")));
     }
 
     #[test]
-    fn test_ogg_handler_default_creates_instance() {
-        let handler = OggHandler::default();
-        assert!(handler.can_handle(&PathBuf::from("test.ogg")));
+    fn test_m4a_handler_default_creates_instance() {
+        let handler = M4aHandler::default();
+        assert!(handler.can_handle(&PathBuf::from("test.m4a")));
     }
 
     #[test]
-    fn test_ogg_handler_can_handle() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_can_handle() {
+        let handler = M4aHandler::new();
 
-        assert!(handler.can_handle(&PathBuf::from("test.ogg")));
-        assert!(handler.can_handle(&PathBuf::from("test.OGG")));
+        assert!(handler.can_handle(&PathBuf::from("test.m4a")));
+        assert!(handler.can_handle(&PathBuf::from("test.M4A")));
         assert!(!handler.can_handle(&PathBuf::from("test.flac")));
         assert!(!handler.can_handle(&PathBuf::from("test.mp3")));
     }
 
     #[test]
-    fn test_ogg_handler_read_metadata_unsupported_format() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_read_metadata_unsupported_format() {
+        let handler = M4aHandler::new();
         let result = handler.read_metadata(&PathBuf::from("test.flac"));
         assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
     }
 
     #[test]
-    fn test_ogg_handler_read_basic_info_unsupported_format() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_read_basic_info_unsupported_format() {
+        let handler = M4aHandler::new();
         let result = handler.read_basic_info(&PathBuf::from("test.flac"));
         assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
     }
 
     #[test]
-    fn test_ogg_handler_write_metadata_unsupported_format() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_write_metadata_unsupported_format() {
+        let handler = M4aHandler::new();
         let metadata = TrackMetadata {
             title: None,
             artist: None,
@@ -321,33 +321,33 @@ mod tests {
             year: None,
             genre: None,
             duration: None,
-            format: "ogg".to_string(),
-            path: PathBuf::from("test.ogg"),
+            format: "m4a".to_string(),
+            path: PathBuf::from("test.m4a"),
         };
         let result = handler.write_metadata(&PathBuf::from("test.flac"), &metadata);
         assert!(matches!(result, Err(AudioFileError::UnsupportedFormat)));
     }
 
     #[test]
-    fn test_ogg_handler_read_metadata_nonexistent_file() {
-        let handler = OggHandler::new();
-        let result = handler.read_metadata(&PathBuf::from("nonexistent.ogg"));
+    fn test_m4a_handler_read_metadata_nonexistent_file() {
+        let handler = M4aHandler::new();
+        let result = handler.read_metadata(&PathBuf::from("nonexistent.m4a"));
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
 
     #[test]
-    fn test_ogg_handler_read_basic_info_nonexistent_file() {
-        let handler = OggHandler::new();
-        let result = handler.read_basic_info(&PathBuf::from("nonexistent.ogg"));
+    fn test_m4a_handler_read_basic_info_nonexistent_file() {
+        let handler = M4aHandler::new();
+        let result = handler.read_basic_info(&PathBuf::from("nonexistent.m4a"));
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
 
     #[test]
-    fn test_ogg_handler_write_metadata_invalid_file_returns_invalid_file_error() {
-        let handler = OggHandler::new();
+    fn test_m4a_handler_write_metadata_invalid_file_returns_invalid_file_error() {
+        let handler = M4aHandler::new();
         let temp_dir = TempDir::new().expect("temp dir should be created");
-        let ogg_path = temp_dir.path().join("bad.ogg");
-        fs::write(&ogg_path, "not a real ogg file").expect("test file should be written");
+        let m4a_path = temp_dir.path().join("bad.m4a");
+        fs::write(&m4a_path, "not a real m4a file").expect("test file should be written");
 
         let metadata = TrackMetadata {
             title: Some(MetadataValue::embedded("Title".to_string())),
@@ -359,18 +359,18 @@ mod tests {
             year: None,
             genre: None,
             duration: None,
-            format: "ogg".to_string(),
-            path: ogg_path.clone(),
+            format: "m4a".to_string(),
+            path: m4a_path.clone(),
         };
 
-        let result = handler.write_metadata(&ogg_path, &metadata);
+        let result = handler.write_metadata(&m4a_path, &metadata);
         assert!(matches!(result, Err(AudioFileError::InvalidFile(_))));
     }
 
     #[test]
     fn test_extract_metadata_from_tags_maps_all_supported_fields() {
-        let handler = OggHandler::new();
-        let path = PathBuf::from("Music/Embedded Artist/Embedded Album/track.ogg");
+        let handler = M4aHandler::new();
+        let path = PathBuf::from("Music/Embedded Artist/Embedded Album/track.m4a");
         let tagged_file = make_tagged_file(
             245.5,
             vec![
@@ -392,7 +392,7 @@ mod tests {
                 ),
                 TagItem::new(ItemKey::TrackNumber, ItemValue::Text("7".to_string())),
                 TagItem::new(ItemKey::DiscNumber, ItemValue::Text("2".to_string())),
-                TagItem::new(ItemKey::Year, ItemValue::Text("1999".to_string())),
+                TagItem::new(ItemKey::RecordingDate, ItemValue::Text("1999".to_string())),
                 TagItem::new(ItemKey::Genre, ItemValue::Text("Trip-Hop".to_string())),
             ],
         );
@@ -423,14 +423,14 @@ mod tests {
             Some("Trip-Hop")
         );
         assert_eq!(metadata.duration.as_ref().map(|v| v.value), Some(245.5));
-        assert_eq!(metadata.format, "ogg");
+        assert_eq!(metadata.format, "m4a");
         assert_eq!(metadata.path, path);
     }
 
     #[test]
     fn test_extract_metadata_from_tags_uses_recording_date_and_folder_fallbacks() {
-        let handler = OggHandler::new();
-        let path = PathBuf::from("Library/Fallback Artist/Fallback Album/track.ogg");
+        let handler = M4aHandler::new();
+        let path = PathBuf::from("Library/Fallback Artist/Fallback Album/track.m4a");
         let tagged_file = make_tagged_file(
             60.25,
             vec![
@@ -470,8 +470,8 @@ mod tests {
 
     #[test]
     fn test_extract_metadata_from_tags_without_primary_tag_still_sets_duration_and_inference() {
-        let handler = OggHandler::new();
-        let path = PathBuf::from("Collection/Artist Folder/Album Folder/track.ogg");
+        let handler = M4aHandler::new();
+        let path = PathBuf::from("Collection/Artist Folder/Album Folder/track.m4a");
         let tagged_file = make_tagged_file_without_tags(12.0);
 
         let metadata = handler.extract_metadata_from_tags(&tagged_file, &path);
@@ -487,13 +487,13 @@ mod tests {
         );
         assert_eq!(metadata.year, None);
         assert_eq!(metadata.duration.as_ref().map(|v| v.value), Some(12.0));
-        assert_eq!(metadata.format, "ogg");
+        assert_eq!(metadata.format, "m4a");
     }
 
     #[test]
     fn test_extract_basic_metadata_sets_duration_and_inferred_path_fields() {
-        let handler = OggHandler::new();
-        let path = PathBuf::from("Audio/Basic Artist/Basic Album/file.ogg");
+        let handler = M4aHandler::new();
+        let path = PathBuf::from("Audio/Basic Artist/Basic Album/file.m4a");
         let tagged_file = make_tagged_file(99.0, vec![]);
 
         let metadata = handler.extract_basic_metadata(&tagged_file, &path);
@@ -513,14 +513,14 @@ mod tests {
         assert_eq!(metadata.year, None);
         assert_eq!(metadata.genre, None);
         assert_eq!(metadata.duration.as_ref().map(|v| v.value), Some(99.0));
-        assert_eq!(metadata.format, "ogg");
+        assert_eq!(metadata.format, "m4a");
         assert_eq!(metadata.path, path);
     }
 
     #[test]
     fn test_extract_basic_metadata_without_folder_context_has_no_inference() {
-        let handler = OggHandler::new();
-        let path = PathBuf::from("track.ogg");
+        let handler = M4aHandler::new();
+        let path = PathBuf::from("track.m4a");
         let tagged_file = make_tagged_file(1.5, vec![]);
 
         let metadata = handler.extract_basic_metadata(&tagged_file, &path);
@@ -528,7 +528,7 @@ mod tests {
         assert_eq!(metadata.artist, None);
         assert_eq!(metadata.album, None);
         assert_eq!(metadata.duration.as_ref().map(|v| v.value), Some(1.5));
-        assert_eq!(metadata.format, "ogg");
+        assert_eq!(metadata.format, "m4a");
         assert_eq!(metadata.path, path);
     }
 }
