@@ -2,6 +2,7 @@
 use crate::adapters::audio_formats::dsf::DsfHandler;
 use crate::adapters::audio_formats::flac::FlacHandler;
 use crate::adapters::audio_formats::mp3::Mp3Handler;
+use crate::adapters::audio_formats::ogg::OggHandler;
 use crate::adapters::audio_formats::wav::WavHandler;
 use crate::adapters::audio_formats::wavpack::WavPackHandler;
 use crate::core::domain::models::{MetadataValue, TrackMetadata};
@@ -12,6 +13,7 @@ use std::path::Path;
 pub mod dsf;
 pub mod flac;
 pub mod mp3;
+pub mod ogg;
 pub mod wav;
 pub mod wavpack;
 
@@ -34,6 +36,9 @@ pub fn create_audio_registry() -> AudioFileRegistry {
 
     // Register WAV handler
     registry.register(Box::new(WavHandler::new()));
+
+    // Register OGG handler
+    registry.register(Box::new(OggHandler::new()));
 
     // Register DSF handler
     registry.register(Box::new(DsfHandler::new()));

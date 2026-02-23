@@ -16,8 +16,8 @@ fn test_scan_dir_warns_on_unsupported_format() {
     .unwrap();
 
     fs::write(
-        source_path.join("album/also_unsupported.ogg"),
-        "fake ogg content",
+        source_path.join("album/also_unsupported.m4a"),
+        "fake m4a content",
     )
     .unwrap();
 
@@ -85,13 +85,14 @@ fn test_scan_dir_multiple_unsupported_formats() {
     )
     .unwrap();
 
-    fs::write(source_path.join("album/track.ogg"), "ogg").unwrap();
     fs::write(source_path.join("album/track.m4a"), "m4a").unwrap();
+    fs::write(source_path.join("album/track.ogg"), "ogg").unwrap();
     fs::write(source_path.join("album/track.aiff"), "aiff").unwrap();
 
     let tracks = scan_dir(source_path, false);
 
-    assert_eq!(tracks.len(), 1);
+    // OGG is now supported, while M4A and AIFF remain unsupported.
+    assert_eq!(tracks.len(), 2);
 }
 
 #[test]
@@ -117,7 +118,7 @@ fn test_scan_dir_nested_unsupported_formats() {
     )
     .unwrap();
 
-    fs::write(source_path.join("album/unsupported.ogg"), "ogg").unwrap();
+    fs::write(source_path.join("album/unsupported.m4a"), "m4a").unwrap();
 
     let tracks = scan_dir(source_path, false);
 
@@ -132,7 +133,7 @@ fn test_scan_dir_only_unsupported_formats() {
     fs::create_dir_all(source_path.join("album")).unwrap();
 
     fs::write(source_path.join("album/track.vvs"), "vvs").unwrap();
-    fs::write(source_path.join("album/track.ogg"), "ogg").unwrap();
+    fs::write(source_path.join("album/track.m4a"), "m4a").unwrap();
 
     let tracks = scan_dir(source_path, false);
 
@@ -195,7 +196,7 @@ fn test_scan_dir_with_depth_limits_warnings() {
     )
     .unwrap();
 
-    fs::write(source_path.join("level1/unsupported.ogg"), "ogg").unwrap();
+    fs::write(source_path.join("level1/unsupported.m4a"), "m4a").unwrap();
 
     // Depth 0: immediate files only (root level files)
     let tracks_depth_0 = scan_dir_with_depth(source_path, Some(0));
