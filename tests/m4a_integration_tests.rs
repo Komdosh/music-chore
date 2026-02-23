@@ -1,0 +1,148 @@
+//! Integration tests for M4A format support.
+
+use music_chore::adapters::audio_formats::{
+    get_supported_extensions, is_format_supported, read_basic_info, read_metadata, write_metadata,
+};
+use music_chore::core::domain::models::{MetadataValue, TrackMetadata};
+use music_chore::core::services::scanner::scan_dir;
+use std::fs;
+use std::path::PathBuf;
+use tempfile::TempDir;
+
+#[test]
+fn test_m4a_format_detection() {
+    assert!(is_format_supported(&PathBuf::from("track.m4a")));
+    assert!(is_format_supported(&PathBuf::from("track.M4A")));
+}
+
+#[test]
+fn test_m4a_supported_extensions_registry() {
+    let extensions = get_supported_extensions();
+    assert!(extensions.contains(&"m4a".to_string()));
+}
+
+#[test]
+fn test_m4a_scan_integration_with_invalid_file_content() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let source_path = temp_dir.path();
+
+    fs::create_dir_all(source_path.join("Artist/Album")).expect("test dirs should be created");
+    let m4a_path = source_path.join("Artist/Album/01 - Test Track.m4a");
+    fs::write(&m4a_path, "not real m4a bytes").expect("test m4a should be written");
+
+    let tracks = scan_dir(source_path, false);
+    assert_eq!(tracks.len(), 1);
+
+    let track = &tracks[0];
+    assert_eq!(track.metadata.format, "m4a");
+    assert!(track.file_path.to_string_lossy().ends_with(".m4a"));
+
+    // Even when embedded parsing fails, folder inference should populate artist/album.
+    assert!(track.metadata.artist.is_some());
+    assert!(track.metadata.album.is_some());
+}
+
+#[test]
+fn test_m4a_scan_skip_metadata_inference() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let source_path = temp_dir.path();
+
+    fs::create_dir_all(source_path.join("Artist/Album")).expect("test dirs should be created");
+    let m4a_path = source_path.join("Artist/Album/02 - Another Track.m4a");
+    fs::write(&m4a_path, "invalid m4a bytes").expect("test m4a should be written");
+
+    let tracks = scan_dir(source_path, true);
+    assert_eq!(tracks.len(), 1);
+
+    let track = &tracks[0];
+    assert_eq!(track.metadata.format, "m4a");
+    assert_eq!(
+        track.metadata.artist.as_ref().map(|a| a.value.as_str()),
+        Some("Artist")
+    );
+    assert_eq!(
+        track.metadata.album.as_ref().map(|a| a.value.as_str()),
+        Some("Album")
+    );
+}
+
+#[test]
+fn test_m4a_scan_unicode_path_inference() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let source_path = temp_dir.path();
+
+    fs::create_dir_all(source_path.join("José González/álbum"))
+        .expect("unicode test dirs should be created");
+    let m4a_path = source_path.join("José González/álbum/track.m4a");
+    fs::write(&m4a_path, "invalid m4a bytes").expect("test m4a should be written");
+
+    let tracks = scan_dir(source_path, false);
+    assert_eq!(tracks.len(), 1);
+
+    let track = &tracks[0];
+    assert_eq!(track.metadata.format, "m4a");
+    assert_eq!(
+        track.metadata.artist.as_ref().map(|a| a.value.as_str()),
+        Some("José González")
+    );
+    assert_eq!(
+        track.metadata.album.as_ref().map(|a| a.value.as_str()),
+        Some("álbum")
+    );
+}
+
+#[test]
+fn test_m4a_read_metadata_invalid_content_routes_to_m4a_handler() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let m4a_path = temp_dir.path().join("bad.m4a");
+    fs::write(&m4a_path, "invalid m4a bytes").expect("test m4a should be written");
+
+    let result = read_metadata(&m4a_path);
+    assert!(result.is_err());
+
+    let err_str = result.err().expect("error should exist").to_string();
+    assert!(err_str.contains("Invalid file"));
+    assert!(err_str.contains("M4A") || err_str.contains("m4a"));
+}
+
+#[test]
+fn test_m4a_write_metadata_invalid_content_routes_to_m4a_handler() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let m4a_path = temp_dir.path().join("bad.m4a");
+    fs::write(&m4a_path, "invalid m4a bytes").expect("test m4a should be written");
+
+    let metadata = TrackMetadata {
+        title: Some(MetadataValue::user_set("Title".to_string())),
+        artist: Some(MetadataValue::user_set("Artist".to_string())),
+        album: Some(MetadataValue::user_set("Album".to_string())),
+        album_artist: None,
+        track_number: None,
+        disc_number: None,
+        year: None,
+        genre: None,
+        duration: None,
+        format: "m4a".to_string(),
+        path: m4a_path.clone(),
+    };
+
+    let result = write_metadata(&m4a_path, &metadata);
+    assert!(result.is_err());
+
+    let err_str = result.err().expect("error should exist").to_string();
+    assert!(err_str.contains("Invalid file"));
+    assert!(err_str.contains("M4A") || err_str.contains("m4a"));
+}
+
+#[test]
+fn test_m4a_read_basic_info_invalid_content_routes_to_m4a_handler() {
+    let temp_dir = TempDir::new().expect("temp dir should be created");
+    let m4a_path = temp_dir.path().join("bad.m4a");
+    fs::write(&m4a_path, "invalid m4a bytes").expect("test m4a should be written");
+
+    let result = read_basic_info(&m4a_path);
+    assert!(result.is_err());
+
+    let err_str = result.err().expect("error should exist").to_string();
+    assert!(err_str.contains("Invalid file"));
+    assert!(err_str.contains("M4A") || err_str.contains("m4a"));
+}

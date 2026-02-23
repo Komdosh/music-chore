@@ -55,6 +55,7 @@ Current codebase includes handlers for:
 - MP3
 - WAV
 - OGG
+- M4A
 - DSF
 - WavPack
 

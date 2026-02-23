@@ -11,14 +11,15 @@ fn test_registry_supported_extensions() {
     let registry = create_audio_registry();
     let extensions = registry.supported_extensions();
 
-    // Should support FLAC, MP3, WAV, OGG, DSF, and WavPack
+    // Should support FLAC, MP3, WAV, OGG, M4A, DSF, and WavPack
     assert!(extensions.contains(&"flac".to_string()));
     assert!(extensions.contains(&"mp3".to_string()));
     assert!(extensions.contains(&"wav".to_string()));
     assert!(extensions.contains(&"ogg".to_string()));
+    assert!(extensions.contains(&"m4a".to_string()));
     assert!(extensions.contains(&"dsf".to_string()));
     assert!(extensions.contains(&"wv".to_string()));
-    assert_eq!(extensions.len(), 6);
+    assert_eq!(extensions.len(), 7);
 }
 
 #[test]
@@ -32,13 +33,15 @@ fn test_is_format_supported() {
     assert!(is_format_supported(&PathBuf::from("test.WAV")));
     assert!(is_format_supported(&PathBuf::from("test.ogg")));
     assert!(is_format_supported(&PathBuf::from("test.OGG")));
+    assert!(is_format_supported(&PathBuf::from("test.m4a")));
+    assert!(is_format_supported(&PathBuf::from("test.M4A")));
     assert!(is_format_supported(&PathBuf::from("test.dsf")));
     assert!(is_format_supported(&PathBuf::from("test.DSF")));
     assert!(is_format_supported(&PathBuf::from("test.wv")));
     assert!(is_format_supported(&PathBuf::from("test.WV")));
 
     // Unsupported formats
-    assert!(!is_format_supported(&PathBuf::from("test.m4a")));
+    assert!(!is_format_supported(&PathBuf::from("test.aiff")));
     assert!(!is_format_supported(&PathBuf::from("test.txt")));
     assert!(!is_format_supported(&PathBuf::from("test")));
 }
@@ -51,14 +54,15 @@ fn test_get_supported_extensions() {
     assert!(extensions.contains(&"mp3".to_string()));
     assert!(extensions.contains(&"wav".to_string()));
     assert!(extensions.contains(&"ogg".to_string()));
+    assert!(extensions.contains(&"m4a".to_string()));
     assert!(extensions.contains(&"dsf".to_string()));
     assert!(extensions.contains(&"wv".to_string()));
-    assert_eq!(extensions.len(), 6);
+    assert_eq!(extensions.len(), 7);
 }
 
 #[test]
 fn test_read_metadata_unsupported_format() {
-    let path = PathBuf::from("test.m4a");
+    let path = PathBuf::from("test.aiff");
     let result = read_metadata(&path);
     assert!(result.is_err());
 }
@@ -74,7 +78,7 @@ fn test_read_metadata_nonexistent_file() {
 fn test_write_metadata_unsupported_format() {
     use music_chore::core::domain::models::TrackMetadata;
 
-    let path = PathBuf::from("test.m4a");
+    let path = PathBuf::from("test.aiff");
     let metadata = TrackMetadata {
         title: None,
         artist: None,
@@ -85,7 +89,7 @@ fn test_write_metadata_unsupported_format() {
         year: None,
         genre: None,
         duration: None,
-        format: "m4a".to_string(),
+        format: "aiff".to_string(),
         path: path.clone(),
     };
     let result = write_metadata(&path, &metadata);

@@ -75,6 +75,7 @@ Binaries:
 - MP3
 - WAV
 - OGG
+- M4A
 - DSF
 - WavPack
 

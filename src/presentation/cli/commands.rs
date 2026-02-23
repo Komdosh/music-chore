@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[command(name = "musicctl")]
 #[command(about = "Deterministic, AI‑friendly music metadata compiler.")]
 #[command(
-    long_about = "A CLI tool for organizing and normalizing local music libraries using existing file metadata and directory structure only.\n\nSupported audio formats: .flac, .mp3, .wav, .ogg, .dsf, .wv"
+    long_about = "A CLI tool for organizing and normalizing local music libraries using existing file metadata and directory structure only.\n\nSupported audio formats: .flac, .mp3, .wav, .ogg, .m4a, .dsf, .wv"
 )]
 #[command(disable_version_flag = true)]
 pub struct Cli {

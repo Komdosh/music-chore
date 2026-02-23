@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] - 2026-02-23
+
+### Added
+- **Format Support**: Added M4A (`.m4a`) support with a dedicated handler registered in the audio format registry.
+- **Integration Tests**: Added M4A integration coverage for format detection, scanner behavior, and read/write/basic-info routing on invalid file content.
+
+### Changed
+- **Metadata Extraction Tests**: Added exhaustive branch coverage for M4A `extract_metadata_from_tags` and `extract_basic_metadata`, including parse fallbacks and folder inference behavior.
+- **Registry and Scanner Tests**: Updated format registry and unsupported-file tests to treat M4A as supported and keep unsupported sentinel coverage on truly unsupported extensions.
+- **CLI/Docs/Spec**: Updated supported-format references to include M4A.
+
 ## [0.4.6] - 2026-02-23
 
 ### Added
