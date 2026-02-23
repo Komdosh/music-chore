@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] - 2026-02-23
+
+### Added
+- **Format Support**: Added OGG (`.ogg`) support with dedicated handler integration in the format registry and CLI/MCP flows.
+- **Integration Tests**: Added OGG integration coverage for format detection, scanner behavior, and read/write routing for invalid files.
+
+### Changed
+- **Metadata Extraction Tests**: Added exhaustive branch coverage for OGG `extract_basic_metadata` and `extract_metadata_from_tags`, including inference fallbacks and date/number parsing branches.
+- **Docs/Spec**: Updated supported format references across project docs and spec prompt files to include OGG.
+
 ## [0.4.5] - 2026-02-23
 
 ### Changed
