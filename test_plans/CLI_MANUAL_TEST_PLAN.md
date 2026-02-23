@@ -1,235 +1,200 @@
-# 🎵 musicctl - Manual Testing Plan (CLI Interface)
+# musicctl - Manual Test Plan (Current State)
 
-## 📋 Overview
-This document provides comprehensive manual testing scenarios for the musicctl CLI interface. Each test scenario includes detailed steps and expected results to ensure full functionality coverage.
+## Overview
+This plan verifies the current `musicctl` CLI behavior against implemented commands and flags.
 
-## 🎯 Test Scenarios
+## Preconditions
+1. Run tests from repository root.
+2. Build once before manual runs:
+   - `cargo build`
+3. Use existing fixture files under `tests/fixtures`.
 
-### **1. Scan Command Functionality**
+## Test Scenarios
 
-**Test ID:** TC-SCAN-001  
-**Objective:** Verify directory scanning functionality  
-**Steps:**
-1. Navigate to project directory: `cd ~/music-chore`
-2. Create test directory with mixed audio files: `mkdir -p test_scan/{flac,mp3,wav,dsf,wavpack}`
-3. Copy sample files to each subdirectory
-4. Run: `cargo run --bin musicctl -- scan test_scan`
-5. Run: `cargo run --bin musicctl -- scan test_scan --json`
-6. Run: `cargo run --bin musicctl -- scan test_scan --verbose`
+### 1. Scan Command
+Test ID: `TC-SCAN-001`
 
-**Expected Results:**
-- Plain output shows file paths one per line
-- JSON output shows structured array of file paths
-- Verbose output shows progress and summary statistics
-- All 5 supported formats (flac, mp3, wav, dsf, wv) are detected
+Steps:
+1. `cargo run --bin musicctl -- scan tests/fixtures/flac/simple`
+2. `cargo run --bin musicctl -- scan tests/fixtures/flac/simple --json`
+3. `cargo run --bin musicctl -- scan tests/fixtures/flac/simple --verbose`
+4. `cargo run --bin musicctl -- scan tests/fixtures/flac/simple --skip-metadata`
+5. `cargo run --bin musicctl -- scan tests/fixtures --max-depth 2 --exclude "*.DS_Store"`
 
----
+Expected:
+1. Non-JSON output lists files with formatted track information.
+2. `--json` returns a JSON array of track objects.
+3. `--verbose` emits progress/summary on stderr.
+4. `--skip-metadata` still finds files but relies on filename/path info.
+5. `--max-depth` and `--exclude` are honored.
 
-### **2. Tree Command Functionality**
+### 2. Tree Command
+Test ID: `TC-TREE-002`
 
-**Test ID:** TC-TREE-002  
-**Objective:** Verify hierarchical tree view functionality  
-**Steps:**
-1. Create organized music directory: `mkdir -p test_tree/Artist/Album/`
-2. Copy sample files to album directory
-3. Run: `cargo run --bin musicctl -- tree test_tree`
-4. Run: `cargo run --bin musicctl -- tree test_tree --json`
+Steps:
+1. `cargo run --bin musicctl -- tree tests/fixtures/flac/nested`
+2. `cargo run --bin musicctl -- tree tests/fixtures/flac/nested --json`
 
-**Expected Results:**
-- Plain output shows artist → album → track hierarchy with emojis
-- JSON output shows structured library data with schema version
-- Proper inference of artist/album from directory structure
+Expected:
+1. Human output shows inferred hierarchy (Artist -> Album -> Track).
+2. JSON output is structured library data including schema wrapper.
 
----
+### 3. Read Command
+Test ID: `TC-READ-003`
 
-### **3. Read Command Functionality**
+Steps:
+1. `cargo run --bin musicctl -- read tests/fixtures/flac/simple/track1.flac`
+2. `cargo run --bin musicctl -- read tests/fixtures/mp3/simple/track1.mp3`
+3. `cargo run --bin musicctl -- read tests/fixtures/wav/simple/track1.wav`
+4. `cargo run --bin musicctl -- read tests/fixtures/wavpack/silent/silent.wv`
 
-**Test ID:** TC-READ-003  
-**Objective:** Verify metadata reading from audio files  
-**Steps:**
-1. Prepare test files in different formats (FLAC, MP3, WAV, DSF, WavPack)
-2. Run: `cargo run --bin musicctl -- read tests/fixtures/flac/simple/track1.flac`
-3. Run: `cargo run --bin musicctl -- read tests/fixtures/mp3/simple/track1.mp3`
-4. Run: `cargo run --bin musicctl -- read tests/fixtures/wav/simple/track1.wav`
-5. Run: `cargo run --bin musicctl -- read tests/fixtures/dsf/simple/track1.dsf`
-6. Run: `cargo run --bin musicctl -- read tests/fixtures/wavpack/simple/track1.wv`
+Expected:
+1. Output is JSON-formatted metadata with schema wrapper.
+2. File path and metadata fields are present.
+3. Unsupported/non-audio files return a clear error and non-zero exit.
 
-**Expected Results:**
-- All 5 formats return metadata in JSON format with schema version
-- Embedded metadata is extracted correctly
-- Inferred metadata from folder structure is included
-- Confidence values are properly assigned (1.0 for embedded, 0.3 for folder-inferred)
+### 4. Write Command
+Test ID: `TC-WRITE-004`
 
----
+Steps:
+1. Copy fixture: `cp tests/fixtures/flac/simple/track1.flac /tmp/track1-write.flac`
+2. Dry-run (implicit):
+   - `cargo run --bin musicctl -- write /tmp/track1-write.flac --set title="Test Title" artist="Test Artist"`
+3. Explicit dry-run:
+   - `cargo run --bin musicctl -- write /tmp/track1-write.flac --set title="Test Title" artist="Test Artist" --dry-run`
+4. Apply:
+   - `cargo run --bin musicctl -- write /tmp/track1-write.flac --set title="Test Title" artist="Test Artist" --apply`
+5. Verify:
+   - `cargo run --bin musicctl -- read /tmp/track1-write.flac`
 
-### **4. Write Command Functionality**
+Expected:
+1. Without `--apply`, command behaves as dry-run.
+2. `--apply` writes metadata after confirmation in interactive mode.
+3. Updated values appear in read output.
+4. Using both `--apply` and `--dry-run` errors.
 
-**Test ID:** TC-WRITE-004  
-**Objective:** Verify metadata writing to audio files  
-**Steps:**
-1. Copy test file to temporary location
-2. Run dry-run: `cargo run --bin musicctl -- write temp.flac --set title="Test Title" --set artist="Test Artist" --dry-run`
-3. Run actual write: `cargo run --bin musicctl -- write temp.flac --set title="Test Title" --set artist="Test Artist" --apply`
-4. Verify changes: `cargo run --bin musicctl -- read temp.flac`
+### 5. Normalize Command
+Test ID: `TC-NORMALIZE-005`
 
-**Expected Results:**
-- Dry-run shows what would be changed without modifying files
-- Apply flag actually modifies the file metadata
-- Verification shows updated metadata values
-- All 5 supported formats allow writing
+Steps:
+1. `cargo run --bin musicctl -- normalize tests/fixtures/normalization`
+2. `cargo run --bin musicctl -- normalize tests/fixtures/normalization --json`
 
----
+Expected:
+1. Command returns normalization reports (title/genre/artist/album/year sections).
+2. JSON output matches combined report schema.
+3. No `--apply` flag exists in current CLI; this command currently reports normalization outcomes.
 
-### **5. Normalize Command Functionality**
+### 6. Emit Command
+Test ID: `TC-EMIT-006`
 
-**Test ID:** TC-NORMALIZE-005  
-**Objective:** Verify title and genre normalization  
-**Steps:**
-1. Create directory with files having inconsistent titles
-2. Run: `cargo run --bin musicctl -- normalize test_dir --dry-run`
-3. Run: `cargo run --bin musicctl -- normalize test_dir --apply`
-4. Test genre normalization: `cargo run --bin musicctl -- normalize test_dir --genres --dry-run`
-5. Test genre normalization: `cargo run --bin musicctl -- normalize test_dir --genres --apply`
+Steps:
+1. `cargo run --bin musicctl -- emit tests/fixtures/flac/nested`
+2. `cargo run --bin musicctl -- emit tests/fixtures/flac/nested --json`
 
-**Expected Results:**
-- Dry-run shows what changes would be made
-- Apply flag actually modifies file metadata
-- Titles converted to proper title case
-- Genres normalized to standard categories
-- No changes made to already properly formatted metadata
+Expected:
+1. Human output is readable summary/tree format.
+2. JSON output contains structured library metadata.
 
----
+### 7. Validate Command
+Test ID: `TC-VALIDATE-007`
 
-### **6. Emit Command Functionality**
+Steps:
+1. `cargo run --bin musicctl -- validate tests/fixtures/flac/nested`
+2. `cargo run --bin musicctl -- validate tests/fixtures/flac/nested --json`
 
-**Test ID:** TC-EMIT-006  
-**Objective:** Verify library metadata export functionality  
-**Steps:**
-1. Create test library with multiple artists/albums
-2. Run: `cargo run --bin musicctl -- emit test_lib`
-3. Run: `cargo run --bin musicctl -- emit test_lib --json`
+Expected:
+1. Non-JSON output summarizes issues.
+2. JSON output contains structured validation report.
 
-**Expected Results:**
-- Plain output shows human-readable library structure
-- JSON output shows structured library data with schema version
-- All tracks, albums, and artists are properly represented
-- Metadata values include source and confidence information
+### 8. Duplicates Command
+Test ID: `TC-DUPLICATES-008`
 
----
+Steps:
+1. `cargo run --bin musicctl -- duplicates tests/fixtures/duplicates`
+2. `cargo run --bin musicctl -- duplicates tests/fixtures/duplicates --json`
+3. `cargo run --bin musicctl -- duplicates tests/fixtures/duplicates --verbose`
+4. `cargo run --bin musicctl -- duplicates tests/fixtures/duplicates --parallel 2`
 
-### **7. Validate Command Functionality**
+Expected:
+1. Duplicate groups are detected for identical content.
+2. JSON output includes checksum-based grouping.
+3. Verbose mode adds diagnostic detail.
+4. `--parallel` runs successfully with selected worker count.
 
-**Test ID:** TC-VALIDATE-007  
-**Objective:** Verify metadata validation functionality  
-**Steps:**
-1. Create directory with valid and invalid metadata files
-2. Run: `cargo run --bin musicctl -- validate test_dir`
-3. Run: `cargo run --bin musicctl -- validate test_dir --json`
+### 9. CUE Command
+Test ID: `TC-CUE-009`
 
-**Expected Results:**
-- Plain output shows validation summary and detailed errors/warnings
-- JSON output shows structured validation results with schema version
-- Files with missing required fields are flagged as errors
-- Files with missing recommended fields are flagged as warnings
-- Valid files are counted separately
+Steps:
+1. Generate dry-run:
+   - `cargo run --bin musicctl -- cue --generate tests/fixtures/flac/nested/The\ Beatles/Abbey\ Road --dry-run`
+2. Parse fixture:
+   - `cargo run --bin musicctl -- cue --parse tests/fixtures/cue/album.cue`
+3. Parse JSON:
+   - `cargo run --bin musicctl -- cue --parse tests/fixtures/cue/album.cue --json`
+4. Validate fixture:
+   - `cargo run --bin musicctl -- cue --validate tests/fixtures/cue/album.cue`
 
----
+Expected:
+1. Generate dry-run previews without writing.
+2. Parse outputs CUE structure.
+3. Parse `--json` returns structured output.
+4. Validate reports consistency/inconsistency clearly.
 
-### **8. Duplicates Command Functionality**
+### 10. Help and Version
+Test ID: `TC-HELP-010`
 
-**Test ID:** TC-DUPLICATES-008  
-**Objective:** Verify duplicate detection functionality  
-**Steps:**
-1. Create directory with duplicate files (same content, different names)
-2. Run: `cargo run --bin musicctl -- duplicates test_dir`
-3. Run: `cargo run --bin musicctl -- duplicates test_dir --json`
+Steps:
+1. `cargo run --bin musicctl -- --help`
+2. `cargo run --bin musicctl -- --version`
+3. `cargo run --bin musicctl -- scan --help`
+4. `cargo run --bin musicctl -- cue --help`
 
-**Expected Results:**
-- Plain output shows duplicate groups with file paths
-- JSON output shows structured duplicate information with checksums
-- Files with identical content are grouped as duplicates
-- Files with different content are not flagged as duplicates
+Expected:
+1. Top-level help lists current commands and options.
+2. Version prints current version.
+3. Subcommand help reflects implemented flags.
 
----
+### 11. Error Handling
+Test ID: `TC-ERROR-011`
 
-### **9. CUE Command Functionality**
+Steps:
+1. `cargo run --bin musicctl -- scan /nonexistent/path`
+2. `cargo run --bin musicctl -- read tests/fixtures/cue/album.cue`
+3. `cargo run --bin musicctl -- write tests/fixtures/flac/simple/track1.flac --set invalid_field=value --dry-run`
 
-**Test ID:** TC-CUE-009  
-**Objective:** Verify CUE file operations  
-**Steps:**
-1. Create album directory with multiple tracks
-2. Generate CUE: `cargo run --bin musicctl -- cue --generate test_album`
-3. Parse CUE: `cargo run --bin musicctl -- cue --parse test_album.cue`
-4. Validate CUE: `cargo run --bin musicctl -- cue --validate test_album.cue`
+Expected:
+1. Clear error messages.
+2. Non-zero exit code on errors.
+3. No panic/crash.
 
-**Expected Results:**
-- Generate creates valid CUE file with track information
-- Parse shows CUE file contents in human-readable format
-- Validate confirms CUE file consistency with audio files
-- All operations work with --json flag for structured output
+### 12. Unicode and Path Edge Cases
+Test ID: `TC-EDGE-012`
 
----
+Steps:
+1. `cargo run --bin musicctl -- scan "tests/fixtures/unicode"`
+2. `cargo run --bin musicctl -- tree "tests/fixtures/unicode"`
+3. `cargo run --bin musicctl -- read "tests/fixtures/unicode/José González/album/track.flac"`
 
-### **10. Help and Version Commands**
+Expected:
+1. Unicode paths are processed correctly.
+2. Output is stable and readable.
+3. No encoding-related failures.
 
-**Test ID:** TC-HELP-010  
-**Objective:** Verify help and version functionality  
-**Steps:**
-1. Run: `cargo run --bin musicctl -- --help`
-2. Run: `cargo run --bin musicctl -- --version`
-3. Run: `cargo run --bin musicctl -- scan --help`
+## Coverage Checklist
+- [ ] `scan` core + advanced flags (`--max-depth`, `--exclude`, `--skip-metadata`)
+- [ ] `tree` plain + JSON
+- [ ] `read` across available fixture formats
+- [ ] `write` default dry-run + apply + conflict flag validation
+- [ ] `normalize` plain + JSON report behavior
+- [ ] `emit` plain + JSON
+- [ ] `validate` plain + JSON
+- [ ] `duplicates` plain + JSON + verbose + parallel
+- [ ] `cue` generate/parse/validate paths and JSON where supported
+- [ ] help/version checks
+- [ ] error-path behavior
+- [ ] unicode/path edge cases
 
-**Expected Results:**
-- Help shows comprehensive usage information
-- Version shows current version number
-- Command-specific help shows options and arguments for that command
-
----
-
-### **11. Error Handling Scenarios**
-
-**Test ID:** TC-ERROR-011  
-**Objective:** Verify proper error handling  
-**Steps:**
-1. Run scan on nonexistent directory: `cargo run --bin musicctl -- scan /nonexistent/path`
-2. Run read on unsupported file: `cargo run --bin musicctl -- read unsupported.xyz`
-3. Run write with invalid field: `cargo run --bin musicctl -- write test.flac --set invalid_field=value --dry-run`
-
-**Expected Results:**
-- Appropriate error messages are displayed
-- Exit codes are non-zero for error conditions
-- No crash or panic occurs
-
----
-
-### **12. Edge Cases and Special Characters**
-
-**Test ID:** TC-EDGE-012  
-**Objective:** Verify handling of special cases  
-**Steps:**
-1. Create directory with Unicode characters in names
-2. Test with files containing special characters in metadata
-3. Test with deeply nested directory structures
-4. Test with files containing no metadata
-
-**Expected Results:**
-- Unicode characters are handled properly
-- Special characters don't cause crashes
-- Nested structures are processed correctly
-- Files with no metadata are handled gracefully
-
----
-
-## 📊 Test Coverage Summary
-- [ ] Scan command with all options
-- [ ] Tree command with all options  
-- [ ] Read command for all 5 formats
-- [ ] Write command with dry-run and apply
-- [ ] Normalize command for titles and genres
-- [ ] Emit command with JSON and plain output
-- [ ] Validate command with JSON and plain output
-- [ ] Duplicates command with JSON and plain output
-- [ ] CUE command with generate/parse/validate
-- [ ] Help and version commands
-- [ ] Error handling scenarios
-- [ ] Edge cases with special characters
+## Notes
+1. Current normalize help text mentions `--genres`, but that flag is not currently implemented in CLI options.
+2. Keep this plan synchronized with `src/presentation/cli/commands.rs` and `src/presentation/cli/commands_processor.rs` when CLI flags change.
