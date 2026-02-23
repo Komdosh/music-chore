@@ -92,7 +92,9 @@ impl AsRef<PathBuf> for FilePath {
 }
 
 /// Newtype wrapper for track numbers to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct TrackNumber(pub u32);
 
 impl From<u32> for TrackNumber {
@@ -114,7 +116,9 @@ impl AsRef<u32> for TrackNumber {
 }
 
 /// Newtype wrapper for disc numbers to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct DiscNumber(pub u32);
 
 impl From<u32> for DiscNumber {
@@ -136,7 +140,9 @@ impl AsRef<u32> for DiscNumber {
 }
 
 /// Newtype wrapper for years to provide type safety
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct Year(pub u32);
 
 impl From<u32> for Year {

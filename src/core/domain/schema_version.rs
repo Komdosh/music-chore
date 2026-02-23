@@ -23,7 +23,7 @@ impl<T: serde::Serialize> SchemaVersionWrapper<T> {
 }
 
 /// Create a schema version wrapper with the current version
-pub fn with_schema_version<T : serde::Serialize>(data: T) -> SchemaVersionWrapper<T> {
+pub fn with_schema_version<T: serde::Serialize>(data: T) -> SchemaVersionWrapper<T> {
     SchemaVersionWrapper::new(data)
 }
 

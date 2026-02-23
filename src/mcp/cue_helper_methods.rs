@@ -151,8 +151,8 @@ pub(crate) async fn handle_cue_validate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use serde_json::from_str;
+    use std::fs;
     use tempfile::TempDir;
 
     #[tokio::test]

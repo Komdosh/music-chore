@@ -126,25 +126,115 @@ Provide:
 
 pub(crate) fn similar_artists_discovery_prompt(path: String) -> String {
     format!(
-        r#"Analyze my music library at "{path}" and suggest new artists I should discover.
+        r#"Find new artists that closely match my library at "{path}".
 
 Steps:
-1. Use `scan_directory` with `json_output: true` to get all tracks.
-2. Use `get_library_tree` for the full hierarchy.
-3. Use `emit_library_metadata` for structured data.
+1. Use `scan_directory` with `json_output: true`.
+2. Use `get_library_tree` with `json_output: true`.
+3. Use `emit_library_metadata` with `json_output: true`.
+4. Use web knowledge/search to identify artists NOT already in my library.
 
-Provide:
-- **Taste DNA**: First summarize my core musical preferences (genres, eras, moods).
-- **10 Artist Recommendations** organized into:
-  - 🎯 **Safe Bets** (3 artists): Very similar to what I already love.
-  - 🔀 **Lateral Moves** (4 artists): Same vibe but different genres/eras.
-  - 🚀 **Stretch Picks** (3 artists): Outside my comfort zone but with hooks I'd appreciate.
-- For each artist provide:
-  - Why they match my taste.
-  - Best album to start with.
-  - One track to sample first.
-  - Which artist in my library they're most similar to.
-- **The Rabbit Hole**: One deep-cut artist that could become an obsession."#
+Method:
+- Build a taste fingerprint from my dominant artists, genres, eras, and metadata quality signals.
+- Score each candidate from 0-100 using explicit evidence.
+- Require at least 2 concrete overlap signals per candidate.
+
+Output:
+- **Fingerprint Summary** (short).
+- **Top 10 Artist Matches** with:
+  - Fit score (0-100)
+  - Why it matches (2-4 concrete signals)
+  - One starter album
+  - One starter track
+  - Closest in-library reference artist
+- **High-Confidence First 3**: best immediate picks to try now.
+- **Rejected Candidates**: 3 artists you considered and why they failed fit."#
+    )
+}
+
+pub(crate) fn web_perfect_match_prompt(
+    path: String,
+    mood: Option<&str>,
+    genre: Option<&str>,
+    max_results: u32,
+) -> String {
+    let mood_clause = mood.unwrap_or("none");
+    let genre_clause = genre.unwrap_or("none");
+    format!(
+        r#"Find web music recommendations that match my local library at "{path}" as closely as possible.
+Mood filter: "{mood_clause}".
+Genre filter: "{genre_clause}".
+Max results: {max_results}.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `get_library_tree` with `json_output: true`.
+3. Use `emit_library_metadata` with `json_output: true`.
+4. Use web search/knowledge to find candidates outside my library.
+
+Strict matching protocol:
+- Derive a taste fingerprint (artists, subgenres, decades, intensity, instrumentation hints).
+- Score candidates 0-100 with weighted criteria:
+  - genre/subgenre overlap (35)
+  - artist-neighborhood similarity (25)
+  - era compatibility (15)
+  - mood compatibility (15)
+  - collection-pattern compatibility (10)
+- A "100% fit" claim is allowed only if all weighted criteria are fully satisfied.
+- If no candidate reaches 100, return best available matches and state highest score honestly.
+
+Output:
+- **Fit Matrix** table for top candidates.
+- **Top Picks** (up to {max_results}) with score and evidence.
+- **Play Order**: first 5 to try.
+- **No-Match Notes**: what is missing for true 100% matches."#
+    )
+}
+
+pub(crate) fn web_genre_scout_prompt(path: String, genre: &str, max_results: u32) -> String {
+    format!(
+        r#"Scout the web for music in genre "{genre}" that fits my library at "{path}".
+Max results: {max_results}.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `emit_library_metadata` with `json_output: true`.
+3. Build a genre-specific profile from my existing collection.
+4. Use web search/knowledge for external candidates not present in my library.
+
+Selection rules:
+- Prefer candidates with strong overlap to my in-library genre patterns.
+- Penalize candidates that are genre-adjacent but historically poor fit to my profile.
+- Provide only high-confidence picks.
+
+Output:
+- **Genre Fit Summary**.
+- **Top {max_results} Web Picks** with fit score and concrete rationale.
+- **Start Here**: 3-track/album starter sequence."#
+    )
+}
+
+pub(crate) fn web_mood_match_prompt(path: String, mood: &str, max_results: u32) -> String {
+    format!(
+        r#"Find web music that matches mood "{mood}" and still fits my library profile at "{path}".
+Max results: {max_results}.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `get_library_tree` with `json_output: true`.
+3. Use `emit_library_metadata` with `json_output: true`.
+4. Infer mood anchors from my library.
+5. Use web search/knowledge for candidates not already in my library.
+
+Evaluation:
+- Mood alignment first.
+- Then verify compatibility with my dominant artists/genres/eras.
+- Reject recommendations that match mood but conflict with established taste fingerprint.
+
+Output:
+- **Mood Anchors** from my library.
+- **Best Web Matches** (up to {max_results}) with fit score and reasons.
+- **Tonight Queue**: 5-item sequence for immediate listening."#
     )
 }
 
@@ -168,6 +258,124 @@ Present:
 - **Playlist Arc**: Brief description of the emotional journey the playlist creates.
 - **Transition Notes**: For key transitions, explain why one track flows into the next.
 - **Mood Match Score**: Rate how well my library serves this mood (1-10) and identify any gaps."#
+    )
+}
+
+pub(crate) fn listen_now_prompt(path: String, minutes: u32, mood: &str, novelty: &str) -> String {
+    format!(
+        r#"Help me decide what to listen to right now from my library at "{path}".
+Available time: {minutes} minutes.
+Mood/activity: "{mood}".
+Novelty preference: "{novelty}".
+
+Steps:
+1. Use `scan_directory` with `json_output: true` to get all tracks.
+2. Use `get_library_tree` with `json_output: true` to understand artist/album context.
+3. Use `emit_library_metadata` with `json_output: true` to compare genres, years, and metadata quality.
+
+Decision framework:
+- Build three options: **Comfort Pick** (familiar), **Balanced Pick**, **Discovery Pick** (less obvious).
+- Match option length to {minutes} minutes (allow +/- 10 minutes).
+- Favor complete album stretches when possible.
+- Use only tracks from this local library.
+
+Output format:
+- **Start Now**: one final choice with 2-3 reasons.
+- **Runner-up Options**: two alternatives.
+- **Queue**: 5-10 tracks in listening order.
+- **Why This Works Today**: one concise paragraph tied to mood and time."#
+    )
+}
+
+pub(crate) fn quick_pick_prompt(path: String) -> String {
+    format!(
+        r#"I am indecisive. Give me one immediate listening pick from my library at "{path}".
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `emit_library_metadata` with `json_output: true`.
+
+Rules:
+- Return exactly 5 candidate tracks from different artists when possible.
+- Use deterministic tie-breaking (artist frequency, metadata completeness, and genre fit).
+- Then select exactly one track as **Play This First**.
+
+Output:
+- 5 candidates with one-line reasoning each.
+- **Play This First** winner.
+- 3-track follow-up sequence."#
+    )
+}
+
+pub(crate) fn album_tonight_prompt(path: String, minutes: u32) -> String {
+    format!(
+        r#"Pick one album from my library at "{path}" for tonight.
+Time available: {minutes} minutes.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `get_library_tree` with `json_output: true`.
+3. Use `emit_library_metadata` with `json_output: true`.
+
+Selection rules:
+- Prefer complete albums.
+- Target total runtime close to {minutes} minutes (allow +/- 15 minutes).
+- If runtime is unavailable, estimate from track count and sequence coherence.
+- Use only local library content.
+
+Output:
+- **Album Tonight**: artist + album + why this is the best fit.
+- **Listening Plan**: start track and optional stop point if time runs short.
+- 2 backup album choices."#
+    )
+}
+
+pub(crate) fn rediscovery_rotation_prompt(path: String, max_tracks: u32) -> String {
+    format!(
+        r#"Create a rediscovery rotation from my library at "{path}".
+Maximum tracks: {max_tracks}.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `get_library_tree` with `json_output: true`.
+3. Use `emit_library_metadata` with `json_output: true`.
+
+Look for:
+- Deep cuts from frequently represented artists.
+- Tracks from underrepresented artists/albums.
+- Genre outliers that still connect to my main taste.
+
+Output:
+- **Rediscovery Rotation** of up to {max_tracks} tracks in sequence.
+- One-line reason for each track.
+- **If You Like This, Next Rotation**: 5 additional tracks."#
+    )
+}
+
+pub(crate) fn decision_duel_prompt(
+    path: String,
+    option_a: &str,
+    option_b: &str,
+    max_tracks_per_option: u32,
+) -> String {
+    format!(
+        r#"Help me choose between two listening directions from my library at "{path}".
+Option A: "{option_a}".
+Option B: "{option_b}".
+Max tracks per option: {max_tracks_per_option}.
+
+Steps:
+1. Use `scan_directory` with `json_output: true`.
+2. Use `emit_library_metadata` with `json_output: true`.
+
+For each option:
+- Suggest up to {max_tracks_per_option} tracks.
+- Explain why each track matches the option.
+
+Then:
+- Compare Option A vs Option B for coherence, variety, and momentum.
+- Choose a winner as **Tonight's Direction**.
+- Provide a 6-track mini-queue for the winner."#
     )
 }
 
