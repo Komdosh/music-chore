@@ -54,6 +54,7 @@ Current codebase includes handlers for:
 - FLAC
 - MP3
 - WAV
+- OGG
 - DSF
 - WavPack
 
