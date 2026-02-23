@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.4.8] - 2026-02-23
+
+### Changed
+- **Duplicates Tool**: `find_duplicates` now returns a successful result when no duplicates exist instead of treating it as an error.
+- **MCP Behavior**: Updated MCP `find_duplicates` behavior so "No duplicate tracks found" is returned as success text.
+- **Tests**: Added duplicate service regression tests for no-duplicate text/JSON success cases and updated MCP integration expectations.
 ## [0.4.7] - 2026-02-23
 
 ### Added

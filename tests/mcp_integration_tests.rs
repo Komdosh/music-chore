@@ -787,7 +787,7 @@ async fn test_find_duplicates() -> Result<()> {
     )
     .await?;
 
-    assert_err(&result);
+    assert_ok(&result);
     let text = text_content(&result);
     assert!(text.contains("No duplicate tracks found"));
 

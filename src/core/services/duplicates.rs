@@ -18,16 +18,20 @@ pub fn find_duplicates(
         ));
     }
 
-    if duplicates.is_empty() {
-        return Err("No duplicate tracks found.".to_string());
-    }
-
     if json {
+        if duplicates.is_empty() {
+            return Ok("[]".to_string());
+        }
+
         match to_string_pretty(&duplicates) {
             Ok(s) => Ok(s),
             Err(e) => Err(format!("Error serializing to JSON: {}", e)),
         }
     } else {
+        if duplicates.is_empty() {
+            return Ok("No duplicate tracks found.".to_string());
+        }
+
         let mut out = String::new();
 
         writeln!(out, "Found {} duplicate groups:\n", duplicates.len()).unwrap();
